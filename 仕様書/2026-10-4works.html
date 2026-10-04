@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-04 / ver1004)</title>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --primary-light: #f0fdfa;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #134e4a, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(13, 148, 136, 0.3);
+            color: #5eead4;
+            border: 1px solid rgba(94, 234, 212, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        /* ナビゲーションバー */
+        .doc-nav-bar {
+            background: #f1f5f9;
+            padding: 10px 36px;
+            display: flex;
+            gap: 12px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #475569;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .doc-nav-bar a {
+            color: #0f766e;
+            text-decoration: none;
+        }
+        .doc-nav-bar a:hover {
+            text-decoration: underline;
+        }
+
+        /* 目次 (TOC) */
+        nav.toc-box {
+            background: #ffffff;
+            padding: 24px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+
+        .toc-grid a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+
+        .toc-grid a:hover {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        /* 本文エリア */
+        main.content {
+            padding: 36px;
+        }
+
+        section.work-sec {
+            margin-bottom: 40px;
+        }
+
+        h2.sec-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            border-left: 5px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3.sub-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+        }
+
+        /* コールアウト・アラート */
+        .callout {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            border-left: 4px solid transparent;
+        }
+
+        .callout-success {
+            background: var(--success-light);
+            border-left-color: var(--success);
+            color: #065f46;
+        }
+
+        .callout-warning {
+            background: var(--warning-light);
+            border-left-color: var(--warning);
+            color: #92400e;
+        }
+
+        .callout-danger {
+            background: var(--danger-light);
+            border-left-color: var(--danger);
+            color: #991b1b;
+        }
+
+        .callout-info {
+            background: #eff6ff;
+            border-left-color: var(--accent);
+            color: #1e40af;
+        }
+
+        /* テーブル */
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-bottom: 16px;
+        }
+
+        table.custom-table th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        table.custom-table td {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        table.custom-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        /* コードブロック */
+        pre.code-block {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            border: 1px solid #334155;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: #f1f5f9;
+            color: #0f766e;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        pre.code-block code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            border: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .badge-primary { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .badge-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-danger  { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        /* UIモックアップ枠 */
+        .mockup-box {
+            border: 1.5px solid #86efac;
+            background: #f0fdf4;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .mockup-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #dcfce7;
+            border: 1px solid #16a34a;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #15803d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">医療法人小野会 内視鏡予約管理システム 開発記録</span>
+            <span style="font-size:12px; font-family:var(--font-mono); color:#99f6e4;">ver1004 リリース完了</span>
+        </div>
+        <h1>
+            <span>🚀</span>
+            <span>改修作業完了報告書 (2026-10-04)</span>
+        </h1>
+        <div class="header-meta">
+            <span>対象バージョン: <strong>ver1004</strong></span>
+            <span>作成日時: <strong>2026-10-04 23:00 JST</strong></span>
+            <span>対象環境: <strong>Local (localhost:5432) ＆ 本番 (192.168.1.16:5432)</strong></span>
+            <span>担当: <strong>AI Pair Programming (Google Antigravity)</strong></span>
+        </div>
+    </header>
+
+    <!-- ── 関連ドキュメントナビゲーション ── -->
+    <div class="doc-nav-bar">
+        <span>🔗 関連ドキュメント:</span>
+        <a href="specdoc.html">📘 全体機能仕様書 (specdoc.html)</a>
+        <span>|</span>
+        <a href="2026-10-1works.html">📄 前回改修報告書 (2026-10-1works.html)</a>
+        <span>|</span>
+        <a href="../help.php">📖 総合操作マニュアル (help.php)</a>
+        <span>|</span>
+        <a href="../index.php">🏠 システムポータル (index.php)</a>
+    </div>
+
+    <!-- ── 目次 ── -->
+    <nav class="toc-box">
+        <div class="toc-title">📑 本日の作業報告 目次</div>
+        <ul class="toc-grid">
+            <li><a href="#sec1">1. 本日の改修背景とエグゼクティブサマリ</a></li>
+            <li><a href="#sec2">2. action_schedule.php 予約保存バインドエラー完全修復</a></li>
+            <li><a href="#sec3">3. modal_edit.php 病棟連動（入院予定）初登録前リアルタイム制御</a></li>
+            <li><a href="#sec4">4. 本番DB（192.168.1.16）マイグレーション ＆ レガシー整理</a></li>
+            <li><a href="#sec5">5. アプリバージョン昇格（ver1004）＆ help.php 最新配備</a></li>
+            <li><a href="#sec6">6. 変更ファイル一覧 ＆ 適用SQL</a></li>
+            <li><a href="#sec7">7. 総合テスト・検証結果サマリ</a></li>
+        </ul>
+    </nav>
+
+    <!-- ── 本文 ── -->
+    <main class="content">
+
+        <!-- ============================================================
+        1. 本日の改修背景とエグゼクティブサマリ
+        ============================================================ -->
+        <section class="work-sec" id="sec1">
+            <h2 class="sec-title">1. 本日の改修背景とエグゼクティブサマリ</h2>
+            <p>
+                本日（2026-10-04）は、予約登録・編集画面（<code>modal_edit.php</code>）における保存処理エラーの緊急究明・修復、および病棟管理・電子食事箋連携用の「入院予定（<code>is_admission</code>）」コントロールに関する操作性向上と本番データベース（192.168.1.16）への完全同期を実施しました。
+            </p>
+
+            <div class="callout callout-success">
+                <strong>本日の主要達成事項（ver1004）:</strong>
+                <ul style="margin-left: 20px; margin-top: 6px;">
+                    <li><strong>予約保存時エラー（SQLSTATE[08P01]）の根本原因特定 ＆ 即時解消:</strong> 10月2日改修時に生じていた INSERT パラメータ配列のバインド漏れを修正し、UPDATE 時の差分検知・保存・レスポンスも完全同期。</li>
+                    <li><strong>初登録前（保存前）のリアルタイム入院予定連動 UI:</strong> ユーザーが検査種別を変更した瞬間に連動し、「TCF/W選択時即表示」「ポリペク選択時即表示＆自動ON」「その他種別選択時OFF＆非表示化」を完全実現。</li>
+                    <li><strong>本番データベース（192.168.1.16）完全同期 ＆ 不要テーブル整理:</strong> 本番DBへ <code>is_admission</code> カラム・インデックスを追加適用し、不要化していた旧4テーブルを事前退避のうえ安全に削除（差分ゼロ達成）。</li>
+                    <li><strong>バージョン昇格（ver1004）＆ 総合操作マニュアル（help.php）の刷新:</strong> システム全体のバージョンを <code>ver1004</code> に引き上げ、操作マニュアルを <code>help.php</code> として正式配備。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        2. action_schedule.php 予約保存バインドエラー完全修復
+        ============================================================ -->
+        <section class="work-sec" id="sec2">
+            <h2 class="sec-title">2. action_schedule.php 予約保存バインドエラー完全修復</h2>
+            <h3 class="sub-title">2.1 不具合の症状とエラー内容</h3>
+            <p>
+                <code>modal_edit.php</code> から新規予約を保存しようとした際、以下の PDO 例外が発生し、保存に失敗する事象が発生していました。
+            </p>
+            <div class="callout callout-danger">
+                <strong>エラーメッセージ:</strong><br>
+                <code>保存失敗: クエリ実行エラー: SQLSTATE[08P01]: &lt;&lt;Unknown error&gt;&gt;: 7 ERROR: バインドメッセージは17パラメータを提供しましたが、準備された文"pdo_stmt_00000003"では18必要でした</code>
+            </div>
+
+            <h3 class="sub-title">2.2 原因の特定（10月2日改修時のデグレード）</h3>
+            <p>
+                2026年10月2日夕方に実施された「病棟管理システム・電子食事箋連携」に伴う改修において、SQL 文には新設カラム <code>is_admission</code> のプレースホルダー（<code>:is_admission</code>）が追加されて計18個となっていたのに対し、PDO 実行時に渡すバインド配列 <code>$params</code> に <code>':is_admission' => $has_admission_param</code> の代入行が記述漏れとなっていた（17個のまま）ことが原因でした。
+            </p>
+
+            <h3 class="sub-title">2.3 実施した修正内容</h3>
+            <p>
+                INSERT 処理へのパラメータ追加に加え、既存予約の更新（UPDATE）処理側にも <code>is_admission</code> の更新・差分検知・レスポンス連動を網羅しました。
+            </p>
+            <pre class="code-block"><code>// action_schedule.php (抜粋)
+
+// 1. 新規登録 (insert) パラメータ配列への追加 (18個完全一致)
+$params = [
+    ':exam_date'       =&gt; $exam_date,
+    ':scheduled_time'  =&gt; $scheduled_time,
+    ':waku_no'         =&gt; $waku_no,
+    ':department_code' =&gt; $department_code,
+    ':patient_id'      =&gt; $patient_id,
+    ':patient_name'    =&gt; $patient_name,
+    ':patient_kana'    =&gt; $patient_kana,
+    ':birthday'        =&gt; $birthday,
+    ':doctor_name'     =&gt; $doctor_name,
+    ':exam_type'       =&gt; $exam_type,
+    ':arrival_time'    =&gt; $arrival_time,
+    ':exam_location'   =&gt; $exam_location,
+    ':remarks'         =&gt; $remarks,
+    ':room_number'     =&gt; $room_number,
+    ':bowel_prep'      =&gt; $bowel_prep,
+    ':has_sedation'    =&gt; $has_sed_param,
+    ':has_drive'       =&gt; $has_drive_param,
+    ':is_admission'    =&gt; $has_admission_param  // ★ 追加修復 (18個目)
+];
+
+// 2. 通常更新 (update) 差分チェック ＆ SQL への完全連動
+if (!$is_diff) {
+    $old_is_adm = !empty($old_row['is_admission']);
+    $new_is_adm = !empty($_POST['is_admission']);
+    if ($old_is_adm !== $new_is_adm) {
+        $is_diff = true; // 入院フラグの変更時も確実にDB更新を実行
+    }
+}</code></pre>
+        </section>
+
+        <!-- ============================================================
+        3. modal_edit.php 病棟連動（入院予定）初登録前リアルタイム制御
+        ============================================================ -->
+        <section class="work-sec" id="sec3">
+            <h2 class="sec-title">3. modal_edit.php 病棟連動（入院予定）初登録前リアルタイム制御</h2>
+            <h3 class="sub-title">3.1 現場の要件</h3>
+            <p>
+                初登録前（空枠からの新規予約登録時など）の入力段階において、検査種別の選択状態に応じて「病棟管理システム連動用: [ 入院予定 ]」パネルが即座に表示・連動し、スタッフが意識的に確認・判断できるUIが求められました。
+            </p>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">選択された検査種別</th>
+                        <th style="width: 35%;">パネル表示制御</th>
+                        <th style="width: 40%;">入院予定チェックボックス状態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>TCF / W</strong></td>
+                        <td><span class="badge badge-success">即表示</span>（パネルを展開）</td>
+                        <td>通常は手動チェック可能。<br>備考に「ポリペクあり」「入院可」があれば自動サジェストON。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ポリペク</strong></td>
+                        <td><span class="badge badge-success">即表示</span>（パネルを展開）</td>
+                        <td><span class="badge badge-primary">自動で即座に ON</span><br>（「入院予定 (ポリペク確定)」「💡 ポリペク確定」バッジ表示）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>上記以外</strong><br>(GIF, 浣腸CF, エコー, 未選択等)</td>
+                        <td><span class="badge badge-danger">非表示化</span>（<code>display: none</code>）</td>
+                        <td><span class="badge badge-warning">自動で即座に OFF</span>（誤登録防止）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="sub-title">3.2 実装された UI モックアップ（再現）</h3>
+            <div class="mockup-box">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-weight:700; color:#166534; font-size:11.5px;">🏥 病棟管理システム連動用:</span>
+                    <label class="mockup-label">
+                        <input type="checkbox" checked style="accent-color:#16a34a;"> 入院予定 (ポリペク確定)
+                    </label>
+                    <span style="font-size:10.5px; padding:1px 6px; border-radius:3px; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-weight:700;">
+                        💡 ポリペク確定
+                    </span>
+                </div>
+                <div style="font-size:10px; color:#15803d; text-align:right;">
+                    <div>※ 検査種別が W / TCF の時は必要に応じてチェック、ポリペク時は自動で入院確定となります。</div>
+                    <div>※ 厨房の週間食事予測（朝・昼・夕）へ即座に反映されます。</div>
+                </div>
+            </div>
+
+            <h3 class="sub-title">3.3 実装コード（JavaScript）</h3>
+            <p>
+                検査種別変更時に呼び出される <code>updateFormFieldsByExamType</code> 内に即時連動ロジックを統合し、さらに Quill エディタ（備考欄）の <code>text-change</code> イベントにもサジェスト判定を多重連動させました。
+            </p>
+            <pre class="code-block"><code>// modal_edit.php 内の updateFormFieldsByExamType より抜粋
+const panelWard = document.getElementById('panelWardIntegration');
+const isPolypep = (etype === 'ポリペク' || etype.includes('ポリペク'));
+const isWOrTcf = (etype === 'TCF' || etype === 'W');
+
+if (panelWard) {
+    if (isPolypep) {
+        // ・ポリペク⇒即表示、さらに入院予定ON
+        panelWard.style.display = '';
+        window.userModifiedAdmission = false; // ポリペク自動確定を最優先
+        updateAdmissionUI(true, 'ポリペク確定');
+    } else if (isWOrTcf) {
+        // ・TCF/W選択⇒即表示
+        panelWard.style.display = '';
+        if (isUserChange) {
+            let remText = (typeof quill !== 'undefined' &amp;&amp; quill) ? quill.getText() : '';
+            checkAdmissionSuggestion(remText);
+        }
+    } else {
+        // ・検査種別が上記以外が選択されたら入院予定OFF/非表示化
+        panelWard.style.display = 'none';
+        window.userModifiedAdmission = false;
+        updateAdmissionUI(false, '');
+    }
+}</code></pre>
+        </section>
+
+        <!-- ============================================================
+        4. 本番DB（192.168.1.16）マイグレーション ＆ レガシー整理
+        ============================================================ -->
+        <section class="work-sec" id="sec4">
+            <h2 class="sec-title">4. 本番DB（192.168.1.16）マイグレーション ＆ レガシー整理</h2>
+            <h3 class="sub-title">4.1 精密スキャンによる差異の検出</h3>
+            <p>
+                開発環境（localhost:5432）と本番稼働環境（192.168.1.16:5432）の間でスキーマおよびテーブル構成を全件スキャンした結果、以下の差異が検出されました：
+            </p>
+            <ul style="margin-left: 20px; margin-bottom: 12px;">
+                <li><code>t_endoscopy_schedule</code> に新設カラム <code>is_admission</code> およびインデックス <code>idx_endo_is_admission</code> が本番DBに未適用であった。</li>
+                <li>2026-09-28の <code>m2_*</code> 系マスタ刷新前の旧テーブル4つ（<code>m_doctor</code>, <code>m_doctor_attendance</code>, <code>m_doctor_slot_pattern</code>, <code>m_waku_master</code>）が本番環境のみに残存していた。</li>
+            </ul>
+
+            <h3 class="sub-title">4.2 安全退避（事前バックアップ）の実施</h3>
+            <p>
+                削除前に、本番DBの旧4テーブル全件を JSON ファイルとしてローカルに退避保存しました。<br>
+                保存先: <code>tools/backup_legacy_tables_20261004.json</code>（<code>m_doctor</code>: 4件、<code>m_doctor_attendance</code>: 2件、<code>m_doctor_slot_pattern</code>: 47件、<code>m_waku_master</code>: 21件）。
+            </p>
+
+            <h3 class="sub-title">4.3 マイグレーション実行と差分ゼロ検証</h3>
+            <p>
+                トランザクション下で安全にマイグレーション（<code>tools/migrate_20261004_admission_and_cleanup.php</code>）を実行。
+                適用後のスキャンにおいて、<strong>全21テーブル構成、カラム定義、インデックス定義のすべてが開発環境と本番環境の間で差分ゼロ（100%完全一致）</strong>となったことを確認しました。
+            </p>
+        </section>
+
+        <!-- ============================================================
+        5. アプリバージョン昇格（ver1004）＆ help.php 最新配備
+        ============================================================ -->
+        <section class="work-sec" id="sec5">
+            <h2 class="sec-title">5. アプリバージョン昇格（ver1004）＆ help.php 最新配備</h2>
+            <p>
+                本日の全機能改修・DB同期完了を受け、システム全体のバージョンを <strong>ver1004</strong> に正式アップデートしました。
+            </p>
+            <ul style="margin-left: 20px;">
+                <li><strong>メインポータル（index.php）:</strong> ヘッダーのバージョンバッジを <code>ver0928</code> ➔ <code>ver1004</code> へ更新。ヘルプリンクを <code>help.php</code> へ正規化。</li>
+                <li><strong>総合操作マニュアル（help.php）の配備:</strong> 従来の静的HTMLから <code>help.php</code> として正式昇格。実機モックアップへの「病棟管理連動コントロール」の追加、最新Changelog、バージョン表記を完全同期。</li>
+            </ul>
+        </section>
+
+        <!-- ============================================================
+        6. 変更ファイル一覧 ＆ 適用SQL
+        ============================================================ -->
+        <section class="work-sec" id="sec6">
+            <h2 class="sec-title">6. 変更ファイル一覧 ＆ 適用SQL</h2>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">ファイルパス</th>
+                        <th style="width: 15%;">種別</th>
+                        <th style="width: 55%;">主な改修内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>action_schedule.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>INSERT文 <code>$params</code> への <code>:is_admission</code> 追加によるバインド数一致（SQLSTATE[08P01]解消）、UPDATE時の差分検知・SQL連動。</td>
+                    </tr>
+                    <tr>
+                        <td><code>modal_edit.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>初登録前のリアルタイム連動（TCF/W即表示、ポリペク即表示＆ON、他種別OFF＆非表示）、初期スタイル最適化、Quill文字入力連動。</td>
+                    </tr>
+                    <tr>
+                        <td><code>index.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>システムバージョンバッジを <code>ver1004</code> に更新、マニュアルリンクを <code>help.php</code> に正規化。</td>
+                    </tr>
+                    <tr>
+                        <td><code>help.php</code></td>
+                        <td><span class="badge badge-success">新規/昇格</span></td>
+                        <td>Ver 1004版総合操作マニュアル配備。病棟連動UIモックアップ、最新履歴、ダイレクトナビゲーション確立。</td>
+                    </tr>
+                    <tr>
+                        <td><code>tools/migration_20261004_production.sql</code></td>
+                        <td><span class="badge badge-success">新規</span></td>
+                        <td>本番DB用 DDL スクリプト（<code>is_admission</code> カラム・インデックス追加、旧4テーブルDROP）。</td>
+                    </tr>
+                    <tr>
+                        <td><code>tools/migrate_20261004_admission_and_cleanup.php</code></td>
+                        <td><span class="badge badge-success">新規</span></td>
+                        <td>旧テーブル事前バックアップ ＆ 本番DBマイグレーション一括実行・自動検証スクリプト。</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/2026-10-4works.html</code></td>
+                        <td><span class="badge badge-success">新規</span></td>
+                        <td>本日の日次改修作業完了報告書（本書）。</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/specdoc.html</code></td>
+                        <td><span class="badge badge-warning">更新</span></td>
+                        <td>ver1004改修内容、病棟管理連動コントロール仕様、DB構成の同期更新。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="sub-title">本番DBに適用された SQL</h3>
+            <pre class="code-block"><code>-- tools/migration_20261004_production.sql
+BEGIN;
+
+-- 1. 病棟管理システム連動用 入院予定フラグ (is_admission) カラム追加
+ALTER TABLE t_endoscopy_schedule ADD COLUMN IF NOT EXISTS is_admission BOOLEAN DEFAULT NULL;
+
+-- 2. 検索高速化インデックス作成
+CREATE INDEX IF NOT EXISTS idx_endo_is_admission ON t_endoscopy_schedule(exam_date, is_admission);
+
+-- 3. 旧レガシーテーブルの削除（m2系マスタ移行により不要化済みの4テーブル）
+DROP TABLE IF EXISTS m_doctor_slot_pattern CASCADE;
+DROP TABLE IF EXISTS m_doctor_attendance CASCADE;
+DROP TABLE IF EXISTS m_doctor CASCADE;
+DROP TABLE IF EXISTS m_waku_master CASCADE;
+
+COMMIT;</code></pre>
+        </section>
+
+        <!-- ============================================================
+        7. 総合テスト・検証結果サマリ
+        ============================================================ -->
+        <section class="work-sec" id="sec7">
+            <h2 class="sec-title">7. 総合テスト・検証結果サマリ</h2>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">検証項目</th>
+                        <th style="width: 50%;">検証内容と結果</th>
+                        <th style="width: 20%;">合否判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>新規予約保存テスト</strong></td>
+                        <td><code>modal_edit.php</code> から新規患者（仮予約および通常予約）の保存を実行。バインドエラーが発生せず正常に INSERT 完了。</td>
+                        <td><span class="badge badge-success">合格 (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>予約更新・差分検知テスト</strong></td>
+                        <td>既存予約の「入院予定」チェックのON/OFF切り替え保存を実行。差分が正常検知され DB 更新・監査ログ記録を確認。</td>
+                        <td><span class="badge badge-success">合格 (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>UIリアルタイム連動テスト</strong></td>
+                        <td>初登録前にプルダウンで「TCF」「W」を選択し即表示、「ポリペク」で即表示＆自動ON、「GIF」「エコー」で自動OFF＆非表示化を確認。</td>
+                        <td><span class="badge badge-success">合格 (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>本番DBスキーマ整合性検証</strong></td>
+                        <td><code>tools/check_db_status.php</code> によるスキャン。全21テーブル、カラム定義、インデックス定義の完全一致（差分ゼロ）を確認。</td>
+                        <td><span class="badge badge-success">合格 (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>PHP シンタックス検証</strong></td>
+                        <td><code>php -l</code> により、改修した全ファイル（<code>action_schedule.php</code>, <code>modal_edit.php</code>, <code>index.php</code>, <code>help.php</code>）のエラーゼロを確認。</td>
+                        <td><span class="badge badge-success">合格 (PASS)</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+</div>
+
+</body>
+</html>

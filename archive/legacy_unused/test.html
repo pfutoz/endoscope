@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日付部分 プレビュー（1週間分）</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f6f9;
+            color: #333;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #2c3e50;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .preview-note {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+
+        /* 日付セル（左端）のスタイル */
+        .fixed-date-col {
+            width: 145px !important;
+            min-width: 145px;
+            max-width: 145px;
+            border-right: 2px solid #999;
+            border-bottom: 1px solid #cbd5e1;
+            text-align: center;
+            vertical-align: middle;
+            padding: 4px 6px;
+            font-size: 10px;
+            background-color: #fafafa;
+            cursor: pointer;
+            display: table-cell;
+        }
+        .fixed-date-col.today {
+            background-color: #ffffe0 !important;
+        }
+        .fixed-date-col.past {
+            background-color: #f1f5f9 !important;
+            color: #94a3b8 !important;
+        }
+        .fixed-date-col.closed {
+            background-color: #fef2f2 !important;
+            color: #ef4444 !important;
+        }
+
+        .date-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .day-number {
+            font-size: 12px;
+        }
+        .status-icon {
+            font-size: 11px;
+        }
+        .status-icon.is-closed { color: #ef4444; }
+        .status-icon.has-exception { color: #f59e0b; }
+
+        .doctor-info {
+            font-size: 8px;
+            color: #555;
+            margin: 1px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+        .doctor-info .present { color: #22c55e; }
+        .doctor-info .absent { color: #ef4444; text-decoration: line-through; }
+
+        .slot-detail {
+            font-size: 8px;
+            line-height: 1.3;
+            margin: 1px 0;
+            text-align: left;
+            padding-left: 2px;
+        }
+        .slot-badge {
+            display: inline-block;
+            margin-right: 4px;
+            padding: 1px 6px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 8px;
+        }
+        .slot-badge.gif {
+            background: #0ea5e9;
+            color: #ffffff;
+        }
+        .slot-badge.echo {
+            background: #8b5cf6;
+            color: #ffffff;
+        }
+        .slot-badge.tcf {
+            background: #10b981;
+            color: #ffffff;
+        }
+        .slot-badge.over {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        .closed-label {
+            font-size: 9px;
+            font-weight: bold;
+            color: #ef4444;
+        }
+        .exception-reason {
+            font-size: 7px;
+            color: #f59e0b;
+            background: #fffbeb;
+            padding: 0 4px;
+            border-radius: 2px;
+            display: inline-block;
+            margin-top: 1px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* プレビューテーブル */
+        .preview-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .preview-table td {
+            border: 1px solid #cbd5e1;
+            padding: 4px;
+            vertical-align: top;
+        }
+        .preview-table .label-cell {
+            font-weight: bold;
+            font-size: 11px;
+            color: #475569;
+            background: #f8fafc;
+            text-align: center;
+            width: 80px;
+            vertical-align: middle;
+        }
+
+        .day-separator {
+            border-top: 3px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .day-separator td {
+            padding: 8px 4px 4px 4px;
+            font-weight: bold;
+            font-size: 13px;
+            color: #1e293b;
+        }
+
+        /* 凡例 */
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            font-size: 11px;
+            flex-wrap: wrap;
+            background: #f8fafc;
+            padding: 8px 14px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .legend-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 9px;
+        }
+        .legend-badge.gif { background: #0ea5e9; color: #fff; }
+        .legend-badge.echo { background: #8b5cf6; color: #fff; }
+        .legend-badge.tcf { background: #10b981; color: #fff; }
+        .legend-badge.over { background: #dc2626; color: #fff; }
+
+        .footer-note {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #94a3b8;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📅 日付部分 プレビュー（1週間分）</h2>
+    <div class="preview-note">
+        左端の日付セルの表示イメージです。<br>
+        各日付の <strong>GIF / エコー / TCF</strong> の使用状況をバッジで表示しています。
+    </div>
+
+    <!-- 凡例 -->
+    <div class="legend">
+        <span class="legend-item"><span class="legend-badge gif">GIF</span> 青（GIF）</span>
+        <span class="legend-item"><span class="legend-badge echo">エコー</span> 紫（エコー）</span>
+        <span class="legend-item"><span class="legend-badge tcf">TCF</span> 緑（TCF）</span>
+        <span class="legend-item"><span class="legend-badge over">⚠️超過</span> 赤（超過）</span>
+        <span class="legend-item">🔵 = 例外あり</span>
+        <span class="legend-item">⛔ = 休診</span>
+        <span class="legend-item">✅ = 出勤 / ❌ = 休診</span>
+    </div>
+
+    <!-- プレビューテーブル -->
+    <table class="preview-table">
+        <thead>
+            <tr style="background:#f1f5f9;">
+                <td colspan="2" style="font-weight:bold; text-align:center; padding:8px; font-size:13px;">
+                    日付セル（左端）の表示サンプル
+                </td>
+            </tr>
+        </thead>
+        <tbody>
+
+            <!-- ==========================================================
+            8月1日(土) 今日＋例外あり
+            ========================================================== -->
+            <tr class="day-separator">
+                <td colspan="2">📌 2026年8月1日(土) - 今日 / 例外あり</td>
+            </tr>
+            <tr>
+                <td class="label-cell">表示</td>
+                <td>
+                    <div class="fixed-date-col today" style="background-color:#ffffe0 !important; width:100%; min-width:auto; max-width:none; border:none;">
+                        <div class="date-display">
+                            <span class="day-number">8月1日(土)</span>
+                            <span class="status-icon has-exception">🔵</span>
+                        </div>
+                        <div class="doctor-info">
+                            <span class="present">誠吾</span>
+                            <span class="present">哲也</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-badge gif">GIF 3/10</span>
+                            <span class="slot-badge echo">エコー 1/4</span>
+                            <span class="slot-badge tcf">TCF 5/7</span>
+                        </div>
+                        <div class="exception-reason">⚠️ 哲也: 土曜特別</div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">説明</td>
+                <td style="font-size:11px; color:#475569;">
+                    • 日付は <strong>「8月1日(土)」</strong> と月を含めて表示<br>
+                    • 🔵 は例外（哲也：土曜特別パターン）<br>
+                    • 各バッジは予約枠内と同じデザイン（GIF:青 / エコー:紫 / TCF:緑）
+                </td>
+            </tr>
+
+            <!-- ==========================================================
+            8月2日(日) 休診
+            ========================================================== -->
+            <tr class="day-separator">
+                <td colspan="2">📌 2026年8月2日(日) - 休診</td>
+            </tr>
+            <tr>
+                <td class="label-cell">表示</td>
+                <td>
+                    <div class="fixed-date-col closed" style="background-color:#fef2f2 !important; color:#ef4444 !important; width:100%; min-width:auto; max-width:none; border:none;">
+                        <div class="date-display">
+                            <span class="day-number">8月2日(日)</span>
+                            <span class="status-icon is-closed">⛔</span>
+                        </div>
+                        <div class="closed-label">日曜休診</div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">説明</td>
+                <td style="font-size:11px; color:#475569;">
+                    • 休診日は ⛔ アイコンと「休診」ラベルを表示<br>
+                    • 背景は薄い赤（#fef2f2）
+                </td>
+            </tr>
+
+            <!-- ==========================================================
+            8月3日(月) 通常
+            ========================================================== -->
+            <tr class="day-separator">
+                <td colspan="2">📌 2026年8月3日(月) - 通常</td>
+            </tr>
+            <tr>
+                <td class="label-cell">表示</td>
+                <td>
+                    <div class="fixed-date-col" style="width:100%; min-width:auto; max-width:none; border:none;">
+                        <div class="date-display">
+                            <span class="day-number">8月3日(月)</span>
+                        </div>
+                        <div class="doctor-info">
+                            <span class="present">誠吾</span>
+                            <span class="present">義智</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-badge gif">GIF 8/10</span>
+                            <span class="slot-badge echo">エコー 2/3</span>
+                            <span class="slot-badge tcf">TCF 5/7</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">説明</td>
+                <td style="font-size:11px; color:#475569;">
+                    • 通常営業日の表示<br>
+                    • 各バッジで使用状況を一目で把握
+                </td>
+            </tr>
+
+            <!-- ==========================================================
+            8月4日(火) 超過あり（エコー 5/4）
+            ========================================================== -->
+            <tr class="day-separator">
+                <td colspan="2">📌 2026年8月4日(火) - 超過あり（エコー 5/4）</td>
+            </tr>
+            <tr>
+                <td class="label-cell">表示</td>
+                <td>
+                    <div class="fixed-date-col" style="width:100%; min-width:auto; max-width:none; border:none;">
+                        <div class="date-display">
+                            <span class="day-number">8月4日(火)</span>
+                        </div>
+                        <div class="doctor-info">
+                            <span class="present">誠吾</span>
+                            <span class="present">哲也</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-badge gif">GIF 3/10</span>
+                            <span class="slot-badge over">エコー 5/4</span>
+                            <span class="slot-badge tcf">TCF 3/7</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">説明</td>
+                <td style="font-size:11px; color:#475569;">
+                    • エコーが <strong>4枠に対して5件</strong> 入っている（超過）<br>
+                    • 超過したバッジは <strong>赤色＋「⚠️超過」</strong> で警告
+                </td>
+            </tr>
+
+            <!-- ==========================================================
+            8月5日(水) 過去日（グレー表示）
+            ========================================================== -->
+            <tr class="day-separator">
+                <td colspan="2">📌 2026年7月30日(木) - 過去日（グレー表示）</td>
+            </tr>
+            <tr>
+                <td class="label-cell">表示</td>
+                <td>
+                    <div class="fixed-date-col past" style="background-color:#f1f5f9 !important; color:#94a3b8 !important; width:100%; min-width:auto; max-width:none; border:none;">
+                        <div class="date-display">
+                            <span class="day-number">7月30日(木)</span>
+                        </div>
+                        <div class="doctor-info">
+                            <span class="present" style="color:#94a3b8;">誠吾</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-badge gif" style="opacity:0.6;">GIF 3/10</span>
+                            <span class="slot-badge echo" style="opacity:0.6;">エコー 1/4</span>
+                            <span class="slot-badge tcf" style="opacity:0.6;">TCF 5/7</span>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">説明</td>
+                <td style="font-size:11px; color:#475569;">
+                    • 過去の日付は <strong>全体がグレー表示</strong>（#f1f5f9）<br>
+                    • バッジも薄くなり、一目で過去とわかる
+                </td>
+            </tr>
+
+            <!-- ==========================================================
+            8月6日(木) 木曜NG枠（予約不可枠あり）
+            ========================================================== -->
+            <tr class="day-separator">
+                <td colspan="2">📌 2026年8月6日(木) - 木曜NG枠あり</td>
+            </tr>
+            <tr>
+                <td class="label-cell">表示</td>
+                <td>
+                    <div class="fixed-date-col" style="border-left:4px solid #f59e0b; width:100%; min-width:auto; max-width:none; border:none;">
+                        <div class="date-display">
+                            <span class="day-number">8月6日(木)</span>
+                            <span class="status-icon has-exception" style="color:#f59e0b;">⚠️</span>
+                        </div>
+                        <div class="doctor-info">
+                            <span class="present">義智</span>
+                            <span class="absent">哲也</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-badge gif">GIF 3/6</span>
+                            <span class="slot-badge echo">エコー 1/3</span>
+                            <!-- TCFは0なので表示しない -->
+                        </div>
+                        <div class="exception-reason">⚠️ 木曜NG枠: 9:40,10:40,11:40,12:00</div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="label-cell">説明</td>
+                <td style="font-size:11px; color:#475569;">
+                    • 木曜はGIFが <strong>6枠</strong>（通常10枠から減少）<br>
+                    • オレンジの左ラインで「異常あり」を視覚化<br>
+                    • 出勤医師が絞られて表示される（義智のみ）
+                </td>
+            </tr>
+
+        </tbody>
+    </table>
+
+    <div class="footer-note">
+        ✅ 日付表示に「月」を追加 / 各バッジは予約枠内と同じデザイン<br>
+        🔴 超過時は赤バッジで警告 / 過去日はグレー表示
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+# ==============================================================================
+# Endoscope System .gitignore
+# ==============================================================================
+
+# Database Dumps and Backups
+*.dump
+*.tar
+*.gz
+*.zip
+*.7z
+*.bak
+*.bak_*
+*~
+*.swp
+
+# Debug & Execution Logs
+*.log
+system_debug.log
+action_master_debug.log
+debug_config.json
+
+# Temporary & Working Files
+diff_php.txt
+memo.txt
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+.VSCodeCounter/
+*.code-workspace
+
+# OS Generated Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store

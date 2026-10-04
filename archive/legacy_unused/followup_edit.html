@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フォローアップ新規登録（デザインたたき台）</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+            background: #f1f4f8;
+            padding: 30px 20px;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 880px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            padding: 32px 36px;
+            border: 1px solid #e9edf4;
+        }
+
+        /* ヘッダー */
+        .form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #dce2ec;
+        }
+        .form-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+        }
+        .form-header .sub {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 400;
+            margin-left: 8px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .header-actions a {
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-outline {
+            background: transparent;
+            color: #475569;
+            border: 1px solid #d0d8e3;
+        }
+        .btn-outline:hover {
+            background: #f1f4f8;
+            border-color: #b0bccd;
+        }
+        .btn-primary {
+            background: #2563eb;
+            color: #fff;
+            border: 1px solid #2563eb;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+        .btn-success {
+            background: #16a34a;
+            color: #fff;
+            border: 1px solid #16a34a;
+        }
+        .btn-success:hover {
+            background: #15803d;
+            border-color: #15803d;
+        }
+        .btn-danger {
+            background: #dc2626;
+            color: #fff;
+            border: 1px solid #dc2626;
+        }
+        .btn-danger:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
+        }
+        .btn-warning {
+            background: #f59e0b;
+            color: #fff;
+            border: 1px solid #f59e0b;
+        }
+        .btn-warning:hover {
+            background: #d97706;
+            border-color: #d97706;
+        }
+
+        /* セクション */
+        .section {
+            background: #fafcff;
+            border: 1px solid #e9edf4;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            transition: border-color 0.15s;
+        }
+        .section:hover {
+            border-color: #d0d8e3;
+        }
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            letter-spacing: 0.3px;
+        }
+        .section-title .badge {
+            font-size: 10px;
+            font-weight: 600;
+            background: #e2e8f0;
+            color: #475569;
+            padding: 2px 10px;
+            border-radius: 30px;
+            margin-left: 4px;
+        }
+        .section-title .badge-new {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .section-title .help-icon {
+            font-size: 13px;
+            color: #94a3b8;
+            cursor: help;
+            margin-left: auto;
+        }
+
+        /* グリッド */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 24px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px 20px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* フォーム要素 */
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .field label {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .field label .required {
+            color: #dc2626;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .field .hint {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            padding: 9px 12px;
+            border: 1px solid #d0d8e3;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #ffffff;
+            transition: border 0.2s, box-shadow 0.2s;
+            width: 100%;
+            color: #0f172a;
+        }
+        .field input:focus,
+        .field select:focus,
+        .field textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+        }
+        .field textarea {
+            resize: vertical;
+            min-height: 56px;
+        }
+        .field input[readonly] {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .field .input-with-button {
+            display: flex;
+            gap: 8px;
+        }
+        .field .input-with-button input {
+            flex: 1;
+        }
+        .field .input-with-button button {
+            padding: 9px 18px;
+            background: #f1f4f8;
+            border: 1px solid #d0d8e3;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .field .input-with-button button:hover {
+            background: #e2e8f0;
+            border-color: #b0bccd;
+        }
+        .field .input-with-button button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+        .field .input-with-button button.primary:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+
+        /* チェックボックスグループ */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 24px;
+            padding: 4px 0 2px 0;
+        }
+        .checkbox-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+            transition: background 0.1s;
+        }
+        .checkbox-group label:hover {
+            background: #f1f5f9;
+        }
+        .checkbox-group label input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            accent-color: #2563eb;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .checkbox-group .tag {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 8px;
+            border-radius: 30px;
+            background: #e9edf4;
+            color: #475569;
+        }
+        .checkbox-group .tag-gif {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .checkbox-group .tag-tcf {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .checkbox-group .tag-echo {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+        .checkbox-group .tag-polypec {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .checkbox-group .tag-other {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .selected-preview {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d4ed8;
+            background: #eff6ff;
+            padding: 6px 14px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        /* F/U項目（検査別） */
+        .fu-items {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .fu-item {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px 16px;
+            background: #f8fafc;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #e9edf4;
+        }
+        .fu-item .exam-label {
+            font-weight: 700;
+            font-size: 14px;
+            min-width: 56px;
+            color: #0f172a;
+        }
+        .fu-item select,
+        .fu-item input {
+            padding: 6px 10px;
+            border: 1px solid #d0d8e3;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #fff;
+        }
+        .fu-item .hint-text {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        /* 区切り線 */
+        .divider {
+            border: none;
+            border-top: 2px dashed #dce2ec;
+            margin: 24px 0 20px 0;
+        }
+
+        /* アクションボタン行 */
+        .form-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+            padding-top: 20px;
+            border-top: 1px solid #e9edf4;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-actions .left-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .form-actions .right-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .form-actions button,
+        .form-actions a {
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+
+        /* ステータス表示 */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.draft {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .status-badge.printed {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 700px) {
+            .container {
+                padding: 20px 16px;
+            }
+            .grid-2 {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            .grid-3 {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            .form-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .form-header h1 {
+                font-size: 19px;
+            }
+            .header-actions {
+                flex-wrap: wrap;
+            }
+            .fu-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .form-actions .left-group,
+            .form-actions .right-group {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ============================================================
+    ヘッダー
+    ============================================================ -->
+    <div class="form-header">
+        <div>
+            <h1>
+                📋 フォローアップ新規登録
+                <span class="sub">（患者さんにお渡しするシート）</span>
+            </h1>
+        </div>
+        <div class="header-actions">
+            <a href="#" class="btn-outline">📋 一覧へ</a>
+            <a href="#" class="btn-primary">🏠 メニューへ</a>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    セクション1: 患者情報
+    ============================================================ -->
+    <div class="section">
+        <div class="section-title">
+            👤 患者情報
+            <span class="badge">必須</span>
+        </div>
+        <div class="grid-2">
+            <div class="field">
+                <label>カルテID <span class="required">*</span></label>
+                <div class="input-with-button">
+                    <input type="text" value="74819" placeholder="例: 74819">
+                    <button class="primary">🔍 検索</button>
+                </div>
+                <span class="hint">患者検索画面から選択できます</span>
+            </div>
+            <div class="field">
+                <label>患者氏名 <span class="required">*</span></label>
+                <input type="text" value="山田 太郎" placeholder="患者氏名">
+            </div>
+            <div class="field">
+                <label>患者ヨミガナ</label>
+                <input type="text" value="ヤマダ タロウ" placeholder="ヤマダ タロウ">
+            </div>
+            <div class="field">
+                <label>生年月日</label>
+                <input type="date" value="1948-05-22">
+            </div>
+            <div class="field">
+                <label>診療科</label>
+                <select>
+                    <option value="PROCT">肛門科</option>
+                    <option value="GASTRO" selected>胃腸科</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>担当医師</label>
+                <input type="text" value="誠吾" placeholder="例: 誠吾">
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    セクション2: 今回の検査（実施済み）
+    ============================================================ -->
+    <div class="section">
+        <div class="section-title">
+            🔬 今回の検査（実施済み）
+            <span class="badge">必須</span>
+        </div>
+        <div class="field">
+            <label>実施した検査種別 <span class="required">*</span></label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" checked> GIF <span class="tag tag-gif">上部</span></label>
+                <label><input type="checkbox"> TCF <span class="tag tag-tcf">下部</span></label>
+                <label><input type="checkbox"> エコー <span class="tag tag-echo">超音波</span></label>
+                <label><input type="checkbox"> ポリペク <span class="tag tag-polypec">ポリープ切除</span></label>
+                <label><input type="checkbox"> その他 <span class="tag tag-other">自由入力</span></label>
+            </div>
+            <div style="margin-top:6px;">
+                <span class="selected-preview">✅ 選択中: GIF</span>
+            </div>
+        </div>
+        <div style="margin-top: 14px;">
+            <label style="font-size: 12.5px; font-weight: 600; color: #334155; display:block; margin-bottom:4px;">
+                📅 検査別フォローアップ期間
+            </label>
+            <div class="fu-items">
+                <div class="fu-item">
+                    <span class="exam-label">GIF</span>
+                    <select>
+                        <option value="3ヶ月">3ヶ月後</option>
+                        <option value="6ヶ月">6ヶ月後</option>
+                        <option value="1年" selected>1年後</option>
+                        <option value="2年">2年後</option>
+                        <option value="3年">3年後</option>
+                        <option value="5年">5年後</option>
+                        <option value="カスタム">カスタム</option>
+                    </select>
+                    <input type="date" value="2027-08-17" style="width:150px;">
+                    <span class="hint-text">（空の場合は計算）</span>
+                </div>
+            </div>
+            <span class="hint">※ 各検査ごとに次回の目安期間を設定してください</span>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    セクション3: 次回F/U検査（予定） ★ 今回の検査と独立
+    ============================================================ -->
+    <div class="section" style="border-color: #bfdbfe; background: #f8fbff;">
+        <div class="section-title">
+            🔄 次回F/U検査（予定）
+            <span class="badge badge-new">変更可能</span>
+            <span class="help-icon" title="デフォルトは今回の検査と同じ内容です。変更したい場合はチェックを付け外ししてください。">❓</span>
+        </div>
+
+        <div class="field">
+            <label>次回予定の検査種別 <span class="required">*</span></label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" checked> GIF <span class="tag tag-gif">上部</span></label>
+                <label><input type="checkbox"> TCF <span class="tag tag-tcf">下部</span></label>
+                <label><input type="checkbox"> エコー <span class="tag tag-echo">超音波</span></label>
+                <label><input type="checkbox"> ポリペク <span class="tag tag-polypec">ポリープ切除</span></label>
+                <label><input type="checkbox"> その他 <span class="tag tag-other">自由入力</span></label>
+            </div>
+            <div style="margin-top:6px;">
+                <span class="selected-preview">✅ 選択中: GIF</span>
+                <span style="font-size: 12px; color: #64748b; margin-left: 12px;">
+                    （デフォルト：今回の検査と同じ）
+                </span>
+            </div>
+            <span class="hint">※ 今回の検査とは異なる内容にも変更できます</span>
+        </div>
+
+        <div class="field" style="margin-top:12px;">
+            <label>次回検査特記事項</label>
+            <textarea placeholder="例：ポリープ切除後1年経過のためTCF追加">ポリープ切除後1年経過のため継続観察</textarea>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    セクション4: 次回来院情報
+    ============================================================ -->
+    <div class="section">
+        <div class="section-title">
+            📅 次回来院情報
+            <span class="badge">必須</span>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label>来院日 <span class="required">*</span></label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:6px;">
+                    <select style="padding:8px 12px; border:1px solid #d0d8e3; border-radius:8px; font-size:13px; flex:1; min-width:120px;">
+                        <option value="exact" selected>確定日</option>
+                        <option value="after">〜以降</option>
+                        <option value="around">〜頃（アバウト）</option>
+                        <option value="weekly">毎週○曜日</option>
+                        <option value="monthly_week">第○週○曜日</option>
+                        <option value="monthly_last">最終○曜日</option>
+                        <option value="undecided">未定（後日調整）</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <input type="date" value="2027-02-15" style="flex:1; min-width:160px;">
+                    <span style="font-size:13px; color:#64748b; font-weight:500;">以降</span>
+                </div>
+                <span class="hint">※ 確定日はカレンダーから選択 / アバウトな場合は「〜頃」を選択</span>
+            </div>
+            <div class="field">
+                <label>来院時間（任意）</label>
+                <input type="text" value="9:00" placeholder="例: 9:00">
+            </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px;">
+            <div class="field">
+                <label>来院目的 <span class="required">*</span></label>
+                <select>
+                    <option value="followup">経過観察</option>
+                    <option value="tissue_result">組織検査結果説明</option>
+                    <option value="next_exam" selected>次回検査</option>
+                    <option value="medication">薬の調整</option>
+                    <option value="other">その他</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>来院方法 <span class="required">*</span></label>
+                <select>
+                    <option value="reserved" selected>予約済み（このままご来院ください）</option>
+                    <option value="phone_required">事前に電話連絡が必要</option>
+                    <option value="contact_when_ready">ご都合が決まり次第ご連絡ください</option>
+                    <option value="walk_in">予約なしで直接お越しください</option>
+                    <option value="adjustment_needed">調整後、別途ご連絡します</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    セクション5: 特記事項・発行日
+    ============================================================ -->
+    <div class="section">
+        <div class="section-title">
+            📝 特記事項・発行設定
+        </div>
+        <div class="grid-2">
+            <div class="field full-width">
+                <label>特記事項（患者への伝達事項など）</label>
+                <textarea rows="2">前日からの食事制限があります。お薬をお持ちの方はご持参ください。</textarea>
+            </div>
+            <div class="field">
+                <label>発行日</label>
+                <input type="date" value="2026-08-17">
+                <span class="hint">デフォルトは今日の日付です</span>
+            </div>
+            <div class="field">
+                <label>ステータス</label>
+                <div style="padding-top:6px;">
+                    <span class="status-badge draft">📄 下書き（未印刷）</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    フォームアクションボタン
+    ============================================================ -->
+    <div class="form-actions">
+        <div class="left-group">
+            <button type="button" class="btn-outline" onclick="history.back()">← 戻る</button>
+        </div>
+        <div class="right-group">
+            <button type="button" class="btn-warning">🖨️ 印刷（プレビュー）</button>
+            <button type="button" class="btn-success">💾 保存して印刷</button>
+            <button type="button" class="btn-primary">💾 保存する</button>
+            <button type="button" class="btn-danger">🗑️ 削除</button>
+        </div>
+    </div>
+
+    <!-- フッター -->
+    <div style="text-align:center; font-size:11px; color:#94a3b8; margin-top:28px; padding-top:14px; border-top:1px solid #e9edf4;">
+        おの肛門科胃腸科内視鏡クリニック ｜ フォローアップ管理システム v1.0（デザインたたき台）
+    </div>
+
+</div>
+
+<!-- ============================================================
+スクリプト（デモ用：チェックボックスの選択状態をプレビュー表示）
+============================================================ -->
+<script>
+    // 今回の検査 選択プレビュー
+    document.querySelectorAll('#examSection .checkbox-group input[type="checkbox"]').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            updatePreview('examSection', 'examPreview');
+        });
+    });
+
+    // 次回F/U検査 選択プレビュー
+    document.querySelectorAll('#fuSection .checkbox-group input[type="checkbox"]').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            updatePreview('fuSection', 'fuPreview');
+        });
+    });
+
+    function updatePreview(sectionId, previewId) {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        const checks = section.querySelectorAll('.checkbox-group input[type="checkbox"]:checked');
+        const labels = [];
+        checks.forEach(function(cb) {
+            const parentLabel = cb.closest('label');
+            if (parentLabel) {
+                const text = parentLabel.textContent.trim().replace(/[🔵🟢🟠🟣●].*/, '').trim();
+                if (text) labels.push(text);
+            }
+        });
+        const preview = document.getElementById(previewId);
+        if (preview) {
+            if (labels.length === 0) {
+                preview.textContent = '（選択なし）';
+            } else {
+                let display = labels.join(' + ');
+                if (labels.includes('GIF') && labels.includes('TCF')) {
+                    display += '（ダブル）';
+                }
+                preview.textContent = '✅ 選択中: ' + display;
+            }
+        }
+    }
+
+    // 初期表示を更新（デモ用）
+    document.addEventListener('DOMContentLoaded', function() {
+        // セクションにIDを付与（デモ用）
+        const sections = document.querySelectorAll('.section');
+        if (sections.length >= 2) {
+            sections[1].id = 'examSection';   // 今回の検査
+            // プレビュー要素にIDを付与
+            const examPreview = sections[1].querySelector('.selected-preview');
+            if (examPreview) examPreview.id = 'examPreview';
+        }
+        if (sections.length >= 3) {
+            sections[2].id = 'fuSection';     // 次回F/U検査
+            const fuPreview = sections[2].querySelector('.selected-preview');
+            if (fuPreview) fuPreview.id = 'fuPreview';
+        }
+        // 初期プレビュー更新
+        updatePreview('examSection', 'examPreview');
+        updatePreview('fuSection', 'fuPreview');
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-01)</title>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --primary-light: #f0fdfa;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #134e4a, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(13, 148, 136, 0.3);
+            color: #5eead4;
+            border: 1px solid rgba(94, 234, 212, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        /* TOC */
+        .toc-box {
+            background: #f1f5f9;
+            border-bottom: 1px solid var(--border);
+            padding: 18px 36px;
+        }
+        .toc-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .toc-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+        .toc-list a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toc-list a:hover {
+            text-decoration: underline;
+        }
+
+        /* Sections */
+        .content-body {
+            padding: 36px;
+        }
+
+        section.work-section {
+            margin-bottom: 40px;
+        }
+
+        section.work-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.section-heading {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--text-main);
+            border-left: 4.5px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        h3.subsection-heading {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        /* Badges & Pills */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-success { background: var(--success-light); color: var(--success); border: 1px solid #a7f3d0; }
+        .badge-primary { background: var(--primary-light); color: var(--primary); border: 1px solid #99f6e4; }
+        .badge-warning { background: var(--warning-light); color: var(--warning); border: 1px solid #fde68a; }
+        .badge-danger  { background: var(--danger-light); color: var(--danger); border: 1px solid #fca5a5; }
+
+        /* Tables */
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin: 14px 0 20px 0;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        table.data-table th, table.data-table td {
+            padding: 10px 14px;
+            text-align: left;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border);
+        }
+        table.data-table th {
+            background: #f8fafc;
+            color: var(--text-sub);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        table.data-table tr:last-child td {
+            border-bottom: none;
+        }
+        table.data-table tr:hover td {
+            background-color: #f1f5f9;
+        }
+
+        /* Code block */
+        pre.code-block {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 12px 0;
+            line-height: 1.5;
+        }
+
+        code.inline-code {
+            background: #f1f5f9;
+            color: #0f766e;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 11.5px;
+            font-weight: 700;
+        }
+
+        /* Callout Box */
+        .callout-box {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin: 14px 0;
+            font-size: 12.5px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .callout-primary { background: #f0fdfa; border: 1px solid #99f6e4; color: #115e59; }
+        .callout-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+        .callout-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            text-align: right;
+            font-size: 11.5px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">医療安全 ＆ アーキテクチャ分離 改修報告</span>
+            <span style="font-size: 12px; color: #99f6e4; font-weight: 700;">Ver 2.7 安定版</span>
+        </div>
+        <h1>🛡️ 医療安全アラートスキャンの完全独立ファイル化 ＆ modal_edit 同等アーキテクチャ移行</h1>
+        <div class="header-meta">
+            <span><strong>改修日:</strong> 2026年10月01日 (木)</span>
+            <span><strong>担当:</strong> 医療情報システム開発チーム</span>
+            <span><strong>対象ファイル:</strong> modal_medical_alert.php / medical_alert_modal_inc.php / assets/js/*</span>
+            <span><strong>本番方針:</strong> ローカル限定検証・手動デプロイ前提</span>
+        </div>
+    </header>
+
+    <nav class="toc-box">
+        <div class="toc-title">目次 / INDEX</div>
+        <ul class="toc-list">
+            <li><a href="#sec-bg">1. 改修の背景と目的</a></li>
+            <li><a href="#sec-arch">2. modal_edit.php と同一アーキテクチャ設計</a></li>
+            <li><a href="#sec-impl">3. 新規実装・分離コンポーネント詳細</a></li>
+            <li><a href="#sec-onshi">4. 🌐 オンライン資格確認連携 ＆ 予約個別編集の手動任意照会</a></li>
+            <li><a href="#sec-files">5. 変更・追加ファイル一覧</a></li>
+            <li><a href="#sec-test">6. 動作検証・テスト結果</a></li>
+            <li><a href="#sec-deploy">7. デプロイ安全基準と配布手順</a></li>
+        </ul>
+    </nav>
+
+    <div class="content-body">
+        <!-- 1. 改修の背景と目的 -->
+        <section id="sec-bg" class="work-section">
+            <h2 class="section-heading">1. 改修の背景と目的</h2>
+            <p>従来、医療安全アラートスキャン判定機能（予約備考の確定タグや電子カルテメモから抗血栓薬・アレルギー・感染症・風邪症状を検出・保存する機能）は、各親画面（<code>month_schedule.php</code>、<code>month_matrix_v2.php</code>、<code>progress_monitor.php</code>、<code>schedule_note.php</code>）内に <code>medical_alert_modal_inc.php</code> をインクルードし、700行を超えるインラインHTML・CSS・JSをページ内部に直接展開する構成となっていました。</p>
+            <p>この方式には以下の課題が存在していました：</p>
+            <ul style="margin-left: 20px; color: var(--text-sub); margin-bottom: 12px;">
+                <li>親画面のDOM構造が肥大化し、スクリプトやスタイルが画面全体と競合するリスクがあった。</li>
+                <li>予約登録・編集画面（<code>modal_edit.php</code>）のようにNative <code>&lt;dialog&gt;</code> + <code>&lt;iframe&gt;</code> でサンドボックス化されておらず、単体での直接URLアクセスや独立テストが困難だった。</li>
+            </ul>
+            <p>本改修では、ユーザー要望である<strong>「アラートスキャンを別ファイルにしたい。modal_edit.phpと同じような動き」</strong>に基づき、スキャンUIおよびロジックを独立したPHPファイル（<code>modal_medical_alert.php</code>）へ完全分離し、<code>modal_edit.php</code> と同一のNative Dialog + iframe + postMessage連携アーキテクチャへと刷新しました。</p>
+        </section>
+
+        <!-- 2. 設計アーキテクチャ -->
+        <section id="sec-arch" class="work-section">
+            <h2 class="section-heading">2. modal_edit.php と同一アーキテクチャ設計</h2>
+            <p>予約モーダル（<code>modal_edit.php</code>）で確立されたモダンかつ堅牢なiframeモーダル連携パターンを医療安全アラートにも完全適用しました。</p>
+            
+            <div class="callout-box callout-primary">
+                <span style="font-size: 20px;">💡</span>
+                <div>
+                    <strong>完全サンドボックス化 ＆ 双方向 postMessage 連携</strong><br>
+                    モーダル内部は親画面から独立したDOM空間で動作し、閉じる・保存完了のアクションを <code>window.parent.postMessage()</code> で安全に伝達。親画面はメッセージを受信してダイアログを自動消去し、画面を同期リロードします。
+                </div>
+            </div>
+
+            <pre class="code-block">
+【アーキテクチャ構成図】
+
+親画面 (month_schedule / month_matrix_v2 / progress_monitor / schedule_note)
+   │
+   ├─ openMedicalAlertScanModal({date: '2026-10-01', dept: 'PROCT'})
+   │     │
+   │     ▼
+   │  [Native &lt;dialog id="modalMedicalAlertRunnerDialog"&gt;]
+   │     └─ &lt;iframe src="modal_medical_alert.php?date=2026-10-01&amp;dept=PROCT"&gt;
+   │           │
+   │           ▼ (独立ページ内で安全にレンダリング＆スキャンAPI実行)
+   │        [modal_medical_alert.php]
+   │           ├─ 全選択 / 全解除 / 再スキャン
+   │           ├─ MALL3電子カルテビューアー連携 (別タブ)
+   │           └─ 「この内容でアラートを反映・保存」クリック
+   │                 │
+   │                 ▼
+   │              action_medical_alert.php (DB保存成功)
+   │                 │
+   │                 ▼
+   │              window.parent.postMessage({ type: 'medical_alert_saved' }, '*')
+   │
+   ▼
+親画面の message リスナーが受信
+   ├─ dialog.close() でアニメーション終了
+   └─ トースト通知表示 ＆ 親画面最新状態へ自動リロード！
+            </pre>
+        </section>
+
+        <!-- 3. 新規実装・分離コンポーネント詳細 -->
+        <section id="sec-impl" class="work-section">
+            <h2 class="section-heading">3. 新規実装・分離コンポーネント詳細</h2>
+
+            <h3 class="subsection-heading">① 独立単体画面: <code>modal_medical_alert.php</code> の新設</h3>
+            <p>単独で完結するHTML5ページとして新規作成。URLクエリ（<code>date</code>, <code>dept</code>, <code>year</code>, <code>month</code>, <code>schedule_ids</code>）を受け取り、ロードと同時に <code>action_medical_alert.php?action=scan</code> を非同期フェッチして候補患者を描画します。</p>
+            <ul style="margin-left: 20px; color: var(--text-sub); margin-bottom: 12px;">
+                <li><strong>ヘッダー:</strong> エメラルドグリーン×ティールグラデーション、閉じるボタン（✕）、Escキー連携。</li>
+                <li><strong>ツールバー:</strong> 検出サマリー（注意患者数バッジ）、一括「全選択」「全解除」、非同期「🔄 再スキャン」ボタン。</li>
+                <li><strong>患者カード:</strong> 確定タグ付き強調表示（オレンジ帯）、MALL3電子カルテビューアー直通リンク（別タブ）、検出根拠スニペット（ハイライト付き）、4つのフラグチェックボックス。</li>
+                <li><strong>フッター:</strong> ヒント、キャンセル、二重送信防止ロック付き「この内容でアラートを反映・保存」ボタン。</li>
+            </ul>
+
+            <h3 class="subsection-heading">② 共通ランナー: <code>medical_alert_modal_inc.php</code> の超軽量化</h3>
+            <p>従来の700行超に及ぶ巨大インラインDOM・描画ロジックをすべて撤去し、以下の2つの責務に特化した超軽量インクルードに刷新しました：</p>
+            <ol style="margin-left: 20px; color: var(--text-sub);">
+                <li>親画面のカレンダーセルや一覧テーブルで必要なアラートバッジ・チップ表示用共通CSS（<code>.chip-anti</code>, <code>.chip-allergy</code> 等）。</li>
+                <li><code>openMedicalAlertScanModal(options)</code> を定義し、動的に <code>&lt;dialog&gt;</code> と <code>&lt;iframe&gt;</code> を生成して <code>modal_medical_alert.php</code> を呼び出すランナーロジック。</li>
+            </ol>
+            <p style="margin-top: 8px;">これにより、各親画面に記述されている <code>include 'medical_alert_modal_inc.php';</code> や <code>onclick="openMedicalAlertScanModal(...)"</code> は一切書き換える必要がなく、<strong>完全な後方互換性を保ったまま即座に iframe モーダルへ昇華</strong>しました。</p>
+
+            <h3 class="subsection-heading">③ 統合スクリプト（<code>assets/js/month_schedule.js</code> 等）の postMessage 強化</h3>
+            <p><code>month_schedule.js</code>、<code>month_schedule2.js</code>、<code>modal_edit_runner.js</code> のグローバルメッセージリスナーに <code>medical_alert_close</code> および <code>medical_alert_saved</code> ハンドラを追加し、どの画面からでも安定してダイアログ消去とリロードが連動するよう多重防御を施しました。</p>
+        </section>
+
+        <!-- 4. 🌐 オンライン資格確認連携 ＆ 予約個別編集の手動任意照会 -->
+        <section id="sec-onshi" class="work-section">
+            <h2 class="section-heading">4. 🌐 オンライン資格確認連携 ＆ 予約個別編集の手動任意照会</h2>
+            
+            <p>内視鏡検査における休薬事故防止や安全管理の精度を格段に引き上げるため、<strong>オンライン資格確認システム（薬剤情報・リスク患者判定API: <code>api_onshi_yakuzai.php</code>）</strong>との自動連携および予約個別編集画面（<code>modal_edit.php</code>）における任意照会機能を実装しました。</p>
+
+            <h3 class="subsection-heading">① 医療安全リスク判定体系の拡張（全7項目・2グループ編成）</h3>
+            <p>従来の4項目から、内視鏡検査前後の全身管理・投薬判断に必須となる<strong>糖尿病薬</strong>、<strong>向精神薬・睡眠薬</strong>、<strong>NSAIDs消炎鎮痛薬</strong>の3大リスクを新設。画面上で目的別に即断できるよう2グループに整理しました。</p>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">グループ</th>
+                        <th style="width: 25%;">アラート項目</th>
+                        <th style="width: 15%;">DBカラム</th>
+                        <th>内視鏡検査における臨床的安全リスク・確認理由</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="4"><strong>Group 1: 🌐 オン資・薬剤リスク</strong><br><span style="font-size: 11px; color: var(--text-muted);">他院処方歴の直近6ヶ月照会</span></td>
+                        <td><span class="chip-anti" style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#fee2e2; color:#b91c1c;">💊 抗血栓薬</span></td>
+                        <td><code>has_antithrombotic</code></td>
+                        <td>バイアスピリン、イグザレルト、エリキュース、プラビックス等。生検・EMR・ポリペク時の出血対策（休薬プロトコル確認要）。</td>
+                    </tr>
+                    <tr>
+                        <td><span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#ede9fe; color:#6d28d9;">💉 糖尿病薬</span></td>
+                        <td><code>has_diabetes</code> <span class="badge badge-success">新設</span></td>
+                        <td>インスリン、メトホルミン、SGLT2阻害薬、DPP-4等。検査前絶食時の低血糖発作・アシドーシス・脱水予防。</td>
+                    </tr>
+                    <tr>
+                        <td><span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#f3e8ff; color:#7e22ce;">🧠 向精神薬・睡眠薬</span></td>
+                        <td><code>has_psychotropic</code> <span class="badge badge-success">新設</span></td>
+                        <td>ベンゾジアゼピン系、オピオイド、抗うつ薬等。鎮静剤（ミダゾラム・プロポフォール等）使用時の呼吸抑制・相互作用注意。</td>
+                    </tr>
+                    <tr>
+                        <td><span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#ffedd5; color:#c2410c;">💊 NSAIDs消炎鎮痛</span></td>
+                        <td><code>has_nsaids</code> <span class="badge badge-success">新設</span></td>
+                        <td>ロキソニン、ボルタレン、カロナール等。胃十二指腸潰瘍・出血リスク、粘膜脆弱性・腎機能リスクの事前把握。</td>
+                    </tr>
+                    <tr>
+                        <td rowspan="3"><strong>Group 2: 📋 カルテ・予約注意</strong><br><span style="font-size: 11px; color: var(--text-muted);">電カル確定タグ＆メモ</span></td>
+                        <td><span class="chip-allergy" style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#fef3c7; color:#b45309;">⚠️ 局麻・アレルギー</span></td>
+                        <td><code>has_allergy</code></td>
+                        <td>キシロカイン等の局所麻酔薬や薬剤アレルギー既往。アナフィラキシー対策。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip-infection" style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#ffe4e6; color:#be123c;">🔴 感染症注意</span></td>
+                        <td><code>has_infection</code></td>
+                        <td>B型肝炎(HBV)、C型肝炎(HCV)、梅毒、HIV等。感染防御具着用・スコープ別系列洗浄・最終枠配置。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="chip-cold" style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:700; background:#e0f2fe; color:#0369a1;">😷 風邪症状・発熱</span></td>
+                        <td><code>has_cold_fever</code></td>
+                        <td>当日有熱・呼吸器症状。検査延期・隔離動線判断。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="subsection-heading">② 高速バッチ照会（<code>curl_multi</code> 80ms）＆ 期間切替（直近6ヶ月 ⮂ 全期間）</h3>
+            <p><code>action_medical_alert.php</code> 側で、一覧対象の全患者IDを <code>curl_multi</code> を用いて並行非同期照会。30名の一括スキャンでも約150〜200ms以内に完了します。</p>
+            <p>モーダル上部ツールバーに<strong>「📅 処方期間（直近6ヶ月 / 全期間）」</strong>ドロップダウンを新設。休薬期間の長い薬剤や数年前の処方歴を確認したい場合、即座に全期間（<code>months=0</code>）へ切り替えて再スキャンできます。</p>
+
+            <h3 class="subsection-heading">③ 予約個別編集画面（<code>modal_edit.php</code>）の「🌐 オン資照会」＆「🛡️ 詳細判定」機能</h3>
+            <div class="callout-box callout-success">
+                <span style="font-size: 20px;">🛡️</span>
+                <div>
+                    <strong>2つの選べるアプローチ（簡易オン資照会 ＆ リッチ詳細判定モーダル起動）</strong><br>
+                    医療安全設定ボックス内に、用途に応じて選べる2つのアクションボタンを新設しました：<br>
+                    <ul style="margin-left: 18px; margin-top: 4px;">
+                        <li><strong>【🌐 オン資照会】（即時簡易照会）:</strong> ボタン1つで非同期にオン資APIを問い合わせ、該当リスク薬を即座に推奨ON＆ヒント表示（画面遷移・モーダル展開なし）。</li>
+                        <li><strong>【🛡️ 詳細判定】（modal_medical_alert.php 起動）:</strong> クリックすると当該患者の <code>modal_medical_alert.php?patient_id=...</code> が子モーダルとして開き、全処方歴・他院調剤薬局名・カルテメモ根拠をリッチに精査可能。保存すると親画面（<code>modal_edit.php</code>）の7項目チェックボックスへ自動同期反映されます。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 class="subsection-heading">④ 監査ログ（<code>t_audit_log</code>）と Undo（巻き戻し）の完全対応</h3>
+            <p>予約保存時および一括判定保存時に、新設3項目（糖尿病・向精神薬・NSAIDs）の変更差分を <code>[💉糖尿病薬: OFF→ON]</code> のように日本語ラベルで監査ログに記録。直前取消や Undo 実行時にも <code>restoreMedicalAlertFromAudit()</code> により正確に元の状態へ復元されます。</p>
+
+            <h3 class="subsection-heading">⑤ 当日進捗ステータスモニターの空き枠・枠なし完全非表示化（実患者限定表示）</h3>
+            <p>当日進捗ステータスモニター（<code>progress_monitor.php</code> / <code>get_progress_data.php</code>）において、現場の動線把握を最優先するため、<strong>予約のない空き枠や「※枠なし」設定レコードを完全非表示化</strong>しました。</p>
+            <ul style="margin-left: 20px; color: var(--text-sub);">
+                <li><strong>APIクエリ（<code>get_progress_data.php</code>）の最適化:</strong> <code>s.patient_name IS NOT NULL AND TRIM(s.patient_name) != '' AND s.patient_name NOT LIKE '%枠なし%'</code> 条件を適用し、実患者が存在する予約のみを抽出。</li>
+                <li><strong>サマリーバー正確集計:</strong> 本日合計（Total）や各ステータス人数（受付済、待機中、検査中等）のカウントから空き枠・枠なしが排除され、純粋な実来院患者数と完全一致。</li>
+                <li><strong>フロントエンド（<code>progress_monitor.php</code>）の多重防御ガード:</strong> 高密度表およびタイルグリッド描画ループにおいて空き枠・枠なしをスキップし、ノイズのない視認性を実現。</li>
+            </ul>
+        </section>
+
+        <!-- 5. 変更・追加ファイル一覧 -->
+        <section id="sec-files" class="work-section">
+            <h2 class="section-heading">5. 変更・追加ファイル一覧</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">ファイルパス</th>
+                        <th style="width: 12%;">区分</th>
+                        <th>変更・改修内容の要約</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code class="inline-code">modal_medical_alert.php</code></td>
+                        <td><span class="badge badge-success">機能大幅強化</span></td>
+                        <td>処方期間（6ヶ月/全期間）切替、2グループ化配置、オン資処方バッジ・処方元・処方一覧リンク描画、全7項目一括保存。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">modal_edit.php</code></td>
+                        <td><span class="badge badge-success">機能新設</span></td>
+                        <td>医療安全エリアに【🌐 オン資照会】任意ボタン新設。新設3項目チェックボックス、オン資結果ヒント・処方リンク表示。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">lib/medical_alert_helper.php</code></td>
+                        <td><span class="badge badge-primary">エンジン刷新</span></td>
+                        <td>オン資APIバッチ並行照会（curl_multi）、糖尿病/向精神薬/NSAIDs判定正規表現、7項目保存・Undo・復元ロジック。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">action_medical_alert.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>months（期間）および include_onshi パラメータ対応、directAlert 合成、全7項目の安全保存。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">action_schedule.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>予約個別保存時の新設3項目差分検知、監査ログ記録、医療安全フラグ同期処理。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">lib/audit_helper.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>監査ログの差分ラベルに 💉糖尿病薬、🧠向精神薬・睡眠薬、💊NSAIDs を追加。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">lib/patient_helper.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>カレンダーカードのホバーツールチップに新設3項目の詳細リスク説明文を追加。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">get_progress_data.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>当日進捗モニターAPI。空き枠・「※枠なし」設定レコードを除外し実患者限定で抽出する条件を追加。サマリー件数を適正化。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">progress_monitor.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>当日進捗モニター画面。描画ループ内のガード判定を追加し、空き枠・枠なしの完全非表示を担保。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">medical_alert_modal_inc.php</code></td>
+                        <td><span class="badge badge-primary">軽量化</span></td>
+                        <td>インラインモーダル撤去、&lt;dialog&gt; &amp; &lt;iframe&gt; ランナー化。</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">tools/migrate_add_onshi_risk_columns.php</code></td>
+                        <td><span class="badge badge-success">マイグレーション</span></td>
+                        <td><code>t_patient_medical_alert</code> に <code>has_diabetes</code>, <code>has_psychotropic</code>, <code>has_nsaids</code> カラムを追加実行。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 6. 動作検証・テスト結果 -->
+        <section id="sec-test" class="work-section">
+            <h2 class="section-heading">6. 動作検証・テスト結果</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>テスト項目</th>
+                        <th>検証内容</th>
+                        <th>結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PHP構文チェック</td>
+                        <td><code>php -l</code> による改修全ファイル（<code>modal_medical_alert.php</code>, <code>get_progress_data.php</code> 等）の構文検証</td>
+                        <td><span class="badge badge-success">PASS</span> (No syntax errors)</td>
+                    </tr>
+                    <tr>
+                        <td>オン資API単体通信</td>
+                        <td><code>api_onshi_yakuzai.php</code> への実患者ID（53936）照会テスト（直近6ヶ月・全期間）</td>
+                        <td><span class="badge badge-success">PASS</span> (約70ms応答、カロナール/NSAIDs検知)</td>
+                    </tr>
+                    <tr>
+                        <td>curl_multi 並行バッチ</td>
+                        <td>複数患者（3名）の一括オン資照会テスト</td>
+                        <td><span class="badge badge-success">PASS</span> (78msで並行受信完了)</td>
+                    </tr>
+                    <tr>
+                        <td>modal_edit オン資照会</td>
+                        <td>患者ID入力後の【🌐 オン資照会】ボタン押下・非同期通信・チェックボックス自動推奨ON</td>
+                        <td><span class="badge badge-success">PASS</span> (NSAIDs自動ON、根拠ヒント表示)</td>
+                    </tr>
+                    <tr>
+                        <td>進捗モニター空き枠非表示</td>
+                        <td><code>get_progress_data.php</code> による枠なし・空き枠除外テスト（17名中11件の枠なしを完全排除、実患者6名のみ返却）</td>
+                        <td><span class="badge badge-success">PASS</span> (サマリーTotal 6名と完全一致)</td>
+                    </tr>
+                    <tr>
+                        <td>DB保存＆差分監査ログ</td>
+                        <td>全7項目のON/OFFトグル保存、<code>t_audit_log</code> の日本語ラベル記録、元状態へのUndo復元</td>
+                        <td><span class="badge badge-success">PASS</span> (差分正確記録・完全復元確認)</td>
+                    </tr>
+                    <tr>
+                        <td>単体アクセス検証</td>
+                        <td><code>modal_medical_alert.php</code> および <code>modal_edit.php</code> への直接HTTPリクエスト</td>
+                        <td><span class="badge badge-success">PASS</span> (HTTP 200 OK)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 7. デプロイ安全基準と配布手順 -->
+        <section id="sec-deploy" class="work-section">
+            <h2 class="section-heading">7. デプロイ安全基準と配布手順</h2>
+            <div class="callout-box callout-warning">
+                <span style="font-size: 20px;">⚠️</span>
+                <div>
+                    <strong>重要: 本番自動同期の完全停止（手動安全デプロイ原則）</strong><br>
+                    本改修作業はすべてローカル環境（<code>c:\Apache24\htdocs\endoscope\</code>）内のみで完結しており、本番サーバー（<code>\\192.168.1.16</code> 等）への自動同期・コピーは一切行っていません。本番へ適用される際は、新設した<strong>総合デプロイマネージャー（<code>deploy_manager</code>）</strong>等を用いてバックアップを取得した上で手動配布をお願いいたします。
+                </div>
+            </div>
+
+            <h3 class="subsection-heading">本番配布対象ファイル</h3>
+            <ul style="margin-left: 20px; color: var(--text-sub);">
+                <li><code>modal_medical_alert.php</code> (新規ファイル)</li>
+                <li><code>modal_edit.php</code> (改修ファイル: オン資任意照会ボタン・新設リスク)</li>
+                <li><code>get_progress_data.php</code> (改修ファイル: 空き枠・枠なし完全除外)</li>
+                <li><code>progress_monitor.php</code> (改修ファイル: 実患者限定フィルタガード)</li>
+                <li><code>lib/medical_alert_helper.php</code> (改修ファイル: オン資連携エンジン)</li>
+                <li><code>action_medical_alert.php</code> (改修ファイル: 期間・オン資対応API)</li>
+                <li><code>action_schedule.php</code> (改修ファイル: 7項目差分検知・保存)</li>
+                <li><code>lib/patient_helper.php</code> (改修ファイル: ツールチップ拡張)</li>
+                <li><code>lib/audit_helper.php</code> (改修ファイル: 監査ログラベル拡張)</li>
+                <li><code>medical_alert_modal_inc.php</code> (改修ファイル: 軽量化)</li>
+                <li><code>assets/js/month_schedule.js</code> (改修ファイル)</li>
+                <li><code>assets/js/month_schedule2.js</code> (改修ファイル)</li>
+                <li><code>assets/js/modal_edit_runner.js</code> (改修ファイル)</li>
+                <li><code>tools/migration_20261001_onshi_alert_production.sql</code> (本番マイグレーションSQL)</li>
+                <li><code>tools/apply_migration_to_production.php</code> (本番マイグレーション実行スクリプト)</li>
+                <li><code>仕様書/2026-10-1works.html</code> (本報告書)</li>
+                <li><code>仕様書/specdoc.html</code> (機能仕様書)</li>
+            </ul>
+        </section>
+    </div>
+
+    <footer class="report-footer">
+        内視鏡予約管理システム Ver 2.7 | 医療安全アラート独立化改修完了報告書 (2026-10-01)
+    </footer>
+</div>
+
+</body>
+</html>

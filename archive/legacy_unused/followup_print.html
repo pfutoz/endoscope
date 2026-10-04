@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フォローアップ通知書（プレースホルダ）</title>
+    <style>
+        @page { size: A4 portrait; margin: 15mm; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        .page {
+            max-width: 780px;
+            margin: 0 auto;
+            padding: 10mm;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .clinic-header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        .clinic-header h1 {
+            font-size: 18pt;
+            margin: 0;
+        }
+        .clinic-header .sub {
+            font-size: 10pt;
+            color: #555;
+        }
+        .patient-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding: 10px 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        .patient-info .label { font-weight: bold; color: #555; }
+        .section {
+            margin-bottom: 16px;
+        }
+        .section h2 {
+            font-size: 13pt;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        .item-row {
+            display: flex;
+            padding: 4px 0;
+            border-bottom: 1px dotted #eee;
+        }
+        .item-row .label {
+            font-weight: bold;
+            width: 120px;
+            color: #555;
+        }
+        .item-row .value {
+            flex: 1;
+        }
+        .highlight-box {
+            background: #ffffe0;
+            border: 1px solid #f59e0b;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 12px 0;
+        }
+        .highlight-box .date {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #dc2626;
+        }
+        .footer {
+            margin-top: 24px;
+            padding-top: 12px;
+            border-top: 1px solid #ccc;
+            font-size: 9pt;
+            color: #999;
+            text-align: center;
+        }
+        .placeholder-note {
+            background: #fef2f2;
+            border: 2px dashed #fca5a5;
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            color: #991b1b;
+            font-size: 13px;
+            text-align: center;
+        }
+        .print-hint {
+            text-align: center;
+            font-size: 10pt;
+            color: #999;
+            margin-top: 12px;
+        }
+        @media print {
+            .no-print { display: none; }
+            .page { border: none; padding: 0; }
+            .placeholder-note { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- プレースホルダ注意書き（印刷時は非表示） -->
+    <div class="placeholder-note no-print">
+        ⚠️ これは <strong>プレースホルダ（モックアップ）</strong> です。実際のデータはまだ連携されていません。
+    </div>
+
+    <div class="page">
+
+        <!-- クリニックヘッダー -->
+        <div class="clinic-header">
+            <h1>おの肛門科胃腸科内視鏡クリニック</h1>
+            <div class="sub">〒780-0000 高知県高知市〇〇町1-2-3  TEL: 088-xxx-xxxx</div>
+        </div>
+
+        <!-- 患者情報 -->
+        <div class="patient-info">
+            <div><span class="label">患者様名：</span> 山田 太郎 様</div>
+            <div><span class="label">カルテNo：</span> 74819</div>
+            <div><span class="label">生年月日：</span> S40.5.22（61歳）</div>
+        </div>
+
+        <!-- フォローアップ通知 -->
+        <div class="section">
+            <h2>■ フォローアップのお知らせ</h2>
+
+            <div class="highlight-box">
+                <div style="font-weight:bold; font-size:12pt;">📅 次回検査予定日</div>
+                <div class="date">2027年8月14日（土）</div>
+                <div style="margin-top:4px; color:#555;">検査種別： GIF（胃カメラ）｜ 1年後フォロー</div>
+            </div>
+
+            <div style="margin-top:12px;">
+                <div class="item-row">
+                    <span class="label">検査日</span>
+                    <span class="value">2026年8月14日（金）</span>
+                </div>
+                <div class="item-row">
+                    <span class="label">実施検査</span>
+                    <span class="value">GIF（胃カメラ）、TCF（大腸カメラ）</span>
+                </div>
+                <div class="item-row">
+                    <span class="label">所見</span>
+                    <span class="value">胃角部に発赤あり。萎縮は軽度。S状結腸にポリープあり（切除済み）。</span>
+                </div>
+                <div class="item-row">
+                    <span class="label">組織検査</span>
+                    <span class="value">GIF：炎症性変化（悪性所見なし）｜ TCF：結果待ち</span>
+                </div>
+                <div class="item-row">
+                    <span class="label">ピロリ菌</span>
+                    <span class="value">陽性 → 除菌療法を実施済み</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 組織検査結果（別途案内） -->
+        <div class="section" style="background:#fafafa; padding:8px 12px; border-radius:4px;">
+            <h2 style="border-bottom-color:#ddd;">🧬 組織検査結果について</h2>
+            <p style="font-size:10pt; color:#555; margin:0;">
+                GIFの組織検査結果は <strong>Group 1（炎症性変化）</strong> で悪性所見は認められませんでした。<br>
+                TCFの組織検査結果は <strong>BMLからの報告書が届き次第、別途ご連絡いたします。</strong>
+            </p>
+        </div>
+
+        <!-- 注意事項 -->
+        <div class="section" style="margin-top:16px; font-size:10pt; color:#555; border-top:1px solid #eee; padding-top:12px;">
+            <p style="margin:0;">
+                ※ ご都合が悪い場合は、お電話にてご連絡ください。<br>
+                ※ 次回検査の1週間前を目安に、改めてご連絡差し上げます。
+            </p>
+        </div>
+
+        <!-- フッター -->
+        <div class="footer">
+            発行日: 2026年8月14日 ｜ おの肛門科胃腸科内視鏡クリニック
+        </div>
+
+    </div>
+
+    <div class="print-hint no-print">
+        <button onclick="window.print()" style="padding:8px 24px; font-size:14px; cursor:pointer; background:#3b82f6; color:#fff; border:none; border-radius:4px;">
+            🖨️ 印刷する
+        </button>
+        <span style="margin-left:16px; font-size:12px; color:#94a3b8;">
+            ※ 印刷プレビューを確認してから印刷してください
+        </span>
+    </div>
+
+</body>
+</html>

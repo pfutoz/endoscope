@@ -1,0 +1,1760 @@
+
+Gemini
+
+チャット
+
+Spark
+ベータ版
+チャットを新規作成
+チャットを検索
+画像
+動画
+ライブラリ
+ノートブックを新規作成
+コーディングルール：PHP
+内視鏡システム開発ナレッジベース集成
+PHP開発に最適なチャットAI
+米津玄師「アイリスアウト」のタイアップ曲情報
+早明浦ダムの現在の貯水率
+松武秀樹のモジュラーシンセ演奏に釘付け
+サルと人間の顔合成リクエスト
+セルシンの鎮静作用メカニズム
+挨拶とサポートの申し出
+検索フィルターのJavaScript改善コード
+釣具店イベントの思い出と哀愁
+副院長への胃カメラ検査依頼文案
+PostgreSQLデータベースの全上書き・復元手順
+高知市における発泡スチロールの分別方法
+VS CodeでワークスペースをGrep検索
+Robocopyバッチファイルの解説と改善提案
+帯状疱疹の投薬治療と早期受診の重要性
+AI開発ナレッジの記録システム設計
+予約一覧PHP・JSバグの調査
+職員情報検索アプリ開発
+PHP文字列内での三項演算子エラーの解決
+ポリエチレン袋の質感と素材の違い
+PHPタブ別ログイン管理の実装アプローチ
+バッテリー使用量の分析とアドバイス
+地方紙のリアルな紙面構成へのツッコミ
+ゴツくて安いおすすめスマートウォッチ
+ホンダF1の予選敗退に激怒
+WindowsでのPHPバージョンアップ手順
+WindowsでPHPにパスを通す方法
+VBA祝日判定コードの改善
+AI超軽量化技術Dynamic v3.0の解説
+VSCの代替となる開発環境の確認
+非AI系VS Codeおすすめ拡張機能
+看護師体制崩壊リスクの提示
+クリニックHP修正の支援依頼
+Plesk未名前解決ページのアクセス確認方法
+HP Pro SFF 400 G9 スペック詳細
+漫画サイト広告への不満
+屋上配管作業と患者への対応
+年次別オペ件数集計
+黒字倒産を防ぐ資金繰り
+釣具業界の建前と本音
+Gemini との会話
+{
+
+  "system": {
+
+    "name": "内視鏡システム",
+
+    "version": "開発中",
+
+    "document_type": "開発ナレッジベース（全まとめ）",
+
+    "created_date": "2026-08-27",
+
+    "chat_summary": "約300往復のチャットを集約"
+
+  },
+
+  "environment": {
+
+    "install_path": "C:\\APACHE24\\HTDOCS\\ENDOSCOPE\\",
+
+    "rdbms": {
+
+      "type": "PostgreSQL",
+
+      "version": "18.3",
+
+      "database": "endoscope"
+
+    },
+
+    "external_integration": {
+
+      "name": "MALL電子カルテ",
+
+      "type": "SQL Server",
+
+      "connection": "192.168.1.77\\his00"
+
+    },
+
+    "php": {
+
+      "version": "8.5.5 または 8.5.9",
+
+      "framework": "なし（素PHP）"
+
+    },
+
+    "web_server": {
+
+      "type": "Apache",
+
+      "version": "2.4"
+
+    }
+
+  },
+
+  "directory_structure": {
+
+    "root": "C:\\APACHE24\\HTDOCS\\ENDOSCOPE\\",
+
+    "directories": [
+
+      {
+
+        "name": "followup",
+
+        "description": "フォローアップ管理",
+
+        "file_count": 6
+
+      },
+
+      {
+
+        "name": "lib",
+
+        "description": "共通ライブラリ",
+
+        "file_count": 6
+
+      },
+
+      {
+
+        "name": "いらない？",
+
+        "description": "旧ファイル・テストファイル（整理対象）",
+
+        "file_count": "不明"
+
+      },
+
+      {
+
+        "name": "テーブル定義",
+
+        "description": "ドキュメント"
+
+      },
+
+      {
+
+        "name": "img",
+
+        "description": "画像ファイル"
+
+      }
+
+    ],
+
+    "main_files": [
+
+      {
+
+        "file": "index.php",
+
+        "function": "ダッシュボードメニュー"
+
+      },
+
+      {
+
+        "file": "month_matrix_v2.php",
+
+        "function": "予約マトリクス（縦型・メイン）"
+
+      },
+
+      {
+
+        "file": "month_schedule.php",
+
+        "function": "月間カレンダービュー"
+
+      },
+
+      {
+
+        "file": "slot_search.php",
+
+        "function": "空き枠検索"
+
+      },
+
+      {
+
+        "file": "slot_master_maintenance.php",
+
+        "function": "検査枠マスタ一括管理"
+
+      },
+
+      {
+
+        "file": "master_maintenance.php",
+
+        "function": "汎用マスタ管理"
+
+      },
+
+      {
+
+        "file": "stats.php",
+
+        "function": "検査数集計"
+
+      },
+
+      {
+
+        "file": "search_patient.php",
+
+        "function": "予約済患者検索"
+
+      },
+
+      {
+
+        "file": "modal_edit.php",
+
+        "function": "予約登録・編集モーダル"
+
+      }
+
+    ],
+
+    "api_files": {
+
+      "action_*.php": "各種API（保存・マスタ更新）",
+
+      "get_*.php": "各種API（取得）",
+
+      "sync_*.php": "同期系API",
+
+      "print_*.php": "印刷系"
+
+    }
+
+  },
+
+  "database": {
+
+    "tables": [
+
+      {
+
+        "name": "m2_doctor",
+
+        "description": "医師マスタ",
+
+        "columns": [
+
+          {"name": "id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+
+          {"name": "doctor_name", "type": "VARCHAR(50)", "constraint": "NOT NULL UNIQUE"},
+
+          {"name": "department_code", "type": "VARCHAR(10)", "constraint": "NOT NULL", "values": ["PROCT", "GASTRO"]},
+
+          {"name": "display_order", "type": "INTEGER", "default": 0},
+
+          {"name": "is_active", "type": "BOOLEAN", "default": true},
+
+          {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+
+        ]
+
+      },
+
+      {
+
+        "name": "m2_doctor_slot_pattern",
+
+        "description": "医師別枠数パターン・横持ち",
+
+        "columns": [
+
+          {"name": "id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+
+          {"name": "doctor_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+
+          {"name": "department_code", "type": "VARCHAR(10)", "constraint": "NOT NULL"},
+
+          {"name": "pattern_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+
+          {"name": "day_of_week", "type": "INTEGER", "constraint": "NOT NULL", "description": "0=日〜6=土"},
+
+          {"name": "group_code", "type": "VARCHAR(20)", "constraint": "NOT NULL", "values": ["GIF", "ECHO", "TCF"]},
+
+          {"name": "max_slots", "type": "INTEGER", "default": 0},
+
+          {"name": "gif_slots", "type": "INTEGER", "default": 0},
+
+          {"name": "echo_slots", "type": "INTEGER", "default": 0},
+
+          {"name": "tcf_slots", "type": "INTEGER", "default": 0},
+
+          {"name": "is_active", "type": "BOOLEAN", "default": true},
+
+          {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+
+        ],
+
+        "unique_constraint": "(doctor_name, department_code, pattern_name, day_of_week, group_code)",
+
+        "important": "getDoctorStatus()はmax_slotsではなくgif_slots/echo_slots/tcf_slotsを見る必要あり"
+
+      },
+
+      {
+
+        "name": "m2_waku",
+
+        "description": "時間枠定義",
+
+        "columns": [
+
+          {"name": "id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+
+          {"name": "department_code", "type": "VARCHAR(10)", "constraint": "NOT NULL"},
+
+          {"name": "waku_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+
+          {"name": "waku_code", "type": "VARCHAR(30)"},
+
+          {"name": "group_code", "type": "VARCHAR(20)", "constraint": "NOT NULL", "values": ["GIF", "ECHO", "TCF"]},
+
+          {"name": "display_order", "type": "INTEGER", "default": 0},
+
+          {"name": "is_active", "type": "BOOLEAN", "default": true},
+
+          {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+
+        ],
+
+        "unique_constraint": "(department_code, waku_name)"
+
+      },
+
+      {
+
+        "name": "t_endoscopy_schedule",
+
+        "description": "予約テーブル",
+
+        "columns": [
+
+          {"name": "schedule_id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+
+          {"name": "exam_date", "type": "DATE", "constraint": "NOT NULL"},
+
+          {"name": "waku_no", "type": "INTEGER", "constraint": "NOT NULL"},
+
+          {"name": "doctor_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+
+          {"name": "scheduled_time", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+
+          {"name": "exam_type", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+
+          {"name": "exam_location", "type": "VARCHAR(30)", "constraint": "NOT NULL"},
+
+          {"name": "patient_id", "type": "VARCHAR(20)"},
+
+          {"name": "patient_name", "type": "VARCHAR(100)"},
+
+          {"name": "birthday", "type": "DATE"},
+
+          {"name": "patient_kana", "type": "VARCHAR(100)"},
+
+          {"name": "arrival_time", "type": "VARCHAR(20)"},
+
+          {"name": "remarks", "type": "TEXT"},
+
+          {"name": "is_canceled", "type": "BOOLEAN", "default": false},
+
+          {"name": "department_code", "type": "VARCHAR(10)", "default": "PROCT", "constraint": "NOT NULL"},
+
+          {"name": "booking_status", "type": "VARCHAR(20)", "default": "normal", "constraint": "NOT NULL"},
+
+          {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+
+        ]
+
+      },
+
+      {
+
+        "name": "t_followup",
+
+        "description": "フォローアップメイン",
+
+        "columns": [
+
+          {"name": "followup_id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+
+          {"name": "patient_id", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+
+          {"name": "patient_name", "type": "VARCHAR(100)", "constraint": "NOT NULL"},
+
+          {"name": "patient_kana", "type": "VARCHAR(100)"},
+
+          {"name": "birthday", "type": "DATE"},
+
+          {"name": "department_code", "type": "VARCHAR(10)", "default": "GASTRO", "constraint": "NOT NULL"},
+
+          {"name": "doctor_name", "type": "VARCHAR(50)"},
+
+          {"name": "exam_types", "type": "JSON"},
+
+          {"name": "exam_types_display", "type": "VARCHAR(100)"},
+
+          {"name": "next_visit_date", "type": "DATE", "constraint": "NOT NULL"},
+
+          {"name": "next_visit_display", "type": "VARCHAR(100)"},
+
+          {"name": "next_visit_date_type", "type": "VARCHAR(20)", "default": "exact"},
+
+          {"name": "visit_purpose", "type": "VARCHAR(30)", "constraint": "NOT NULL"},
+
+          {"name": "visit_method", "type": "VARCHAR(30)", "constraint": "NOT NULL"},
+
+          {"name": "visit_time", "type": "VARCHAR(10)"},
+
+          {"name": "notes", "type": "TEXT"},
+
+          {"name": "issued_date", "type": "DATE", "default": "CURRENT_DATE"},
+
+          {"name": "is_printed", "type": "BOOLEAN", "default": false},
+
+          {"name": "printed_at", "type": "TIMESTAMP"},
+
+          {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+
+        ],
+
+        "status": "未確認（要実装確認）"
+
+      },
+
+      {
+
+        "name": "t_followup_items",
+
+        "description": "F/U検査詳細",
+
+        "columns": [
+
+          {"name": "item_id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+
+          {"name": "followup_id", "type": "INTEGER", "constraint": "NOT NULL REFERENCES t_followup(followup_id) ON DELETE CASCADE"},
+
+          {"name": "exam_type", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+
+          {"name": "fu_interval", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+
+          {"name": "fu_reason", "type": "TEXT"},
+
+          {"name": "fu_date", "type": "DATE"},
+
+          {"name": "status", "type": "VARCHAR(20)", "default": "planned"},
+
+          {"name": "completed_date", "type": "DATE"},
+
+          {"name": "display_order", "type": "INTEGER", "default": 0},
+
+          {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+
+        ],
+
+        "status": "未確認（要実装確認）"
+
+      },
+
+      {
+
+        "name": "t_mall_memo",
+
+        "description": "電子カルテ同期メモ",
+
+        "columns": [
+
+          {"name": "patient_id", "type": "VARCHAR(20)", "constraint": "PRIMARY KEY"},
+
+          {"name": "patient_name", "type": "VARCHAR(100)", "constraint": "NOT NULL"},
+
+          {"name": "birth_date", "type": "DATE"},
+
+          {"name": "gender", "type": "VARCHAR(10)"},
+
+          {"name": "memo_today", "type": "TEXT"},
+
+          {"name": "memo_karte", "type": "TEXT"},
+
+          {"name": "memo_contact", "type": "TEXT"},
+
+          {"name": "memo_patient", "type": "TEXT"},
+
+          {"name": "synced_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "created_at", "type": "TIMESTAMPTZ", "default": "CURRENT_TIMESTAMP"},
+
+          {"name": "updated_at", "type": "TIMESTAMPTZ", "default": "CURRENT_TIMESTAMP"}
+
+        ]
+
+      }
+
+    ],
+
+    "relationships": [
+
+      {
+
+        "from": "t_followup",
+
+        "to": "t_followup_items",
+
+        "type": "1対N",
+
+        "constraint": "ON DELETE CASCADE"
+
+      }
+
+    ],
+
+    "slot_priority": [
+
+      {
+
+        "priority": 1,
+
+        "name": "出勤例外",
+
+        "table": "m2_doctor_attendance"
+
+      },
+
+      {
+
+        "priority": 2,
+
+        "name": "日別上書き",
+
+        "table": "m2_doctor_daily_capacity_v2"
+
+      },
+
+      {
+
+        "priority": 3,
+
+        "name": "曜日パターン",
+
+        "table": "m2_doctor_slot_pattern"
+
+      },
+
+      {
+
+        "priority": 4,
+
+        "name": "デフォルト",
+
+        "value": "0枠（出勤なし）"
+
+      }
+
+    ]
+
+  },
+
+  "functions": {
+
+    "menu": {
+
+      "row1": {
+
+        "name": "予約操作",
+
+        "items": [
+
+          {"label": "📊 予約マトリクス (縦型V2)", "file": "month_matrix_v2.php"},
+
+          {"label": "📅 月間カレンダービュー", "file": "month_schedule.php"},
+
+          {"label": "🔍 空き枠検索", "file": "slot_search.php"}
+
+        ]
+
+      },
+
+      "row2": {
+
+        "name": "検索・集計",
+
+        "items": [
+
+          {"label": "🔎 予約済患者検索", "file": "search_patient.php"},
+
+          {"label": "📋 フォローアップ管理", "file": "followup/index.php"},
+
+          {"label": "📊 検査数集計", "file": "stats.php"}
+
+        ]
+
+      },
+
+      "row3": {
+
+        "name": "マスタ管理",
+
+        "items": [
+
+          {"label": "⚙️ 検査枠マスターメンテナンス", "file": "slot_master_maintenance.php"},
+
+          {"label": "🔧 汎用マスタメンテナンス", "file": "master_maintenance.php"},
+
+          {"label": "📋 予約マトリクス (横型)", "file": "month_matrix.php", "status": "開発中・グレーアウト"}
+
+        ]
+
+      }
+
+    },
+
+    "slot_search": {
+
+      "period": "必須（デフォルト：今日〜2ヶ月後の月末）",
+
+      "month_shortcuts": "今月から過去に遡る12ヶ月分（西暦付き・複数選択可）",
+
+      "department": "1つだけ選択（AND）",
+
+      "doctor": "複数選択可（OR）",
+
+      "weekdays": "複数選択可（OR）",
+
+      "label_click": "各グループの全ON/OFF",
+
+      "result_display": "日付/曜日/医師/検査種別/残数/最大",
+
+      "row_click": "month_schedule.php（残数モード）へ遷移",
+
+      "limit": "300件（COUNTで事前チェック）",
+
+      "debug_mode": "debug_config.json + ?debug=1"
+
+    },
+
+    "stats": {
+
+      "target": "過去データ + 未来データ（両方）",
+
+      "default_period": "当月1日〜今日",
+
+      "month_shortcuts": "今月から過去に遡る12ヶ月分（西暦付き・複数選択可）",
+
+      "categories": [
+
+        "上部（GIF+W）",
+
+        "下部（TCF+W+ポリペク）",
+
+        "エコー",
+
+        "術前F"
+
+      ],
+
+      "note": "実績データは予定データに基づきます。正確な数字はMALL3で集計してください。",
+
+      "csv_export": "対応"
+
+    },
+
+    "followup": {
+
+      "files": [
+
+        {"file": "index.php", "function": "一覧表示（検索・ステータス表示）"},
+
+        {"file": "edit.php", "function": "登録・編集（患者検索連携・F/U項目管理）"},
+
+        {"file": "print.php", "function": "印刷シート（A4縦・診療科別電話番号）"},
+
+        {"file": "action.php", "function": "保存API（INSERT/UPDATE/DELETE・トランザクション）"},
+
+        {"file": "api_history.php", "function": "患者ID指定の履歴取得"},
+
+        {"file": "api_get.php", "function": "個別取得（ID/下5桁検索）"}
+
+      ]
+
+    }
+
+  },
+
+  "libraries": {
+
+    "lib": {
+
+      "slot_helper.php": {
+
+        "description": "枠数計算の核心",
+
+        "main_function": "getDoctorStatus()",
+
+        "parameters": ["pdo", "doctor_name", "department_code", "date_str", "debug_sql"],
+
+        "return": {
+
+          "present": "bool",
+
+          "slots": {"GIF": "integer", "ECHO": "integer", "TCF": "integer"}
+
+        },
+
+        "priority": [
+
+          "1. 出勤例外（m2_doctor_attendance）",
+
+          "2. 日別上書き（m2_doctor_daily_capacity_v2）",
+
+          "3. 曜日パターン（m2_doctor_slot_pattern）横持ち対応"
+
+        ]
+
+      },
+
+      "date_helper.php": {
+
+        "functions": [
+
+          {"name": "calculateAge()", "description": "年齢計算（「歳」なし・数値のみ）"},
+
+          {"name": "convertToShortWareki()", "description": "生年月日→短縮元号（S23.5.22形式）"},
+
+          {"name": "convertToWareki()", "description": "生年月日→和暦（昭和23年5月22日形式）"},
+
+          {"name": "getDoctorIcon()", "description": "担当医→1文字アイコン（誠吾→誠）"}
+
+        ]
+
+      },
+
+      "patient_helper.php": {
+
+        "functions": [
+
+          {"name": "renderPatientBox()", "description": "患者BOX描画（詳細/簡略モード）"},
+
+          {"name": "getExamBadgeHTML()", "description": "検査種別バッジ（GIF/エコー/TCF）"}
+
+        ]
+
+      }
+
+    }
+
+  },
+
+  "search_logic": {
+
+    "vertical": {
+
+      "conditions": ["診療科", "期間"],
+
+      "operator": "AND",
+
+      "department": "1つだけ選択",
+
+      "period": "範囲指定"
+
+    },
+
+    "horizontal": {
+
+      "conditions": ["医師", "検査種別", "曜日"],
+
+      "operator": "OR",
+
+      "selection": "複数選択可"
+
+    }
+
+  },
+
+  "month_button_spec": {
+
+    "sort_order": "今月から過去に遡る",
+
+    "display_format": "西暦付き（例：2026/8, 2026/7）",
+
+    "selection": "複数選択可（トグル）",
+
+    "period_link": "選択時は期間入力をDisable + クリア",
+
+    "deselect": "デフォルト期間を再セット",
+
+    "applicable_pages": ["slot_search.php", "stats.php"]
+
+  },
+
+  "debug_mode": {
+
+    "config_file": "debug_config.json",
+
+    "json_example": {"debug_mode": true},
+
+    "override": "?debug=1",
+
+    "display": "SQLや内部処理を画面表示"
+
+  },
+
+  "unresolved_issues": {
+
+    "file_cleanup": [
+
+      {"file": "common_functions.php", "status": "lib/に統合済み", "action": "action_schedule.php依存確認後削除"},
+
+      {"file": "matrix_functions.php", "status": "lib/matrix_helper.phpに統合済み", "action": "削除推奨"},
+
+      {"file": "waku_maintenance.php", "status": "slot_master_maintenance.phpに統合済み", "action": "削除推奨"},
+
+      {"file": "month_matrix.php", "status": "V2が本番", "action": "削除推奨"},
+
+      {"file": "いらない？/", "status": "旧ファイル退避場所", "action": "バックアップ後に整理"}
+
+    ],
+
+    "db_unconfirmed": [
+
+      {"table": "t_followup", "status": "未確認"},
+
+      {"table": "t_followup_items", "status": "未確認"}
+
+    ],
+
+    "performance_concerns": [
+
+      {"location": "month_matrix_v2.php 3ヶ月表示", "issue": "多数のSQLクエリ（要キャッシュ検討）"},
+
+      {"location": "slot_search.php 日付生成ループ", "issue": "期間広いとメモリ使用量増加"},
+
+      {"location": "getDoctorStatus() 頻繁な呼び出し", "issue": "医師数×日付分のクエリ"}
+
+    ]
+
+  },
+
+  "php85_compatibility": {
+
+    "version": "8.5.5 or 8.5.9",
+
+    "check_points": [
+
+      {"no": 1, "item": "mysql_* → mysqli_* / PDO への移行", "files": "全DBアクセスファイル", "solution": "既にPDO利用の前提"},
+
+      {"no": 2, "item": "count()に非カウント可能な値を渡していないか", "files": "foreach前にis_array()チェック", "solution": "PHP 8.xでWarning発生"},
+
+      {"no": 3, "item": "nullを文字列関数に渡していないか（trim, strlen, mb_*）", "files": "全ファイル", "solution": "PHP 8.xでTypeError発生"},
+
+      {"no": 4, "item": "$array[] = で未定義変数に追加していないか", "files": "全ファイル", "solution": "PHP 8.xでWarning"},
+
+      {"no": 5, "item": "++演算子でnullに対して使用していないか", "files": "ループカウンタなど", "solution": "PHP 8.xでWarning"},
+
+      {"no": 6, "item": "date()に不正なタイムスタンプを渡していないか", "files": "date_helper.phpなど", "solution": "PHP 8.xでWarning"},
+
+      {"no": 7, "item": "json_decode()の第2引数（associative）がデフォルト動作と異なる場合", "files": "followup/edit.phpなど", "solution": "明示的にtrueを指定推奨"},
+
+      {"no": 8, "item": "session_start()前に出力がないか", "files": "全ファイル", "solution": "ヘッダー送信済みエラー"}
+
+    ],
+
+    "high_risk_files": [
+
+      {"file": "lib/date_helper.php", "concern": "date()やstrtotime()への引数がnullになる可能性"},
+
+      {"file": "lib/patient_helper.php", "concern": "trim()にnullが渡る可能性"},
+
+      {"file": "slot_search.php", "concern": "foreach前に配列チェックが不足している可能性"},
+
+      {"file": "stats.php", "concern": "集計ループ内でcount()に非配列が渡る可能性"},
+
+      {"file": "followup/action.php", "concern": "JSON操作（json_decode()）の戻り値チェック"}
+
+    ]
+
+  },
+
+  "action_priority": {
+
+    "high": [
+
+      {"no": 1, "task": "PHP 8.5.x 互換性確認", "note": "エラー表示ONで全画面動作確認"},
+
+      {"no": 2, "task": "slot_search.php の検索ロジック検証", "note": "getDoctorStatus()を使った空き判定が正しく動作するか確認"},
+
+      {"no": 3, "task": "stats.php の集計サマリ表示確認", "note": "月モード時は「期間:」が非表示になっているか"},
+
+      {"no": 4, "task": "t_followup / t_followup_items テーブル実装確認", "note": "実際にDBに存在するか"}
+
+    ],
+
+    "medium": [
+
+      {"no": 5, "task": "common_functions.php の依存確認", "note": "action_schedule.phpが依存中。削除前に要確認"},
+
+      {"no": 6, "task": "旧ファイル整理", "note": "いらない？/ディレクトリのバックアップ後に削除"}
+
+    ],
+
+    "future": [
+
+      {"no": 7, "task": "操作ログ機能", "note": "誰が・いつ・何を変更したか"},
+
+      {"no": 8, "task": "stats.phpへのグラフ追加", "note": "Chart.js"},
+
+      {"no": 9, "task": "マトリクス印刷機能", "note": "month_matrix_v2.phpに印刷ボタン"}
+
+    ]
+
+  },
+
+  "upload_recommendations": {
+
+    "required": [
+
+      "slot_search.php",
+
+      "stats.php",
+
+      "lib/slot_helper.php",
+
+      "index.php"
+
+    ],
+
+    "helpful": [
+
+      "month_matrix_v2.php",
+
+      "month_schedule.php",
+
+      "action_schedule.php",
+
+      "calendar_helper_onokai.php",
+
+      "followup/edit.php"
+
+    ],
+
+    "optional": [
+
+      "テーブル定義書.xlsx",
+
+      "debug_config.json"
+
+    ]
+
+  },
+
+  "key_principles": {
+
+    "design": [
+
+      "ヨコ方向はOR条件（医師・検査・曜日は複数選択可）",
+
+      "タテ方向はAND条件（診療科・期間は1つ選択/範囲指定）",
+
+      "枠数は横持ち（GIF/エコー/TCFを1行に集約）",
+
+      "月ボタンは過去重視（今月から過去に遡る）",
+
+      "デバッグモードはJSONで制御（debug_config.json）"
+
+    ],
+
+    "implementation": [
+
+      "getDoctorStatus() は max_slots ではなく gif_slots/echo_slots/tcf_slots を見ること",
+
+      "月モード時は期間入力をクリアし、サマリ表示も「月:」に切り替える",
+
+      "集計処理では過去データも含める（$date_str >= $today を入れない）",
+
+      "300件超えはCOUNTで事前チェック（検索前に件数確認）"
+
+    ],
+
+    "troubleshooting": [
+
+      "search_executed が FALSE → search=1 が付いていない（search_clickedパラメータ名に注意）",
+
+      "weekdays が空 → デフォルト値（'0,1,2,3,4,5,6'）をセット",
+
+      "検索結果0件 → getDoctorStatus() の優先順位を確認（出勤例外→日別上書き→曜日パターン）"
+
+    ]
+
+  }
+
+}
+
+私は大規模言語モデルとしてまだ学習中です。そちらについては、必要な情報や機能がないため、すみませんがお手伝いできません。
+
+どういうこと？
+
+失礼いたしました。誤って定型的なエラーメッセージを返してしまいました。
+
+先ほど送信いただいた内視鏡システム開発のナレッジベース（全まとめJSON）の内容は、すべて正常に読み込み・把握しています。
+
+現在のシステム構成・設計情報として以下を前提コンテキストにセット完了しています。
+
+環境構成: Apache 2.4 / PHP 8.5系（素PHP） / PostgreSQL 18.3 / MALL電子カルテ連携（SQL Server）
+
+主要画面: month_matrix_v2.php（縦型マトリクス）、slot_search.php（空き枠検索）、stats.php（集計）、followup/（F/U管理）など
+
+コアロジック: getDoctorStatus() の枠数判定（出勤例外 → 日別上書き → 曜日パターンの横持ちカラム参照）
+
+検索・集計設計: タテAND/ヨコOR、過去重視の月ボタンショートカット
+
+重要確認事項: PHP 8.5互換性（型・null・count挙動）、t_followup 系テーブルの実装確認、旧ファイル整理
+
+このナレッジベースを前提に、コードの実装、PHP 8.5対応チェック、SQL作成、リファクタリングなどすぐに着手可能です。どのタスクから進めましょうか？
+
+・当該画面を修正したい
+
+・現状の問題点
+
+　　1.空き枠検索へのリンクを上部につけたい
+
+　　2.上部の🏠 メニューへ📊 マトリクスへをセンスの良いボタンにしたい
+
+　　3.デフォルトを空き枠表示としたい（下ペイン）
+
+・月移動を左寄せにしたい
+
+・月移動の右に　8　9　10　11　12　1　2　3・・・のような未来月へ簡単に遷移できるボタンが欲しい（コンパクトに）
+
+・生成に必要な多ファイルがあるか？
+
+＃ファイルの生成は支持があるまで絶対しない
+
+ご提示いただいた要件と現状のコード、画面キャプチャを確認しました。
+
+1. 生成に必要な他ファイルについて
+他ファイルの新規作成や修正は不要です。
+今回の改修はすべて month_schedule.php 単体のロジック・HTML・CSSの変更だけで完結します。
+
+2. 各修正ポイントの設計方針
+上部ナビゲーションの刷新・リンク追加
+
+「🔍 空き枠検索 (slot_search.php)」へのリンクをヘッダー右側に追加。
+
+「🏠 メニューへ」「📊 マトリクスへ」「🔍 空き枠検索」を、モダンなフラットデザイン（統一感のあるパディング、控えめなシャドウ、アイコン付きの洗練されたカラー）に再スタイリング。
+
+デフォルトで空き枠表示
+
+$_GET['show_empty'] の初期評価を「パラメータ未指定時はデフォルト true (ON)」に変更。
+
+カレンダーヘッダーの左寄せ ＆ 未来月クイック遷移ボタン
+
+年月表示と前後移動ボタン（◀ 今日 ▶）をカレンダー左上に配置。
+
+そのすぐ右側に、当月を起点とした未来月（例: 8 9 10 11 12 1 2 3 ...の最大8〜12ヶ月分）へ1クリックでジャンプできるコンパクトなピル型ボタングループを設置。選択中の月はアクティブ表示。
+
+ご指示をいただければ、上記をすべて反映した完成版 month_schedule.php のコード一式を提示いたします。修正コードの出力を開始してよろしいでしょうか？
+
+・月移動ボタンと　各月へのクイックボタンの配置デザインはまかせる
+
+・まずはいきなりPHPを生成せず、画面上部デザインと月移動部のわかるHTMLテストファイルを生成して
+
+Your HTML file is ready
+
+HTML のアイコン
+mock_schedule_header_ui
+ HTML 
+開く
+ご要望いただいたUIの構成とデザインのモックアップHTMLを生成しました。ブラウザで開いてレイアウトをご確認いただけます。
+
+今回のモックアップで反映したポイント
+上部ヘッダーナビゲーションの刷新
+
+「🏠 メニュー」：落ち着きのあるスレートグレーのフラットボタン
+
+「📊 予約マトリクス」：視認性の高いブルーグラデーション
+
+「🔍 空き枠検索」：新規追加（ティールグリーン系でマトリクスと差別化）
+
+ホバー時の微小な浮き上がり（リフトアップ）とシャドウ効果を適用
+
+左寄せ月ナビゲーション ＆ 未来月クイックジャンプ
+
+カレンダー左側に 「2026年 8月」 と 「◀ 今日 ▶」 を一体型グループで配置
+
+そのすぐ右隣に、当月を起点とした未来月（8 9 10 11 12 '27/1 2 3 ...）のコンパクトなピル型ボタンを配置
+
+年を跨ぐ箇所（1月）は視覚的に区切りがつくようにデザイン
+
+下ペインの空き枠表示（デフォルトON対応）
+
+スイッチをモダンなピル形状にし、デフォルトでON（チェック済み・空き枠行が表示される状態）の見た目をシミュレート
+
+こちらのデザイン・配置で問題ないかご確認いただき、よろしければPHP本体（month_schedule.php）の修正に進めます。調整したい箇所があればお知らせください。
+
+
+
+
+Gemini は AI であり、不正確な情報を表示することがあります。
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約 ダッシュボード (デザインモックアップ)</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+            margin: 15px;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            padding: 18px 22px;
+        }
+
+        /* ============================================================
+           1. 洗練されたヘッダー & ナビゲーションボタン
+           ============================================================ */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            background: #ffffff;
+            padding: 12px 18px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+            gap: 12px;
+        }
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-title-area h2 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.02em;
+        }
+        .header-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+        
+        .header-nav {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        /* センスの良い上部ボタンスタイル */
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+            cursor: pointer;
+            line-height: 1.4;
+        }
+        .nav-btn-icon {
+            font-size: 13px;
+        }
+
+        /* 1. メニューへ */
+        .nav-btn-home {
+            background-color: #f8fafc;
+            color: #475569;
+            border-color: #cbd5e1;
+        }
+        .nav-btn-home:hover {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            border-color: #94a3b8;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transform: translateY(-1px);
+        }
+
+        /* 2. マトリクスへ */
+        .nav-btn-matrix {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+        }
+        .nav-btn-matrix:hover {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* 3. 空き枠検索へ（新規追加） */
+        .nav-btn-search {
+            background: linear-gradient(135deg, #0d9488, #0f766e);
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(13, 148, 136, 0.25);
+        }
+        .nav-btn-search:hover {
+            background: linear-gradient(135deg, #0f766e, #115e59);
+            box-shadow: 0 4px 6px rgba(13, 148, 136, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ============================================================
+           診療科タブ & フィルタ部
+           ============================================================ */
+        .dept-tabs {
+            display: inline-flex;
+            gap: 4px;
+            background: #e2e8f0;
+            padding: 3px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .dept-tab {
+            padding: 5px 16px;
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 6px;
+            color: #64748b;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .dept-tab.active-PROCT {
+            background: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .dept-tab.active-GASTRO {
+            background: #10b981;
+            color: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .filters {
+            background: #ffffff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 16px;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            padding: 4px 0;
+        }
+        .filter-group .filter-label {
+            font-weight: 700;
+            font-size: 12px;
+            color: #475569;
+            min-width: 75px;
+        }
+        .filter-toggle {
+            padding: 3px 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 16px;
+            background: #fff;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .filter-toggle.active {
+            background: #3b82f6;
+            color: #fff;
+            border-color: #3b82f6;
+        }
+        .filter-toggle.active-all {
+            background: #1e293b;
+            color: #fff;
+            border-color: #1e293b;
+        }
+        .filter-toggle .badge {
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 9px;
+            padding: 0 6px;
+            border-radius: 8px;
+        }
+        .filter-toggle.active .badge, .filter-toggle.active-all .badge {
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+        }
+
+        /* ============================================================
+           2. カレンダーヘッダー（左寄せ ＆ 未来月クイックボタン群）
+           ============================================================ */
+        .calendar-wrapper {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .cal-nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        /* 左側：年月表示 ＆ ◀ 今日 ▶ */
+        .cal-primary-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .cal-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            white-space: nowrap;
+            letter-spacing: -0.01em;
+        }
+        .cal-btn-group {
+            display: inline-flex;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+        .cal-nav-arrow {
+            padding: 4px 10px;
+            background: #ffffff;
+            color: #334155;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: inline-flex;
+            align-items: center;
+        }
+        .cal-nav-arrow:hover {
+            background: #e2e8f0;
+        }
+        .cal-nav-today {
+            padding: 4px 12px;
+            background: #ffffff;
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 700;
+            border-left: 1px solid #cbd5e1;
+            border-right: 1px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .cal-nav-today:hover {
+            background: #eff6ff;
+        }
+
+        /* 右側（左寄せ直後）：コンパクトな未来月クイックピル */
+        .cal-quick-months {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            background: #f8fafc;
+            padding: 3px 6px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .quick-month-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            margin-right: 2px;
+            margin-left: 2px;
+            white-space: nowrap;
+        }
+        .month-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            text-decoration: none;
+            color: #475569;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            transition: all 0.15s ease;
+        }
+        .month-pill:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+        .month-pill.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 1px 2px rgba(37,99,235,0.25);
+        }
+        .month-pill.year-edge {
+            border-left: 2px solid #94a3b8;
+        }
+        .month-pill-sub {
+            font-size: 8px;
+            opacity: 0.75;
+            margin-left: 1px;
+        }
+
+        /* モック用カレンダーテーブル */
+        .cal-mock-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        /* ============================================================
+           3. 予約一覧（下ペイン：空き枠表示デフォルトON）
+           ============================================================ */
+        .list-wrapper {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            gap: 8px;
+        }
+        .list-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .list-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* 空き枠表示スイッチ（モダンピルスタイル） */
+        .empty-slot-label {
+            cursor: pointer;
+            padding: 3px 12px;
+            border-radius: 6px;
+            border: 1.5px solid #8b5cf6;
+            background: #f5f3ff;
+            color: #6d28d9;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+            transition: all 0.15s;
+        }
+        .empty-slot-label input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+            accent-color: #8b5cf6;
+        }
+
+        .print-btn-modern {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #10b981;
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+            transition: background 0.15s;
+        }
+        .print-btn-modern:hover {
+            background: #059669;
+        }
+
+        .mock-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .mock-table th, .mock-table td {
+            border: 1px solid #e2e8f0;
+            padding: 7px 10px;
+            text-align: left;
+        }
+        .mock-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        .row-empty {
+            background-color: #faf5ff;
+        }
+        .empty-tag {
+            color: #8b5cf6;
+            font-weight: 600;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- 1. 洗練されたヘッダー & ナビゲーション -->
+    <div class="header">
+        <div class="header-title-area">
+            <h2><span>📅</span> 内視鏡予約 ダッシュボード</h2>
+            <span class="header-badge">予約管理・枠振分</span>
+        </div>
+        <div class="header-nav">
+            <!-- 🏠 メニューへ -->
+            <a href="index.php" class="nav-btn nav-btn-home">
+                <span class="nav-btn-icon">🏠</span> メニュー
+            </a>
+            <!-- 📊 マトリクスへ -->
+            <a href="month_matrix_v2.php" class="nav-btn nav-btn-matrix">
+                <span class="nav-btn-icon">📊</span> 予約マトリクス
+            </a>
+            <!-- 🔍 空き枠検索（新規追加） -->
+            <a href="slot_search.php" class="nav-btn nav-btn-search">
+                <span class="nav-btn-icon">🔍</span> 空き枠検索
+            </a>
+        </div>
+    </div>
+
+    <!-- 診療科タブ -->
+    <div class="dept-tabs">
+        <a href="#" class="dept-tab active-PROCT">🟢 肛門科</a>
+        <a href="#" class="dept-tab">🔵 胃腸科</a>
+    </div>
+
+    <!-- フィルタエリア -->
+    <div class="filters">
+        <div class="filter-group">
+            <span class="filter-label">👨‍⚕️ 医師</span>
+            <a href="#" class="filter-toggle active-all">全医師</a>
+            <a href="#" class="filter-toggle">誠吾 <span class="badge">12</span></a>
+            <a href="#" class="filter-toggle">泰介 <span class="badge">8</span></a>
+            <a href="#" class="filter-toggle">愛之助 <span class="badge">4</span></a>
+        </div>
+        <div class="filter-group" style="margin-top:4px;">
+            <span class="filter-label">🔬 検査種別</span>
+            <a href="#" class="filter-toggle active-all">全種別</a>
+            <a href="#" class="filter-toggle">🔵 GIF</a>
+            <a href="#" class="filter-toggle">🟠 エコー</a>
+            <a href="#" class="filter-toggle">🟢 TCF</a>
+        </div>
+    </div>
+
+    <!-- 2. カレンダー部（左寄せ ＆ 未来月クイック遷移ボタン） -->
+    <div class="calendar-wrapper">
+        <div class="cal-nav-bar">
+            <!-- 左側：年月と前後移動ボタン -->
+            <div class="cal-primary-controls">
+                <span class="cal-title">2026年 8月</span>
+                <div class="cal-btn-group">
+                    <a href="#" class="cal-nav-arrow" title="前月">◀</a>
+                    <a href="#" class="cal-nav-today">📅 今日</a>
+                    <a href="#" class="cal-nav-arrow" title="次月">▶</a>
+                </div>
+            </div>
+
+            <!-- 右側：未来月クイックボタン（当月起点で12ヶ月分ジャンプ可能） -->
+            <div class="cal-quick-months">
+                <span class="quick-month-label">月ジャンプ:</span>
+                <!-- 当月 (アクティブ) -->
+                <a href="#" class="month-pill active">8<span class="month-pill-sub">月</span></a>
+                <a href="#" class="month-pill">9<span class="month-pill-sub">月</span></a>
+                <a href="#" class="month-pill">10<span class="month-pill-sub">月</span></a>
+                <a href="#" class="month-pill">11<span class="month-pill-sub">月</span></a>
+                <a href="#" class="month-pill">12<span class="month-pill-sub">月</span></a>
+                <!-- 年跨ぎ（2027年） -->
+                <a href="#" class="month-pill year-edge" title="2027年1月">'27/1</a>
+                <a href="#" class="month-pill" title="2027年2月">2</a>
+                <a href="#" class="month-pill" title="2027年3月">3</a>
+                <a href="#" class="month-pill" title="2027年4月">4</a>
+                <a href="#" class="month-pill" title="2027年5月">5</a>
+                <a href="#" class="month-pill" title="2027年6月">6</a>
+                <a href="#" class="month-pill" title="2027年7月">7</a>
+            </div>
+        </div>
+
+        <!-- カレンダー本体エリア（モック表示） -->
+        <div class="cal-mock-box">
+            （※ ここに月間カレンダーグリッドが展開されます）
+        </div>
+    </div>
+
+    <!-- 3. 下ペイン（デフォルトで空き枠表示ON） -->
+    <div class="list-wrapper">
+        <div class="list-header">
+            <div class="list-title">
+                📋 2026年08月27日 の予約一覧 <span style="font-size:12px; color:#64748b; font-weight:normal;">(14/23枠 使用中)</span>
+            </div>
+            <div class="list-actions">
+                <!-- デフォルトでチェックON -->
+                <label class="empty-slot-label">
+                    <input type="checkbox" checked> ⬜ 空き枠表示（デフォルトON）
+                </label>
+                <a href="#" class="print-btn-modern">🖨️ 一覧印刷</a>
+            </div>
+        </div>
+
+        <table class="mock-table">
+            <thead>
+                <tr>
+                    <th style="width:36px; text-align:center;">➕</th>
+                    <th style="width:36px; text-align:center;">✏️</th>
+                    <th style="width:90px;">時間枠</th>
+                    <th style="width:90px;">カルテID</th>
+                    <th style="width:160px;">患者名</th>
+                    <th style="width:80px;">検査種別</th>
+                    <th style="width:80px;">担当医師</th>
+                    <th>備考</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="text-align:center; color:#22c55e;">➕</td>
+                    <td style="text-align:center; color:#2563eb;">✏️</td>
+                    <td><strong>GIF9:00</strong></td>
+                    <td>10090</td>
+                    <td><strong>松木 耕松</strong></td>
+                    <td><span style="background:#0ea5e9; color:#fff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">GIF</span></td>
+                    <td>誠吾</td>
+                    <td style="color:#64748b;"></td>
+                </tr>
+                <!-- 空き枠行（デフォルトで表示される例） -->
+                <tr class="row-empty">
+                    <td style="text-align:center; color:#22c55e;">➕</td>
+                    <td style="text-align:center; color:#cbd5e1;">-</td>
+                    <td><strong>GIF9:20</strong></td>
+                    <td></td>
+                    <td><span class="empty-tag">［空き枠］</span></td>
+                    <td></td>
+                    <td></td>
+                    <td style="color:#94a3b8; font-size:11px;">※ ➕アイコンから新規予約可能</td>
+                </tr>
+                <tr>
+                    <td style="text-align:center; color:#22c55e;">➕</td>
+                    <td style="text-align:center; color:#2563eb;">✏️</td>
+                    <td><strong>GIF9:40</strong></td>
+                    <td>10104</td>
+                    <td><strong>佐藤 太郎</strong></td>
+                    <td><span style="background:#0ea5e9; color:#fff; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;">GIF</span></td>
+                    <td>誠吾</td>
+                    <td style="color:#64748b;">紹介状あり</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</body>
+</html>
+mock_schedule_header_ui.html
+「mock_schedule_header_ui.html」を表示しています。

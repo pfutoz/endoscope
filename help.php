@@ -1,0 +1,4607 @@
+<!--
+  生成日時: 2026-10-04 23:00:00 JST
+  ファイル名: help.php
+  設置パス: c:\Apache24\htdocs\endoscope\help.php
+  概要: 医療法人小野会 内視鏡検査予約管理システム 画面別総合操作マニュアル ＆ 運用リファレンス (実機完全再現・最新Ver 1004 月間カレンダー全機能＆病棟連動入院予定・新患登録完全版)
+  修正履歴:
+    - 2026-10-04 (第5弾 - Ver 1004):
+        1. 【病棟管理連動・入院予定リアルタイム制御】modal_edit.php において初登録前でもTCF/W選択時に即表示、ポリペク選択時に即表示＆入院予定自動ON、その他種別選択時に入院予定OFF＆非表示化する完全リアルタイム連動を実装
+        2. 【予約保存APIバインド数完全修復】action_schedule.php における is_admission バインド数不一致（SQLSTATE[08P01]）を解消し、UPDATE時の差分検知・保存も完全対応
+        3. 【本番データベース（192.168.1.16）完全同期】t_endoscopy_schedule への is_admission カラム・インデックス追加、および旧4テーブル（m_doctor, m_doctor_attendance, m_doctor_slot_pattern, m_waku_master）の安全退避・削除を実施（差分ゼロ達成）
+        4. 【最新バージョン移行】全体バージョンを ver1004 に正式更新、総合ポータル index.php から help.php へのダイレクトナビゲーション確立
+    - 2026-10-01 (第4弾 - Ver 2.7):
+        1. 【月間カレンダー全ボタン完全網羅】month_schedule.php の全ボタン（ヘッダー・内包コマンドパレット・月ナビ・セル・一覧ツールバー・行操作・速報トースト）の徹底解説リファレンステーブルを追加
+        2. 【新規患者1名予約登録 完全実践チュートリアル新設】カレンダー日選択 ➔ 空き枠「＋」クリック ➔ Native <dialog> 起動 ➔ カルテID・MALL3自動補完・医療安全アラート・定型タグDX ➔ 保存と双方向 postMessage 自動更新 ＆ 自端末Undo監査ログ記録までの全5ステップをCSSリアルUIモックアップ付きで完全ビジュアル化
+        3. 【現場運用ルール＆コツ追加】電話予約スピード対応、枠なし設定（🚫）活用法、大腸W制限注意等のコールアウトを追加
+    - 2026-10-01 (第3弾 - Ver 2.6):
+        1. 【仕様書作業履歴完全網羅】仕様書（2026-9-26〜2026-9-29works.html, specdoc.html）の全確定仕様を徹底反映
+        2. 【相互参照バー新設】ヘッダー直下に各改修報告書・機能仕様書・計画書へのダイレクトリンクバーを配置
+        3. 【デイリーノート独立詳解】schedule_note.php のリアルUIモックアップ、キーボード操作仕様表、32pxツライチ、左揃え仕様を追加
+        4. 【予約モーダル超拡充】modal_edit.php の Native <dialog> ＋ postMessage 自動更新、MALL3メモ3区分、定型文DX、アラート承認をUIモックアップ付きで詳解
+        5. 【自端末Undo監査ログ新設】t_schedule_audit_log のワンクリック復元、action_audit_log.php のUIモックアップと復元手順を追加
+        6. 【Changelog年表新設】9/26〜9/29 の改修作業履歴を時系列カードで一覧化
+        7. メインポータル（index.php）の全カードからのダイレクトジャンプ完全連動
+-->
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医療法人小野会 内視鏡検査予約管理システム 画面別総合操作マニュアル</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --primary-border: #bfdbfe;
+            --primary-dark: #172554;
+            --teal: #0f766e;
+            --teal-light: #f0fdfa;
+            --teal-border: #99f6e4;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --border: #cbd5e1;
+            --card-bg: #ffffff;
+
+            --danger: #b91c1c;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --warning: #b45309;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --success: #15803d;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --purple: #7e22ce;
+            --purple-bg: #f3e8ff;
+            --purple-border: #e9d5ff;
+
+            --sidebar-width: 310px;
+            --header-height: 72px;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            line-height: 1.68;
+            font-size: 14px;
+            overflow-x: hidden;
+        }
+
+        /* ── トップ固定ナビゲーションバー ── */
+        .top-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f766e 100%);
+            color: #ffffff;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+            border-bottom: 2px solid #38bdf8;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            font-size: 26px;
+            background: rgba(255, 255, 255, 0.15);
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .brand-text h1 {
+            font-size: 17.5px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            color: #ffffff;
+        }
+
+        .brand-text .sub {
+            font-size: 11.5px;
+            color: #bae6fd;
+            font-weight: 500;
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge-ver {
+            background: rgba(56, 189, 248, 0.25);
+            color: #e0f2fe;
+            border: 1px solid rgba(56, 189, 248, 0.5);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-nav-action {
+            background: #ffffff;
+            color: #0f172a;
+            border: none;
+            padding: 7px 15px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-nav-action:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+        }
+
+        .btn-nav-action.primary {
+            background: #38bdf8;
+            color: #0c4a6e;
+        }
+
+        .btn-nav-action.primary:hover {
+            background: #7dd3fc;
+        }
+
+        /* ── アプリレイアウト ── */
+        .app-container {
+            display: flex;
+            margin-top: var(--header-height);
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        /* ── 左固定サイドバー ── */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: #ffffff;
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: var(--header-height);
+            bottom: 0;
+            left: 0;
+            overflow-y: auto;
+            padding: 18px 14px;
+            z-index: 900;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03);
+        }
+
+        .sidebar-search {
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            padding: 9px 12px 9px 34px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 12.5px;
+            background: var(--slate-50);
+            color: var(--slate-800);
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .sidebar-search input:focus {
+            border-color: var(--primary);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .sidebar-search .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13px;
+            color: var(--slate-400);
+        }
+
+        .category-filter {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .cat-chip {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: var(--slate-100);
+            color: var(--slate-600);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .cat-chip.active,
+        .cat-chip:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary-border);
+            font-weight: 700;
+        }
+
+        .toc-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .toc-item a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 9px;
+            border-radius: var(--radius-sm);
+            color: var(--slate-700);
+            text-decoration: none;
+            font-size: 12.5px;
+            font-weight: 500;
+            transition: all 0.15s;
+            border-left: 3px solid transparent;
+        }
+
+        .toc-item a:hover {
+            background: var(--slate-50);
+            color: var(--primary);
+        }
+
+        .toc-item.active a {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 700;
+            border-left-color: var(--primary);
+        }
+
+        .toc-item .item-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--slate-400);
+            min-width: 18px;
+        }
+
+        .toc-item.active .item-num {
+            color: var(--primary);
+        }
+
+        /* ── メインコンテンツエリア ── */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 28px 36px 60px;
+            max-width: 1320px;
+        }
+
+        /* ── 実機UIモックアップ専用スタイル ── */
+        .real-mockup-window {
+            background: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #94a3b8;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+            margin: 22px 0 28px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+            color: #1e293b;
+        }
+
+        .real-mockup-browser-bar {
+            background: #f1f5f9;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11.5px;
+            color: #475569;
+        }
+
+        .real-mockup-browser-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .real-mockup-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .real-mockup-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: #ef4444;
+        }
+
+        .dot-yellow {
+            background: #f59e0b;
+        }
+
+        .dot-green {
+            background: #10b981;
+        }
+
+        .real-mockup-url-box {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 14px;
+            padding: 2px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 520px;
+            flex: 1;
+        }
+
+        .real-mockup-canvas {
+            background: #ffffff;
+            overflow-x: auto;
+            padding: 16px;
+        }
+
+        .real-mockup-canvas.dark-theme {
+            background: #0b1329;
+            color: #f8fafc;
+        }
+
+        /* 実機風ボタンスタイル */
+        .rm-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #ffffff;
+            border: none;
+            cursor: default;
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+        }
+
+        .rm-btn-red {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .rm-btn-blue {
+            background: #2563eb;
+        }
+
+        .rm-btn-teal {
+            background: #0d9488;
+        }
+
+        .rm-btn-purple {
+            background: #7c3aed;
+        }
+
+        .rm-btn-crimson {
+            background: #be123c;
+        }
+
+        .rm-btn-green {
+            background: #16a34a;
+        }
+
+        .rm-btn-orange {
+            background: #ea580c;
+        }
+
+        .rm-btn-amber {
+            background: #d97706;
+        }
+
+        .rm-btn-dark {
+            background: #334155;
+        }
+
+        .rm-btn-light {
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
+
+        .rm-btn-cyan {
+            background: #0284c7;
+        }
+
+        /* 実機風バッジ */
+        .rm-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10.5px;
+            font-weight: 700;
+        }
+
+        /* ── セクション共通スタイル ── */
+        .guide-section {
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: var(--shadow-sm);
+            scroll-margin-top: calc(var(--header-height) + 16px);
+            transition: all 0.2s;
+        }
+
+        .guide-section:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--slate-100);
+        }
+
+        .section-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-badge-num {
+            background: var(--primary);
+            color: #ffffff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--slate-900);
+        }
+
+        .section-file-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .section-desc {
+            font-size: 14.5px;
+            color: var(--slate-700);
+            margin-bottom: 20px;
+            line-height: 1.7;
+        }
+
+        /* ── 機能テーブル ── */
+        .feature-table-wrap {
+            margin: 18px 0;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+        }
+
+        .feature-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: #ffffff;
+        }
+
+        .feature-table th,
+        .feature-table td {
+            padding: 11px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        .feature-table th {
+            background: #f8fafc;
+            color: var(--slate-800);
+            font-weight: 700;
+            font-size: 12.5px;
+        }
+
+        .feature-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .feature-table td strong {
+            color: var(--slate-900);
+        }
+
+        /* ── バッジ類 ── */
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .badge-blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-green {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-orange {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .badge-red {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .badge-purple {
+            background: #ede9fe;
+            color: #6b21a8;
+        }
+
+        .badge-cyan {
+            background: #cffafe;
+            color: #0e7490;
+        }
+
+        .badge-dark {
+            background: #334155;
+            color: #f8fafc;
+        }
+
+        /* ── 操作手順ステップ ── */
+        .step-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 18px 0;
+        }
+
+        .step-card {
+            display: flex;
+            gap: 14px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            align-items: flex-start;
+        }
+
+        .step-index {
+            background: var(--primary);
+            color: #ffffff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 800;
+            min-width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-body h4 {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--slate-900);
+            margin-bottom: 4px;
+        }
+
+        .step-body p {
+            font-size: 12.5px;
+            color: var(--slate-600);
+            line-height: 1.55;
+        }
+
+        /* ── アラートカード ── */
+        .clinical-alert {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+            border-left: 5px solid #dc2626;
+            color: #7f1d1d;
+            padding: 15px 20px;
+            border-radius: var(--radius-md);
+            margin: 18px 0;
+            font-size: 13px;
+        }
+
+        .clinical-alert h4 {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #991b1b;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .clinical-alert ul {
+            padding-left: 18px;
+            margin-top: 5px;
+        }
+
+        .clinical-alert li {
+            margin-bottom: 3px;
+        }
+
+        .info-card {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-left: 5px solid #2563eb;
+            color: #1e3a8a;
+            padding: 15px 20px;
+            border-radius: var(--radius-md);
+            margin: 18px 0;
+            font-size: 13px;
+        }
+
+        .info-card h4 {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── フッター ── */
+        .doc-footer {
+            margin-top: 50px;
+            padding: 24px;
+            text-align: center;
+            color: var(--slate-500);
+            font-size: 12px;
+            border-top: 1px solid var(--border);
+            background: #ffffff;
+            border-radius: var(--radius-md);
+        }
+
+        /* ── 実践チュートリアル専用スタイル ── */
+        .tutorial-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .tutorial-step-card {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+            border-left: 5px solid var(--primary);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .tutorial-step-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+        }
+
+        .tutorial-step-header {
+            background: linear-gradient(to right, #f8fafc, #ffffff);
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tutorial-step-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--slate-900);
+        }
+
+        .tutorial-step-badge {
+            background: var(--primary);
+            color: #ffffff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .tutorial-step-content {
+            padding: 16px 20px;
+            font-size: 13.5px;
+            color: var(--slate-700);
+            line-height: 1.7;
+        }
+
+        .tutorial-flow-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 13px;
+            margin: -6px 0;
+            opacity: 0.85;
+        }
+
+        .icon-btn-sample {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: default;
+            user-select: none;
+            vertical-align: middle;
+        }
+
+        .icon-btn-sample.add {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .icon-btn-sample.edit {
+            background: #e0e7ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+        }
+
+        .icon-btn-sample.none {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        .icon-btn-sample.print {
+            background: #ede9fe;
+            color: #6b21a8;
+            border: 1px solid #ddd6fe;
+        }
+
+        .icon-btn-sample.follow {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        /* ── 印刷用スタイル ── */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 10.5pt;
+            }
+
+            .top-navbar,
+            .sidebar,
+            .btn-nav-action,
+            .category-filter,
+            .sidebar-search {
+                display: none !important;
+            }
+
+            .app-container {
+                margin-top: 0 !important;
+            }
+
+            .main-content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+
+            .guide-section {
+                box-shadow: none !important;
+                border: 1px solid #94a3b8 !important;
+                page-break-inside: avoid;
+                margin-bottom: 20pt;
+                padding: 14pt;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                display: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── トップナビゲーションバー ── -->
+    <header class="top-navbar">
+        <div class="navbar-brand">
+            <div class="brand-icon">🔬</div>
+            <div class="brand-text">
+                <h1>医療法人小野会 内視鏡予約管理システム</h1>
+                <div class="sub">画面別総合操作マニュアル ＆ 運用リファレンス (実機完全同期 Ver 1004版)</div>
+            </div>
+        </div>
+        <div class="navbar-actions">
+            <span class="badge-ver">Ver 1004 実機完全同期</span>
+            <button type="button" class="btn-nav-action primary" onclick="window.print()">
+                <span>🖨️</span> マニュアルを印刷
+            </button>
+            <a href="index.php" class="btn-nav-action">
+                <span>◀</span> ポータルへ戻る (index.php)
+            </a>
+        </div>
+    </header>
+
+    <div class="app-container">
+
+        <!-- ── 左固定サイドバー ── -->
+        <aside class="sidebar">
+            <div class="sidebar-search">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="manualSearchInput" placeholder="画面名・機能名・操作を検索..." oninput="handleManualSearch()">
+            </div>
+
+            <div class="category-filter">
+                <span class="cat-chip active" onclick="filterCategory('all', this)">すべて</span>
+                <span class="cat-chip" onclick="filterCategory('booking', this)">予約操作</span>
+                <span class="cat-chip" onclick="filterCategory('search', this)">検索・集計</span>
+                <span class="cat-chip" onclick="filterCategory('master', this)">マスタ管理</span>
+                <span class="cat-chip" onclick="filterCategory('common', this)">共通・安全</span>
+            </div>
+
+            <ul class="toc-list" id="tocList">
+                <li class="toc-item active" data-cat="all common">
+                    <a href="#sec-overview"><span class="item-num">01</span> システム全体概要・環境</a>
+                </li>
+                <li class="toc-item" data-cat="booking common">
+                    <a href="#sec-portal"><span class="item-num">02</span> 統合ポータル (index.php)</a>
+                </li>
+                <li class="toc-item" data-cat="booking">
+                    <a href="#sec-matrix-v2"><span class="item-num">03</span> 予約マトリクス (縦型V2)</a>
+                </li>
+                <li class="toc-item" data-cat="booking">
+                    <a href="#sec-calendar"><span class="item-num">04</span> 月間カレンダービュー <span
+                            style="font-size:10px; background:#dcfce7; color:#15803d; padding:1px 5px; border-radius:3px; font-weight:bold; margin-left:4px;">新患登録手順</span></a>
+                </li>
+                <li class="toc-item" data-cat="booking">
+                    <a href="#sec-schedule-note"><span class="item-num">05</span> デイリーノート表示</a>
+                </li>
+                <li class="toc-item" data-cat="booking">
+                    <a href="#sec-slot-search"><span class="item-num">06</span> 空き枠検索 (速報/カスタム)</a>
+                </li>
+                <li class="toc-item" data-cat="booking">
+                    <a href="#sec-progress-monitor"><span class="item-num">07</span> 当日進捗モニター (LIVE)</a>
+                </li>
+                <li class="toc-item" data-cat="booking common">
+                    <a href="#sec-modal-edit"><span class="item-num">08</span> 予約登録・編集ダイアログ</a>
+                </li>
+                <li class="toc-item" data-cat="common">
+                    <a href="#sec-audit-undo"><span class="item-num">09</span> 予約変更履歴 ＆ ワンクリックUndo</a>
+                </li>
+                <li class="toc-item" data-cat="search">
+                    <a href="#sec-patient-search"><span class="item-num">10</span> 予約済患者検索</a>
+                </li>
+                <li class="toc-item" data-cat="search">
+                    <a href="#sec-followup"><span class="item-num">11</span> フォローアップ管理</a>
+                </li>
+                <li class="toc-item" data-cat="search">
+                    <a href="#sec-stats"><span class="item-num">12</span> 検査数集計・実績統計</a>
+                </li>
+                <li class="toc-item" data-cat="master">
+                    <a href="#sec-slot-master"><span class="item-num">13</span> 検査枠マスターメンテ</a>
+                </li>
+                <li class="toc-item" data-cat="master">
+                    <a href="#sec-master"><span class="item-num">14</span> 汎用マスタメンテナンス</a>
+                </li>
+                <li class="toc-item" data-cat="booking common">
+                    <a href="#sec-prep-room"><span class="item-num">15</span> 前処置室ベッド管理</a>
+                </li>
+                <li class="toc-item" data-cat="common">
+                    <a href="#sec-print"><span class="item-num">16</span> 帳票出力・印刷システム</a>
+                </li>
+                <li class="toc-item" data-cat="common">
+                    <a href="#sec-safety"><span class="item-num">17</span> 医療安全・抗血栓薬・感染症</a>
+                </li>
+                <li class="toc-item" data-cat="all common">
+                    <a href="#sec-changelog"><span class="item-num">18</span> システム改修作業履歴 (Changelog)</a>
+                </li>
+                <li class="toc-item" data-cat="all common">
+                    <a href="#sec-faq"><span class="item-num">19</span> FAQ・トラブルシューティング</a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- ── メインコンテンツ ── -->
+        <main class="main-content">
+
+            <!-- ── 関連仕様書・改修作業報告書ナビゲーションバー ── -->
+            <div
+                style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 18px; margin-bottom:20px; display:flex; gap:12px; font-size:12.5px; font-weight:600; color:#475569; align-items:center; flex-wrap:wrap; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <span style="color:#0f172a; font-weight:800; display:flex; align-items:center; gap:6px;">
+                    <span>📂</span> 仕様書・改修履歴アーカイブ:
+                </span>
+                <a href="仕様書/specdoc.html" target="_blank"
+                    style="color:#1d4ed8; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span>📘</span> システム機能仕様書 (specdoc.html)
+                </a>
+                <span style="color:#cbd5e1;">|</span>
+                <a href="仕様書/2026-9-29works.html" target="_blank"
+                    style="color:#059669; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span>📄</span> 9/29 改修報告 (UI全面刷新/モーダル化)
+                </a>
+                <span style="color:#cbd5e1;">|</span>
+                <a href="仕様書/2026-9-28works.html" target="_blank"
+                    style="color:#2563eb; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span>📄</span> 9/28 改修報告 (モジュール外部分離)
+                </a>
+                <span style="color:#cbd5e1;">|</span>
+                <a href="仕様書/2026-9-27works.html" target="_blank"
+                    style="color:#7c3aed; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span>📄</span> 9/27 改修報告 (医療安全/AuditLog/定型文DX)
+                </a>
+                <span style="color:#cbd5e1;">|</span>
+                <a href="仕様書/2026-9-26works.html" target="_blank"
+                    style="color:#d97706; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span>📄</span> 9/26 改修報告 (電子ホワイトボード/日別メモ)
+                </a>
+                <span style="color:#cbd5e1;">|</span>
+                <a href="仕様書/plan.html" target="_blank"
+                    style="color:#475569; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span>📋</span> 開発計画書 (plan.html)
+                </a>
+            </div>
+
+            <!-- ドキュメントサマリー -->
+            <div
+                style="background:#ffffff; border-radius:12px; border:1px solid #cbd5e1; padding:24px; margin-bottom:28px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e2e8f0;">
+                    <div>
+                        <h2
+                            style="font-size:20px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                            🏥 医療法人小野会 内視鏡予約管理システム 画面別操作マニュアル
+                        </h2>
+                        <p style="color:#64748b; font-size:13px; margin-top:4px;">
+                            実機本番環境（192.168.1.16）およびローカル環境と100%同一のプログラム構成に対応
+                        </p>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <span
+                            style="font-size:11.5px; padding:3px 9px; border-radius:6px; background:#f1f5f9; color:#475569; font-weight:600;">文書番号:
+                            <strong>DOC-ENDO-2026-V25</strong></span>
+                        <span
+                            style="font-size:11.5px; padding:3px 9px; border-radius:6px; background:#f1f5f9; color:#475569; font-weight:600;">更新日:
+                            <strong>2026年10月01日</strong></span>
+                        <span
+                            style="font-size:11.5px; padding:3px 9px; border-radius:6px; background:#e0f2fe; color:#0369a1; font-weight:700;">実機画面完全一致</span>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px;">
+                    <div style="background:#f8fafc; padding:12px 14px; border-radius:6px; border:1px solid #e2e8f0;">
+                        <div style="font-weight:700; color:#1e293b; font-size:13px; margin-bottom:4px;">🎯 本マニュアルの特徴
+                        </div>
+                        <div style="font-size:12.5px; color:#64748b; line-height:1.6;">
+                            現場で稼働している実際の画面スクリーンショットと寸分違わぬ<strong>HTML/CSS製リアルUIモックアップ</strong>により、画面配置・ボタン名・カラーバッジを直感的に把握できます。
+                        </div>
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 14px; border-radius:6px; border:1px solid #e2e8f0;">
+                        <div style="font-weight:700; color:#1e293b; font-size:13px; margin-bottom:4px;">⚡ 2026-09-28/29
+                            改修仕様完全収録</div>
+                        <div style="font-size:12.5px; color:#64748b; line-height:1.6;">
+                            ツールバー高さツライチ化、エコー水色テーマ、直近空き枠フローティングトースト、Native Dialogモーダル、キーボード日付送り等の最新確定機能を網羅しています。
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================
+            01. システム全体概要・環境
+            ============================================================ -->
+            <section class="guide-section" id="sec-overview">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">01</span>
+                        <h2 class="section-title">システム全体概要・アーキテクチャ</h2>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-dark">システム基盤</span>
+                        <span class="badge badge-blue">二重DB連携</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    本システムは、確定カルテ情報を管理する電子カルテ（MALL3 / SQL Server）と、院内現場での超高速な枠調整・動線管理を担う予約DB（PostgreSQL
+                    18.3）を安全にハイブリッド連携させています。
+                </p>
+
+                <div class="feature-table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">データベース / サーバー</th>
+                                <th style="width: 25%;">アクセス方式</th>
+                                <th style="width: 50%;">役割・取り扱うデータ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>電子カルテ MALL3</strong><br><span style="font-size:11px; color:#64748b;">SQL
+                                        Server (192.168.1.77)</span></td>
+                                <td><span class="badge badge-blue">読み取り専用 (SELECT)</span></td>
+                                <td>患者基本情報（カルテID、氏名、カナ、生年月日、性別、保険情報）、カルテ診療記事メモ（本日メモ・カルテメモ・患者メモ）。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>内視鏡予約・進捗DB</strong><br><span
+                                        style="font-size:11px; color:#64748b;">PostgreSQL 18.3 (localhost /
+                                        192.168.1.16)</span></td>
+                                <td><span class="badge badge-green">完全読み書き (R/W)</span></td>
+                                <td>内視鏡予約台帳 (`t_endoscopy_schedule`)、当日進捗ステータス
+                                    (`t_progress_status`)、前処置室ベッド割当、定型文マスタ、操作監査ログ。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info-card">
+                    <h4>💡 電子カルテMALL3のデータ保護と高速化</h4>
+                    <p>電子カルテMALL3のマスターテーブルは直接書き換えません。現場ナースや医師が行う「枠仮押さえ」「前処置室ベッド番号の割り当て」「当日進捗ステータス（来院〜処置〜検査〜リカバリ）」はPostgreSQL側で独立して即座に更新されるため、電子カルテ端末が重くならず超高速（10ms以内）に応答します。
+                    </p>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            02. 統合ポータル (index.php)
+            ============================================================ -->
+            <section class="guide-section" id="sec-portal">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">02</span>
+                        <h2 class="section-title">統合ポータル・ダッシュボード</h2>
+                        <span class="section-file-pill">index.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-blue">エントリーポイント</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    全スタッフが最初にアクセスするポータル画面です。当日の内視鏡予約件数をリアルタイム集計表示し、3カテゴリ・全9機能へのクイックアクセスを提供します。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: index.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box">🔒 192.168.1.16/endoscope/index.php</div>
+                        </div>
+                        <span style="font-size:11px; color:#64748b;">統合ポータル</span>
+                    </div>
+                    <div class="real-mockup-canvas">
+                        <!-- ヘッダーバナー -->
+                        <div
+                            style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%); padding: 10px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: #fff;">
+                            <div style="font-weight: 800; font-size: 15px; display:flex; align-items:center; gap:8px;">
+                                <span>🔬 内視鏡予約システム</span>
+                                <span
+                                    style="font-size:12px; color:rgba(255,255,255,0.85); font-weight:normal; border-left:1px solid rgba(255,255,255,0.3); padding-left:8px;">医療法人小野会
+                                    統合ポータル</span>
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <span
+                                    style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">📖
+                                    操作マニュアル</span>
+                                <span
+                                    style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;">❓
+                                    仕様書</span>
+                                <span
+                                    style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:12px; font-size:10.5px; font-weight:700;">ver1004</span>
+                                <span
+                                    style="background:rgba(0,0,0,0.25); padding:2px 8px; border-radius:12px; font-size:11px; font-family:monospace;">192.168.1.16</span>
+                            </div>
+                        </div>
+
+                        <!-- 当日サマリバー -->
+                        <div
+                            style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span
+                                    style="background:#f1f5f9; padding:3px 8px; border-radius:4px; font-weight:800; font-size:12px;">📅
+                                    本日: 2026-10-01 (木)</span>
+                                <span
+                                    style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; padding:2px 8px; border-radius:12px; font-size:11.5px; font-weight:700;">肛門科:
+                                    14件</span>
+                                <span
+                                    style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:11.5px; font-weight:700;">胃腸科:
+                                    8件</span>
+                                <span
+                                    style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:2px 8px; border-radius:12px; font-size:11.5px; font-weight:700;">当日計:
+                                    22件</span>
+                                <span class="rm-btn rm-btn-red"
+                                    style="padding:4px 12px; border-radius:20px; font-size:12px;">📊 当日ホワイトボード (LIVE)
+                                    ➔</span>
+                            </div>
+                            <div style="display:flex; gap:10px; font-size:11.5px; color:#475569; align-items:center;">
+                                <span
+                                    style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; padding:2px 6px; border-radius:4px;">🛠️
+                                    デバッグ [OFF]</span>
+                                <span>☑ 詳細説明</span>
+                            </div>
+                        </div>
+
+                        <!-- 3カテゴリ メニューグリッド -->
+                        <div style="margin-bottom:12px;">
+                            <div
+                                style="font-weight:800; color:#475569; font-size:12px; margin-bottom:6px; border-bottom:1.5px solid #cbd5e1; padding-bottom:2px;">
+                                📌 予約操作</div>
+                            <div
+                                style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:8px;">
+                                <div
+                                    style="background:linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); border:1.5px solid #93c5fd; border-radius:6px; padding:10px 12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <strong style="color:#1e3a8a; font-size:13.5px;">📊 予約マトリクス (縦型V2)</strong>
+                                        <div style="display:flex; gap:4px; align-items:center;">
+                                            <span
+                                                style="background:#2563eb; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">メイン</span>
+                                            <span
+                                                style="background:#e2e8f0; color:#475569; font-size:11px; width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:bold;">❓</span>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:11.5px; color:#64748b; margin:4px 0;">
+                                        縦軸日付・横軸時間枠の月間総覧。D&D枠移動対応。</div>
+                                    <div style="text-align:right; font-size:11px; font-weight:700; color:#2563eb;">開く ➔
+                                    </div>
+                                </div>
+                                <div
+                                    style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:6px; padding:10px 12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <strong style="color:#0f172a; font-size:13.5px;">📅 月間カレンダービュー</strong>
+                                        <div style="display:flex; gap:4px; align-items:center;">
+                                            <span
+                                                style="background:#059669; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">カレンダー</span>
+                                            <span
+                                                style="background:#e2e8f0; color:#475569; font-size:11px; width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:bold;">❓</span>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:11.5px; color:#64748b; margin:4px 0;">月間空き枠確認・日別一覧・予約登録・個別印刷。
+                                    </div>
+                                    <div style="text-align:right; font-size:11px; font-weight:700; color:#2563eb;">開く ➔
+                                    </div>
+                                </div>
+                                <div
+                                    style="background:linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%); border:1.5px solid #a7f3d0; border-radius:6px; padding:10px 12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <strong style="color:#065f46; font-size:13.5px;">🔍 空き枠検索</strong>
+                                        <div style="display:flex; gap:4px; align-items:center;">
+                                            <span
+                                                style="background:#10b981; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">高速</span>
+                                            <span
+                                                style="background:#e2e8f0; color:#475569; font-size:11px; width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:bold;">❓</span>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:11.5px; color:#64748b; margin:4px 0;">医師・検査種別・曜日別の空き枠絞り込み一覧。
+                                    </div>
+                                    <div style="text-align:right; font-size:11px; font-weight:700; color:#059669;">探す ➔
+                                    </div>
+                                </div>
+                                <div
+                                    style="background:linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); border:1.5px solid #93c5fd; border-radius:6px; padding:10px 12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <strong style="color:#1e3a8a; font-size:13.5px;">📋 当日進捗モニター</strong>
+                                        <div style="display:flex; gap:4px; align-items:center;">
+                                            <span
+                                                style="background:#ef4444; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">LIVE</span>
+                                            <span
+                                                style="background:#e2e8f0; color:#475569; font-size:11px; width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:bold;">❓</span>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:11.5px; color:#64748b; margin:4px 0;">7段階動線管理の電子ホワイトボード。</div>
+                                    <div style="text-align:right; font-size:11px; font-weight:700; color:#2563eb;">開く ➔
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            03. 予約マトリクス (縦型V2)
+            ============================================================ -->
+            <section class="guide-section" id="sec-matrix-v2">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">03</span>
+                        <h2 class="section-title">予約マトリクス (縦型V2)</h2>
+                        <span class="section-file-pill">month_matrix_v2.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-primary">メイン運用画面</span>
+                        <span class="badge badge-purple">D&amp;D枠移動</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    縦軸に日付（1日〜末日）、横軸に時間枠（12:30〜15:30、#1、#2、GIF1、GIF2等）を網羅したメイン予約台帳です。ドラッグ＆ドロップによる枠移動、空きセルのワンクリック予約に対応しています。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: month_matrix_v2.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box">🔒 192.168.1.16/endoscope/month_matrix_v2.php</div>
+                        </div>
+                        <span style="font-size:11px; color:#64748b;">予約マトリクス (縦型V2)</span>
+                    </div>
+                    <div class="real-mockup-canvas">
+                        <!-- 上部タイトル ＆ アクションバー -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                            <div style="font-weight:800; font-size:15px; color:#0f172a;">
+                                内視鏡室 予約管理システム (MatrixView Vertical Date)
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                <div
+                                    style="display:inline-flex; border:1px solid #cbd5e1; border-radius:4px; overflow:hidden;">
+                                    <span
+                                        style="background:#2563eb; color:#fff; padding:2px 8px; font-size:11px; font-weight:700;">5分</span>
+                                    <span
+                                        style="background:#f1f5f9; color:#475569; padding:2px 8px; font-size:11px;">10分</span>
+                                    <span
+                                        style="background:#f1f5f9; color:#475569; padding:2px 8px; font-size:11px;">15分</span>
+                                </div>
+                                <span class="rm-btn rm-btn-red">🚨 当日ホワイトボード</span>
+                                <span class="rm-btn rm-btn-blue">月間カレンダーへ</span>
+                                <span class="rm-btn rm-btn-teal">空き枠検索</span>
+                                <span class="rm-btn rm-btn-purple">操作履歴(Undo)</span>
+                                <span class="rm-btn rm-btn-crimson">アラートスキャン</span>
+                            </div>
+                        </div>
+
+                        <!-- 2段目ツールバー (高さツライチ24px仕様) -->
+                        <div
+                            style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px; padding:4px 8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; font-size:11.5px;">
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <span
+                                    style="background:#0284c7; color:#fff; padding:2px 8px; border-radius:3px; font-weight:700;">●
+                                    肛</span>
+                                <span style="background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:3px;">●
+                                    胃</span>
+                                <span
+                                    style="border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px; background:#fff;">◀</span>
+                                <span style="font-weight:700; color:#0f172a; padding:0 4px;">[ 2026.10 ▼ ]</span>
+                                <span
+                                    style="border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px; background:#fff;">▶</span>
+                                <span style="color:#64748b; margin-left:4px;">⬅ ⬆ ⬇ ➡</span>
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                <span style="background:#e2e8f0; padding:2px 6px; border-radius:3px;">枠: GIF エコー TCF
+                                    迷子</span>
+                                <span>[伏字]</span>
+                                <span
+                                    style="background:#dbeafe; color:#1e40af; padding:1px 5px; border-radius:3px;">起動時</span>
+                                <span>[迷子]</span>
+                                <span>[削除]</span>
+                                <span>[未割当]</span>
+                                <span
+                                    style="background:#1e40af; color:#fff; padding:2px 6px; border-radius:3px;">使用/最大</span>
+                                <span style="background:#e2e8f0; padding:2px 6px; border-radius:3px;">残数</span>
+                            </div>
+                        </div>
+
+                        <!-- マトリクステーブル -->
+                        <table
+                            style="width:100%; border-collapse:collapse; font-size:11px; text-align:left; border:1px solid #cbd5e1;">
+                            <thead>
+                                <tr style="background:#f1f5f9; color:#475569; border-bottom:1.5px solid #cbd5e1;">
+                                    <th style="padding:6px 8px; border-right:1px solid #cbd5e1; width:110px;">日付 / 曜日
+                                    </th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:80px; text-align:center;">
+                                        12:30</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:80px; text-align:center;">
+                                        13:00</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:80px; text-align:center;">
+                                        14:30</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:80px; text-align:center;">
+                                        15:00</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:85px; text-align:center;">
+                                        14:30~15:30</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:70px; text-align:center;">
+                                        #1</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:70px; text-align:center;">
+                                        #2</th>
+                                    <th
+                                        style="padding:6px 4px; border-right:1px solid #cbd5e1; width:85px; text-align:center;">
+                                        GIF1</th>
+                                    <th style="padding:6px 4px; text-align:center; width:85px;">GIF2</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 10/1 (木) -->
+                                <tr style="background:#fefce8; border-bottom:1px solid #cbd5e1;">
+                                    <td style="padding:4px 8px; border-right:1px solid #cbd5e1; font-weight:700;">
+                                        10/1 (木)<br>
+                                        <span style="font-size:9.5px; color:#b45309;">禁煙 ● 1/2</span>
+                                    </td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        -</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#eff6ff;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:46662</span><span style="color:#0284c7;">62</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">山下 広昭</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>S39.7.20</span>
+                                            <span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">GIF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:4px; color:#94a3b8; text-align:center;">-</td>
+                                </tr>
+                                <!-- 10/2 (金) -->
+                                <tr style="background:#ffffff; border-bottom:1px solid #cbd5e1;">
+                                    <td style="padding:4px 8px; border-right:1px solid #cbd5e1; font-weight:700;">
+                                        10/2 (金)<br>
+                                        <span style="font-size:9.5px; color:#475569;">禁煙 ● 1/2 ● 5/7</span>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:81533</span><span style="color:#0284c7;">48</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">森田 貴久</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>S53.1.24</span>
+                                            <span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:76204</span><span style="color:#0284c7;">34</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">川本 恭平</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>H4.8.14</span>
+                                            <span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#fefce8;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:21872</span><span style="color:#0284c7;">58</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">渡部 正記</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>S43.1.8</span>
+                                            <span style="display:flex; gap:2px;"><span
+                                                    style="background:#1e293b; color:#fff; font-size:9px; padding:0 2px; border-radius:2px;">W</span><span
+                                                    style="background:#1e293b; color:#fff; font-size:9px; padding:0 2px; border-radius:2px;">TCF</span></span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:81761</span><span style="color:#0284c7;">55</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">山川 二郎</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>S46.9.23</span>
+                                            <span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:25955</span><span style="color:#0284c7;">63</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">沖本 義行</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>S38.4.11</span>
+                                            <span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#eff6ff;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:76435</span><span style="color:#0284c7;">64</span>
+                                        </div>
+                                        <div style="font-weight:700; color:#0f172a; font-size:11px;">黒川 奈津江</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between; align-items:center;">
+                                            <span>S37.9.8</span>
+                                            <span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">GIF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:4px; color:#94a3b8; text-align:center;">-</td>
+                                </tr>
+                                <!-- 10/3 (土) -->
+                                <tr style="background:#fffbeb; border-bottom:1px solid #cbd5e1;">
+                                    <td style="padding:4px 8px; border-right:1px solid #cbd5e1; font-weight:700;">
+                                        10/3 (土) <span style="font-size:9px; color:#b45309;">16:00終了</span><br>
+                                        <span style="font-size:9.5px; color:#475569;">禁煙 ● 0/2 ● 6/7</span>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81295 53</div>
+                                        <div style="font-weight:700; font-size:11px;">田村 太刀</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S47.10.29</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81611 38</div>
+                                        <div style="font-weight:700; font-size:11px;">松本 由香里</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S62.12.11</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81904 26</div>
+                                        <div style="font-weight:700; font-size:11px;">勝山 太一朗</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>H11.11.3</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81870 40</div>
+                                        <div style="font-weight:700; font-size:11px;">米田 創一</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S61.7.16</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td
+                                        style="padding:3px; border-right:1px solid #cbd5e1; background:#fef3c7; border:1px solid #f59e0b;">
+                                        <div style="font-size:10px; color:#b45309; font-weight:700;">ID:</div>
+                                        <div style="font-weight:800; font-size:11px; color:#b45309;">※予約可</div>
+                                        <div style="text-align:right;"><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:80627 22</div>
+                                        <div style="font-weight:700; font-size:11px;">多田 祥考</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>H16.1.8</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        ※枠なし</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        -</td>
+                                    <td style="padding:4px; color:#94a3b8; text-align:center;">-</td>
+                                </tr>
+                                <!-- 10/4 (日) 休診 -->
+                                <tr style="background:#fef2f2; border-bottom:1px solid #cbd5e1;">
+                                    <td
+                                        style="padding:4px 8px; border-right:1px solid #cbd5e1; font-weight:700; color:#b91c1c;">
+                                        10/4 (日)<br>● 休診
+                                    </td>
+                                    <td colspan="9"
+                                        style="padding:4px; text-align:center; color:#991b1b; font-weight:700; letter-spacing:2px;">
+                                        休 診 日
+                                    </td>
+                                </tr>
+                                <!-- 10/6 (火) 赤線アクティブ行 -->
+                                <tr
+                                    style="background:#ffffff; border-bottom:1px solid #cbd5e1; border-left:4px solid #dc2626;">
+                                    <td style="padding:4px 8px; border-right:1px solid #cbd5e1; font-weight:700;">
+                                        10/6 (火)<br>
+                                        <span style="font-size:9.5px; color:#dc2626; font-weight:800;">禁煙 ● 0/2 [定員満] ●
+                                            6/7</span>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:76343 47</div>
+                                        <div style="font-weight:700; font-size:11px;">上村 ありさ</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S54.4.23</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81905 53</div>
+                                        <div style="font-weight:700; font-size:11px;">西野 雄二</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S47.10.20</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#fefce8;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81894 59</div>
+                                        <div style="font-weight:700; font-size:11px;">辰巳 昭宏</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S42.1.6</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 2px; border-radius:2px;">W</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81706 75</div>
+                                        <div style="font-weight:700; font-size:11px;">矢野 幸三郎</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S25.12.27</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:33012 71</div>
+                                        <div style="font-weight:700; font-size:11px;">山崎 文昭</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S30.1.7</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:3px; border-right:1px solid #cbd5e1; background:#f0fdf4;">
+                                        <div style="font-size:10px; color:#1e40af; font-weight:700;">ID:81955 47</div>
+                                        <div style="font-weight:700; font-size:11px;">山中 祐司</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S54.2.27</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">TCF</span>
+                                        </div>
+                                    </td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        -</td>
+                                    <td
+                                        style="padding:4px; border-right:1px solid #cbd5e1; color:#94a3b8; text-align:center;">
+                                        -</td>
+                                    <td style="padding:3px; background:#eff6ff;">
+                                        <div
+                                            style="font-size:10px; color:#1e40af; font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>ID:46076</span><span
+                                                style="background:#fecaca; color:#991b1b; padding:0 2px; border-radius:2px;">76</span>
+                                        </div>
+                                        <div style="font-weight:700; font-size:11px;">前田 幸孝</div>
+                                        <div
+                                            style="font-size:9.5px; color:#64748b; display:flex; justify-content:space-between;">
+                                            <span>S25.7.27</span><span
+                                                style="background:#1e293b; color:#fff; font-size:9px; padding:0 3px; border-radius:3px;">US</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 詳しい機能説明テーブル -->
+                <div class="feature-table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 24%;">UIパーツ・項目</th>
+                                <th style="width: 22%;">配置場所 / 識別</th>
+                                <th style="width: 54%;">詳細仕様 ＆ 現場での操作方法</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>自動更新ピル</strong></td>
+                                <td>ヘッダー右上 `[5分] [10分] [15分]`</td>
+                                <td>バックエンドPostgreSQLの最新予約データを指定間隔で自動リロード。診察室や受付での他端末同時変更を自動反映（デフォルト5分）。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>診療科切替</strong></td>
+                                <td>ツールバー左端 `[● 肛] [● 胃]`</td>
+                                <td>シアン色（肛門科）と薄グレー（胃腸科）で表示データを瞬時にフィルタリング。選択中の科に応じて時間枠定義や医師が切り替わります。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>枠フィルターカプセル</strong></td>
+                                <td>ツールバー中央 `枠: [GIF] [エコー] [TCF] [迷子]`</td>
+                                <td><strong>【2026-09-29改修】</strong>チェックボックスを廃止し、高さ24pxツライチのカプセル型トグルボタンに統一。エコー枠はエコー専用水色（<code>#0284c7</code>
+                                    / 表示「US」）に連動。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>オプショントグル群</strong></td>
+                                <td>ツールバー右側</td>
+                                <td>
+                                    <ul>
+                                        <li><strong>伏字:</strong> カウンター等で患者に見せる際、氏名を非表示化して個人情報を保護。</li>
+                                        <li><strong>起動時:</strong> 画面を開いた際、自動的に本日日付行へスムーズスクロール。</li>
+                                        <li><strong>迷子:</strong> 時間枠不整合や配置不正データを検知してオレンジ警告表示。</li>
+                                        <li><strong>削除:</strong> 選択セルの削除トリガーを有効化。</li>
+                                        <li><strong>未割当:</strong> 担当医や時間枠が未確定のキープデータを抽出。</li>
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>表示切替</strong></td>
+                                <td>ツールバー右端 `[使用/最大] [残数]`</td>
+                                <td>予約枠の表示を「予約件数 / 最大受入可能数」形式か、あと何人受入可能かの「残枠数」形式かにワンクリックで切り替え。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>予約カードセル</strong></td>
+                                <td>マトリクス各セル</td>
+                                <td>
+                                    上段にカルテIDと年齢バッジ、中段に患者氏名、下段に生年月日と検査種別バッジ（<code>[TCF]</code>、<code>[GIF]</code>、大腸＋胃同日時は<code>[W]</code>）を表示。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>※予約可セル</strong></td>
+                                <td>オレンジ色背景セル</td>
+                                <td>枠だけ仮確保（キープ）された状態。未確定枠が一目で視認でき、ダブルブッキングを防止。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>休診日行</strong></td>
+                                <td>赤色背景セル</td>
+                                <td>日曜日・小野会休日ルール適用日は赤色帯で表示され、誤登録を防止。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="clinical-alert">
+                    <h4>⚠️ マトリクス画面でのマウス操作ルール（誤操作防止）</h4>
+                    <ul>
+                        <li><strong>新規登録</strong>：セルの<strong>何もない空白部分（※枠なし等）</strong>をクリックすると新規予約入力モーダルが開きます。</li>
+                        <li><strong>修正・削除</strong>：既存予約を変更する場合は、枠内の<strong>患者名部分をクリック</strong>してください（カーソルが指マーク ☝
+                            に変わります）。</li>
+                        <li><strong>ドラッグ移動</strong>：予約枠を別の日時へ移動させる場合は、<strong>名前以外の余白部分をクリックしてドラッグ</strong>してください（カーソルが手袋マーク
+                            ✋ に変わります）。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            04. 月間カレンダービュー
+            ============================================================ -->
+            <section class="guide-section" id="sec-calendar">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">04</span>
+                        <h2 class="section-title">月間カレンダービュー</h2>
+                        <span class="section-file-pill">month_schedule.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-green">月間空き枠把握</span>
+                        <span class="badge badge-blue">日別一覧連携</span>
+                        <span class="badge badge-purple">キーボード移動</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    月間カレンダー形式で日別の予約総件数・空き状況を視覚的に把握し、選択日の予約詳細一覧（枠番・時間・氏名・検査種別・担当医）を即座に確認・操作できます。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: month_schedule.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box">🔒
+                                192.168.1.16/endoscope/month_schedule.php?dept=GASTRO&year=2026&month=10&date=2026-10-01
+                            </div>
+                        </div>
+                        <span style="font-size:11px; color:#64748b;">月間カレンダービュー</span>
+                    </div>
+                    <div class="real-mockup-canvas">
+                        <!-- ヘッダーバー -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-weight:800; font-size:15px; color:#0f172a;">内視鏡予約 ダッシュボード</span>
+                                <span
+                                    style="background:#e0f2fe; color:#0369a1; font-size:10px; padding:1px 6px; border-radius:3px; font-weight:700;">HTML5最適化版</span>
+                                <div
+                                    style="display:inline-flex; border:1px solid #cbd5e1; border-radius:4px; overflow:hidden;">
+                                    <span
+                                        style="background:#f1f5f9; color:#475569; padding:2px 8px; font-size:11px;">肛門科</span>
+                                    <span
+                                        style="background:#10b981; color:#fff; padding:2px 8px; font-size:11px; font-weight:700;">胃腸科</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
+                                <span class="rm-btn rm-btn-red">当日ホワイトボード</span>
+                                <span class="rm-btn rm-btn-green">ノート表示</span>
+                                <span class="rm-btn rm-btn-blue">予約マトリクス</span>
+                                <span class="rm-btn rm-btn-teal">空き枠検索</span>
+                                <span class="rm-btn rm-btn-orange">重複チェック</span>
+                                <span class="rm-btn rm-btn-purple">操作履歴</span>
+                                <span class="rm-btn rm-btn-crimson">アラートスキャン</span>
+                                <span
+                                    style="border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px; background:#fff; color:#475569;">カレンダーを折りたたむ</span>
+                                <span
+                                    style="border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px; background:#fff; color:#475569;">上下入替</span>
+                            </div>
+                        </div>
+
+                        <!-- フィルタバー (高さツライチ32px仕様) -->
+                        <div
+                            style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:12px;">
+                            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                <div style="display:flex; gap:4px; align-items:center;">
+                                    <span style="color:#64748b; font-size:11px;">医師:</span>
+                                    <span
+                                        style="background:#1e293b; color:#fff; padding:1px 6px; border-radius:3px; font-size:11px;">全医師</span>
+                                    <span
+                                        style="background:#e2e8f0; padding:1px 6px; border-radius:3px; font-size:11px;">哲也
+                                        0</span>
+                                    <span
+                                        style="background:#e2e8f0; padding:1px 6px; border-radius:3px; font-size:11px;">義智
+                                        5</span>
+                                    <span
+                                        style="background:#e2e8f0; padding:1px 6px; border-radius:3px; font-size:11px;">慶太郎
+                                        0</span>
+                                </div>
+                                <div style="display:flex; gap:4px; align-items:center;">
+                                    <span style="color:#64748b; font-size:11px;">種別:</span>
+                                    <span
+                                        style="background:#1e293b; color:#fff; padding:1px 6px; border-radius:3px; font-size:11px;">全種別</span>
+                                    <span
+                                        style="background:#dbeafe; color:#1e40af; padding:1px 6px; border-radius:3px; font-size:11px;">●
+                                        GIF</span>
+                                    <span
+                                        style="background:#e0f2fe; color:#0369a1; padding:1px 6px; border-radius:3px; font-size:11px;">●
+                                        エコー</span>
+                                    <span
+                                        style="background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:3px; font-size:11px;">●
+                                        TCF</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <span style="color:#64748b; font-size:11px;">表示:</span>
+                                <span
+                                    style="background:#2563eb; color:#fff; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:700;">使用/最大</span>
+                                <span
+                                    style="background:#e2e8f0; padding:2px 6px; border-radius:3px; font-size:11px;">残数</span>
+                                <span
+                                    style="background:#e2e8f0; padding:2px 6px; border-radius:3px; font-size:11px;">検査数</span>
+                            </div>
+                        </div>
+
+                        <!-- カレンダー月切替 -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <strong style="font-size:15px; color:#0f172a;">2026年 10月</strong>
+                                <span
+                                    style="border:1px solid #cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; background:#fff; font-weight:700;">◀
+                                    今日 ▶</span>
+                            </div>
+                            <div style="display:flex; gap:4px; font-size:11px;">
+                                <span
+                                    style="background:#2563eb; color:#fff; padding:2px 6px; border-radius:3px;">10月</span>
+                                <span style="background:#e2e8f0; padding:2px 6px; border-radius:3px;">11月</span>
+                                <span style="background:#e2e8f0; padding:2px 6px; border-radius:3px;">12月</span>
+                                <span style="background:#e2e8f0; padding:2px 6px; border-radius:3px;">'27/1</span>
+                            </div>
+                        </div>
+
+                        <!-- カレンダーグリッド -->
+                        <table
+                            style="width:100%; border-collapse:collapse; font-size:11px; text-align:left; border:1px solid #cbd5e1; margin-bottom:12px;">
+                            <thead>
+                                <tr
+                                    style="background:#f8fafc; color:#475569; text-align:center; border-bottom:1px solid #cbd5e1;">
+                                    <th style="padding:4px; color:#ef4444; width:14.2%;">日</th>
+                                    <th style="padding:4px; width:14.2%;">月</th>
+                                    <th style="padding:4px; width:14.2%;">火</th>
+                                    <th style="padding:4px; width:14.2%;">水</th>
+                                    <th style="padding:4px; width:14.2%;">木</th>
+                                    <th style="padding:4px; width:14.2%;">金</th>
+                                    <th style="padding:4px; color:#2563eb; width:14.2%;">土</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td
+                                        style="padding:4px; border:1px solid #cbd5e1; background:#fef2f2; vertical-align:top; height:58px;">
+                                        <div style="color:#b91c1c; font-weight:700;">27</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700; color:#475569;">28</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700; color:#475569;">29</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700; color:#475569;">30</div>
+                                    </td>
+                                    <!-- 10/1 (木) 選択日（青太枠） -->
+                                    <td
+                                        style="padding:4px; border:2px solid #2563eb; background:#eff6ff; vertical-align:top; height:58px;">
+                                        <div
+                                            style="font-weight:800; color:#1e40af; display:flex; justify-content:space-between;">
+                                            <span>1</span><span
+                                                style="font-size:9.5px; background:#bfdbfe; color:#1e3a8a; padding:0 3px; border-radius:2px;">選択中</span>
+                                        </div>
+                                        <div style="display:flex; flex-direction:column; gap:2px; margin-top:2px;">
+                                            <span
+                                                style="background:#dbeafe; color:#1e40af; padding:1px 4px; border-radius:2px; font-size:10px;">●
+                                                5/6</span>
+                                            <span
+                                                style="background:#fee2e2; color:#991b1b; padding:1px 4px; border-radius:2px; font-size:10px;">●
+                                                0/2</span>
+                                        </div>
+                                    </td>
+                                    <!-- 10/2 (金) -->
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700;">2</div>
+                                        <div style="display:flex; flex-direction:column; gap:1px;">
+                                            <span style="font-size:10px; color:#475569;">● 0/2 ● 10/10</span>
+                                            <span style="font-size:9.5px; color:#15803d;">全体: ● 6/7 ● 0/2 ● 10/10</span>
+                                        </div>
+                                    </td>
+                                    <!-- 10/3 (土) -->
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700; color:#2563eb;">3</div>
+                                        <div style="font-size:10px; color:#475569;">● 6/6 ● 0/2 ● 6/6</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <!-- 10/4 (日) -->
+                                    <td
+                                        style="padding:4px; border:1px solid #cbd5e1; background:#fef2f2; vertical-align:top; height:58px;">
+                                        <div style="color:#b91c1c; font-weight:700;">4 ● 休</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700;">5</div>
+                                        <span
+                                            style="font-size:9.5px; background:#dcfce7; color:#15803d; padding:1px 3px;">●
+                                            2/2 ● 7/7</span>
+                                    </td>
+                                    <!-- 10/6 (火) 青枠 -->
+                                    <td
+                                        style="padding:4px; border:1.5px solid #3b82f6; background:#f8fafc; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700; display:flex; justify-content:space-between;">
+                                            <span>6</span><span style="font-size:9px; color:#2563eb;">火</span>
+                                        </div>
+                                        <div style="font-size:9.5px; color:#1e40af;">● 10/10 ● 2/2 ● 7/7</div>
+                                        <div style="font-size:9px; color:#15803d;">全体: ● 10/10 ● 2/2 ● 10/10</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700;">7</div>
+                                        <div style="font-size:9.5px; color:#475569;">● 2/2 ● 3/10</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700;">8</div>
+                                        <div style="font-size:9.5px; color:#475569;">● 2/6 ● 0/2</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700;">9</div>
+                                        <div style="font-size:9.5px; color:#475569;">● 0/2 ● 10/10</div>
+                                    </td>
+                                    <td style="padding:4px; border:1px solid #cbd5e1; vertical-align:top; height:58px;">
+                                        <div style="font-weight:700; color:#2563eb;">10</div>
+                                        <div style="font-size:9.5px; color:#475569;">● 6/6 ● 0/2</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 下部: 選択日の予約一覧 (5/8枠 使用中) -->
+                        <div
+                            style="border:1px solid #cbd5e1; border-radius:6px; background:#ffffff; overflow:hidden; position:relative;">
+                            <div
+                                style="background:#f8fafc; border-bottom:1px solid #cbd5e1; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <strong style="font-size:13px; color:#0f172a;">📅 2026.10.01(木) の予約一覧 (5/8枠
+                                        使用中)</strong>
+                                    <span
+                                        style="border:1px solid #cbd5e1; background:#fff; padding:1px 6px; border-radius:3px; font-size:11px; cursor:default;">📝
+                                        メモ追加</span>
+                                </div>
+                                <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                                    <span
+                                        style="background:#f1f5f9; border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">空き枠表示</span>
+                                    <span
+                                        style="background:#f1f5f9; border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">枠:
+                                        GIF エコー TCF</span>
+                                    <span class="rm-btn rm-btn-teal">部屋・下剤一括</span>
+                                    <span class="rm-btn rm-btn-blue">枠・供給サマリ</span>
+                                    <span class="rm-btn rm-btn-orange">重複チェック</span>
+                                    <span class="rm-btn rm-btn-crimson">アラートスキャン</span>
+                                    <span class="rm-btn rm-btn-green">一覧印刷</span>
+                                </div>
+                            </div>
+                            <table style="width:100%; border-collapse:collapse; font-size:11.5px; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:1px solid #cbd5e1; color:#64748b;">
+                                        <th style="padding:4px 6px; width:45px; text-align:center;">操作</th>
+                                        <th style="padding:4px 8px; width:80px;">時間枠</th>
+                                        <th style="padding:4px 8px; width:70px;">カルテNO</th>
+                                        <th style="padding:4px 8px; width:160px;">患者名</th>
+                                        <th style="padding:4px 6px; width:55px; text-align:center;">種別</th>
+                                        <th style="padding:4px 8px;">備考</th>
+                                        <th style="padding:4px 6px; width:40px; text-align:center;">シート</th>
+                                        <th style="padding:4px 6px; width:40px; text-align:center;">F/U</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom:1px solid #f1f5f9; color:#94a3b8;">
+                                        <td style="padding:4px; text-align:center;">＋ 🚫</td>
+                                        <td style="padding:4px 8px;">エコー9:00</td>
+                                        <td style="padding:4px 8px;">-</td>
+                                        <td style="padding:4px 8px; color:#2563eb;">[空き枠]</td>
+                                        <td style="text-align:center;">-</td>
+                                        <td style="padding:4px 8px;">-</td>
+                                        <td style="text-align:center;">-</td>
+                                        <td style="text-align:center;">-</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:4px; text-align:center;">＋ ✏️</td>
+                                        <td style="padding:4px 8px; font-weight:700;">GIF9:00</td>
+                                        <td
+                                            style="padding:4px 8px; font-family:monospace; color:#2563eb; font-weight:700;">
+                                            22904</td>
+                                        <td style="padding:4px 8px;">
+                                            <strong>北添 由美</strong> <span
+                                                style="background:#dbeafe; color:#1e40af; font-size:10px; padding:0 3px; border-radius:2px;">64歳</span>
+                                            <div style="font-size:10px; color:#94a3b8;">昭和37年9月10日</div>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">GIF</span>
+                                        </td>
+                                        <td style="padding:4px 8px; font-size:11px; color:#475569;">10/10 9:20
+                                            ▲上部内視鏡:注射なし 抗凝固薬サプリ:DHA</td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">印</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">登録</span>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:4px; text-align:center;">＋ ✏️</td>
+                                        <td style="padding:4px 8px; font-weight:700;">GIF9:20</td>
+                                        <td
+                                            style="padding:4px 8px; font-family:monospace; color:#2563eb; font-weight:700;">
+                                            34602</td>
+                                        <td style="padding:4px 8px;">
+                                            <strong>野町 清佳</strong> <span
+                                                style="background:#dbeafe; color:#1e40af; font-size:10px; padding:0 3px; border-radius:2px;">62歳</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">GIF</span>
+                                        </td>
+                                        <td style="padding:4px 8px; font-size:11px; color:#475569;">10/1 9:20 GIF 注あり
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">印</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">登録</span>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9; background:#fff1f2;">
+                                        <td style="padding:4px; text-align:center; color:#dc2626;">⭕</td>
+                                        <td style="padding:4px 8px; font-weight:700; color:#dc2626;">GIF9:40</td>
+                                        <td style="padding:4px 8px;">-</td>
+                                        <td style="padding:4px 8px; color:#dc2626; font-weight:700;">[枠なし設定済]</td>
+                                        <td style="text-align:center;">-</td>
+                                        <td style="padding:4px 8px; color:#dc2626; font-weight:700;">***枠なし設定済***</td>
+                                        <td style="text-align:center;">-</td>
+                                        <td style="text-align:center;">-</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:4px; text-align:center;">＋ ✏️</td>
+                                        <td style="padding:4px 8px; font-weight:700;">GIF10:00</td>
+                                        <td
+                                            style="padding:4px 8px; font-family:monospace; color:#2563eb; font-weight:700;">
+                                            48303</td>
+                                        <td style="padding:4px 8px;">
+                                            <strong>藤戸 壽恵</strong> <span
+                                                style="background:#fef3c7; color:#92400e; font-size:10px; padding:0 3px; border-radius:2px;">72歳</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">GIF</span>
+                                        </td>
+                                        <td style="padding:4px 8px; font-size:11px; color:#475569;">TEL予約 10/1(木)GIF
+                                            10:00 注あり</td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">印</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">登録</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- 右下フローティングトースト (Glassmorphism・ドラッグ可能) -->
+                            <div
+                                style="position:absolute; bottom:12px; right:12px; background:rgba(15, 23, 42, 0.94); color:#fff; padding:10px 14px; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.3); border:1px solid #334155; font-size:11px; width:280px; backdrop-filter:blur(4px);">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <span
+                                        style="color:#f59e0b; font-weight:800; display:flex; align-items:center; gap:4px;">⚡
+                                        直近空き枠速報 <span
+                                            style="font-size:9px; color:#94a3b8; font-weight:normal;">(移動可能)</span></span>
+                                    <span style="color:#94a3b8; cursor:pointer;">✕</span>
+                                </div>
+                                <div style="color:#cbd5e1; font-size:10.5px; margin-bottom:6px; line-height:1.4;">
+                                    直近30日の大腸(TCF)空き枠: <strong style="color:#fcd34d;">64件</strong><br>
+                                    最短: <strong>2026-10-03 (土) 明後日</strong> (誠吾先生)
+                                </div>
+                                <div
+                                    style="background:#d97706; color:#fff; text-align:center; padding:3px; border-radius:4px; font-weight:700; font-size:10.5px; cursor:default;">
+                                    ⚡ 空き枠一覧 &amp; スマート予約アシストを開く
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     4.1 画面各ボタン・UIコンポーネント完全機能リファレンス
+                ========================================== -->
+                <div style="margin-top:28px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                    <span
+                        style="background:var(--primary); color:#fff; font-size:12px; font-weight:800; padding:2px 8px; border-radius:4px;">4.1</span>
+                    <h3 style="font-size:17px; font-weight:800; color:var(--slate-900); margin:0;">
+                        画面各ボタン・UIコンポーネント完全機能リファレンス</h3>
+                </div>
+                <p style="font-size:13px; color:var(--slate-600); margin-bottom:12px;">
+                    月間カレンダービュー（<code>month_schedule.php</code>）は、当院の予約管理において最も高頻度で使用されるメイン画面です。画面内に配置された全てのボタン・トグル・UIパーツの配置場所と詳細機能を網羅しています。
+                </p>
+
+                <div class="feature-table-wrap" style="margin-bottom:30px;">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 18%;">UIカテゴリ</th>
+                                <th style="width: 22%;">ボタン・コンポーネント名</th>
+                                <th style="width: 18%;">外観・配置場所</th>
+                                <th style="width: 42%;">機能詳細 ＆ 現場での活用ルール</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- ① ヘッダー操作ボタングループ -->
+                            <tr style="background:#f8fafc;">
+                                <td rowspan="10"
+                                    style="vertical-align:top; font-weight:700; color:#1e40af; border-right:2px solid #bfdbfe;">
+                                    ① ヘッダー操作<br>ナビゲーション
+                                </td>
+                                <td><strong>診療科切替</strong></td>
+                                <td>ヘッダー左 <code>[肛門科] [胃腸科]</code></td>
+                                <td>
+                                    診療科ごとの独立した予約マスター・カレンダー・医師設定へ切り替えます。選択中の診療科がエメラルドグリーン（胃腸科）またはネイビー（肛門科）で点灯します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>当日ホワイトボード</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-red" style="font-size:10px;">当日ホワイトボード</span></td>
+                                <td>
+                                    <code>progress_monitor.php</code>
+                                    を別タブで展開。当日のリアルタイムな検査実施状況・呼出状態・前処置室・リカバリー室滞在状況を大画面電子ホワイトボードとして表示します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>ノート表示</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-green" style="font-size:10px;">ノート表示</span></td>
+                                <td>
+                                    <code>schedule_note.php</code>（紙バインダー風・超高速モード）へ遷移。月間カレンダー計算を省き、30ms未満の応答速度で当日の予約者を全幅一覧・キーボード操作できます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>予約マトリクス</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-blue" style="font-size:10px;">予約マトリクス</span></td>
+                                <td>
+                                    <code>month_schedule_v2.php</code>（縦型2次元マトリクス）へ遷移。縦軸＝日付、横軸＝各医師・検査室のグリッドで、月間の空き枠の偏りや過密状況を一目で鳥瞰できます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>空き枠検索</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-teal" style="font-size:10px;">空き枠検索</span></td>
+                                <td>
+                                    <code>slot_search.php</code> / <code>custom_slot_search.php</code>
+                                    へ移動。「火曜・午前中・誠吾先生」など患者の希望条件に合致する直近の最短空き枠を高速一発検索します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>重複チェック</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-orange" style="font-size:10px;">重複チェック</span></td>
+                                <td>
+                                    モーダルダイアログで起動。同一カルテIDで未来の日程に複数の予約が入っている二重予約・過剰予約を自動検出し、誤登録やキャンセルの放置を防止します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>操作履歴 (Undo)</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-purple" style="font-size:10px;">操作履歴</span></td>
+                                <td>
+                                    <code>action_audit_log.php</code>
+                                    モーダルを起動。自端末および院内で行われた直近の予約登録・変更・削除ログを表示し、<strong>誤操作をワンクリックで元の状態に即時Undo復元</strong>できます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>アラートスキャン</strong></td>
+                                <td>ヘッダー右 <span class="rm-btn rm-btn-crimson" style="font-size:10px;">アラートスキャン</span>
+                                </td>
+                                <td>
+                                    当日および指定日の受診者全員の「抗血栓薬・アレルギー・感染症・発熱風邪」等のリスクを院内カルテから一括走査し、赤帯アラートで安全確認を行います。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>カレンダーを折りたたむ</strong></td>
+                                <td>ヘッダー右白ボタン <code>カレンダーを折りたたむ</code></td>
+                                <td>
+                                    上部の月間カレンダーグリッドを非表示にトグル切り替えし、下部の予約一覧テーブルを作業画面いっぱいに広く表示します（ノートPC等での作業効率向上）。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>上下入替</strong></td>
+                                <td>ヘッダー右白ボタン <code>上下入替</code></td>
+                                <td>
+                                    月間カレンダーと下部予約一覧テーブルの配置順を上下反転させます。好みのレイアウトに即座に変更できます。
+                                </td>
+                            </tr>
+
+                            <!-- ② カレンダー・コマンドパレット -->
+                            <tr style="background:#f8fafc;">
+                                <td rowspan="3"
+                                    style="vertical-align:top; font-weight:700; color:#0f766e; border-right:2px solid #99f6e4;">
+                                    ② カレンダー<br>コマンドパレット<br>(内包バー)
+                                </td>
+                                <td><strong>医師絞込フィルター</strong></td>
+                                <td><code>[全医師] [哲也 0] [義智 5]...</code></td>
+                                <td>
+                                    各ボタンに当月の担当予約件数がバッジ表示されます。特定の医師ボタンを押すと、カレンダー内の数値がその医師の担当枠のみに瞬時に絞り込まれます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>種別絞込フィルター</strong></td>
+                                <td><code>[全種別] [🔵 GIF] [🟠 エコー] [🟢 TCF]</code></td>
+                                <td>
+                                    胃カメラ（GIF）、腹部エコー、大腸カメラ（TCF）ごとに表示をフィルタリングします。「大腸カメラの空きだけを見たい」場合にワンクリックで絞り込めます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>表示モード切替</strong></td>
+                                <td><code>[📊 使用/最大] [📉 残数] [🔢 検査数]</code></td>
+                                <td>
+                                    カレンダー各セル内の数値表示を切り替えます。<br>
+                                    ・<strong>使用/最大</strong>: 例 <code>5/6</code>（予約数/定員枠）<br>
+                                    ・<strong>残数</strong>: 例 <code>残 1</code>（空きスロット数。満枠は赤背景）<br>
+                                    ・<strong>検査数</strong>: 確定した検査の純粋な件数のみを表示
+                                </td>
+                            </tr>
+
+                            <!-- ③ 月ナビゲーション -->
+                            <tr style="background:#f8fafc;">
+                                <td rowspan="2"
+                                    style="vertical-align:top; font-weight:700; color:#334155; border-right:2px solid #cbd5e1;">
+                                    ③ 月ナビゲーション<br>＆ジャンプ
+                                </td>
+                                <td><strong>月送り / 今日ボタン</strong></td>
+                                <td><code>[◀] [📅 今日] [▶]</code></td>
+                                <td>
+                                    カレンダーの表示月を前月・次月へ送ります。「📅 今日」を押すと、何ヶ月先に移動していても一発で本日の月・選択日に復帰します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>クイック月ジャンプピル</strong></td>
+                                <td>右側 <code>[10月] [11月] [12月] ['27/1]</code></td>
+                                <td>
+                                    直近数ヶ月先および年またぎ（'27/1等）の月へ1クリックで直行できるタブ群です。先々の定期フォローアップ予約を取る際に高速ジャンプできます。
+                                </td>
+                            </tr>
+
+                            <!-- ④ カレンダーグリッド内のセル操作 -->
+                            <tr style="background:#f8fafc;">
+                                <td rowspan="4"
+                                    style="vertical-align:top; font-weight:700; color:#2563eb; border-right:2px solid #bfdbfe;">
+                                    ④ カレンダーセル<br>＆ステータス表示
+                                </td>
+                                <td><strong>日付セルクリック</strong></td>
+                                <td>任意の日付マスをクリック</td>
+                                <td>
+                                    クリックしたセルが<strong>青色の太枠＋青グラデーション（selected）</strong>でハイライトされ、画面下部にその日の予約詳細一覧テーブルが瞬時に展開・連動表示されます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>枠消化バッジ</strong></td>
+                                <td>セル内 <code>● 5/6</code>, <code>● 0/2</code>, <code>全体: 6/7</code></td>
+                                <td>
+                                    種別ごとの消化状況をカラーインジケータで表示。青＝GIF、水色＝エコー、緑＝TCF、赤＝満枠または過剰。一目で空き具合を直感判定できます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>出勤例外・W制限バッジ</strong></td>
+                                <td>セル内 <code>⚠️ W超過</code>, <code>臨時枠</code></td>
+                                <td>
+                                    医師の学会出張や臨時増枠、および大腸カメラ同日2件以上（W制限）の制限超過が発生している場合に自動警告バッジが表示されます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>休診日表示</strong></td>
+                                <td>セル内 <code>4 ● 休</code>（赤背景）</td>
+                                <td>
+                                    日曜・祝日および院内指定休診日は赤背景で表示され、誤予約を防止します（緊急時の予約登録は確認ダイアログ付きで可能）。
+                                </td>
+                            </tr>
+
+                            <!-- ⑤ 下部 予約一覧ツールバー -->
+                            <tr style="background:#f8fafc;">
+                                <td rowspan="7"
+                                    style="vertical-align:top; font-weight:700; color:#0f766e; border-right:2px solid #99f6e4;">
+                                    ⑤ 下部 予約一覧<br>アクションバー
+                                </td>
+                                <td><strong>日別メモ追加 / 編集</strong></td>
+                                <td>タイトル右 <code>[📝 メモ追加]</code> / <code>[📢 〇〇 ✏️]</code></td>
+                                <td>
+                                    その日全体の特記事項・申し送りメモ（例:「哲也先生11時まで外来対応」「内視鏡スコープ2本点検中」等）をモーダル登録・編集します。カレンダー上にも表示されます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>空き枠表示トグル</strong></td>
+                                <td><code>[⬜ 空き枠表示]</code></td>
+                                <td>
+                                    予約一覧テーブル内に「予約可能な未割当スロット（空き枠）」を表示するか、予約済みの患者のみを表示するかをトグルで切り替えます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>枠トグル (カプセル)</strong></td>
+                                <td><code>枠: [GIF] [エコー] [TCF]</code></td>
+                                <td>
+                                    下部テーブルに表示する検査種別をオン/オフします。ボタンが点灯している種別の枠のみがテーブルに表示されます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>部屋・下剤一括</strong></td>
+                                <td><span class="rm-btn rm-btn-teal" style="font-size:10px;">🚪 部屋・下剤一括</span></td>
+                                <td>
+                                    当日受診する大腸カメラ患者の前処置室（個室・リカバリーベッド）と下剤（モビプレップ、マグコロール等）を別モーダルで一括割り当て・確認できます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>枠・供給サマリ</strong></td>
+                                <td><span class="rm-btn rm-btn-blue" style="font-size:10px;">📊 枠・供給サマリ</span></td>
+                                <td>
+                                    当日の時間帯別スロットと出勤医師の検査可能枠数のバランスをグラフ・テーブルサマリで可視化します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>重複チェック / アラート</strong></td>
+                                <td><span class="rm-btn rm-btn-orange" style="font-size:10px;">⚠️ 重複チェック</span> <span
+                                        class="rm-btn rm-btn-crimson" style="font-size:10px;">🛡️ アラート</span></td>
+                                <td>
+                                    当日の受診者全員に対する重複予約検知および医療安全リスク（抗血栓薬・感染症等）のワンクリック走査を実行します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>一覧印刷</strong></td>
+                                <td><span class="rm-btn rm-btn-green" style="font-size:10px;">🖨️ 一覧印刷</span></td>
+                                <td>
+                                    当日の検査一覧リスト（スタッフ配布用・検査室掲示用）を綺麗なA4用紙最適化スタイルで印刷プレビュー出力します。
+                                </td>
+                            </tr>
+
+                            <!-- ⑥ テーブル行ごとの操作ボタン -->
+                            <tr style="background:#f8fafc;">
+                                <td rowspan="5"
+                                    style="vertical-align:top; font-weight:700; color:#b91c1c; border-right:2px solid #fecaca;">
+                                    ⑥ テーブル各行<br>操作ボタン<br>(行アクション)
+                                </td>
+                                <td><strong>➕ 新規予約追加</strong></td>
+                                <td>各行左端 <span class="icon-btn-sample add">＋</span></td>
+                                <td>
+                                    空き枠または該当枠に新規患者の予約を登録する <code>modal_edit.php</code>（Native
+                                    &lt;dialog&gt;）を起動します。<strong>日付と時間枠が自動セット</strong>されます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>🚫 枠なし設定 / 解除</strong></td>
+                                <td>空き枠行 <span class="icon-btn-sample none">🚫</span> / <span
+                                        class="icon-btn-sample edit">⭕</span></td>
+                                <td>
+                                    臨時休診や機械メンテ等で該当時間枠を「枠なし（予約不可）」にロックします。枠なし行で「⭕」を押すと通常枠に復帰します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>✏️ 編集・削除</strong></td>
+                                <td>予約済行 <span class="icon-btn-sample edit">✏️</span></td>
+                                <td>
+                                    既存予約の患者情報、検査種別、担当医、予約日時変更、または予約キャンセルを行う編集モーダルを起動します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>印 シート個別印刷</strong></td>
+                                <td>各行右側 <span class="icon-btn-sample print">印</span></td>
+                                <td>
+                                    該当患者の「内視鏡検査指示票」「検査前説明同意書」「問診票」を別ウィンドウで開き、プリンターから即座に個別印刷します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>登録 F/U登録</strong></td>
+                                <td>各行右側 <span class="icon-btn-sample follow">登録</span></td>
+                                <td>
+                                    検査後の次回フォローアップ（半年後・1年後の次回内視鏡や定期外来受診）の予定日をカルテシステムへ登録連携します。
+                                </td>
+                            </tr>
+
+                            <!-- ⑦ 右下フローティングトースト -->
+                            <tr style="background:#f8fafc;">
+                                <td
+                                    style="vertical-align:top; font-weight:700; color:#d97706; border-right:2px solid #fde68a;">
+                                    ⑦ 右下滞空<br>速報トースト
+                                </td>
+                                <td><strong>直近空き枠速報 ＆<br>スマート予約アシスト</strong></td>
+                                <td>画面右下 Glassmorphism トースト</td>
+                                <td>
+                                    <strong>【2026-09-29新設】</strong>画面を上下にスクロールしても常時右下に滞空。急患来院時に最短の大腸カメラ空き枠（例: 明後日
+                                    誠吾先生）を即座に確認できます。「⚡ 空き枠一覧 &amp;
+                                    スマート予約アシストを開く」をクリックすると希望条件での即時予約画面が起動します。邪魔な場合はドラッグして画面上の任意の位置へ移動可能です。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ==========================================
+                     4.2 【実践チュートリアル】新規患者を1名予約登録する完全フロー
+                ========================================== -->
+                <div
+                    style="background:linear-gradient(135deg, #eff6ff 0%, #f0fdfa 100%); border:2px solid #bfdbfe; border-radius:var(--radius-lg); padding:20px 24px; margin:32px 0 24px 0; box-shadow:0 4px 12px rgba(30, 64, 175, 0.08);">
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span
+                                style="background:#2563eb; color:#ffffff; font-size:12px; font-weight:800; padding:3px 10px; border-radius:20px;">実践チュートリアル</span>
+                            <h3 style="font-size:18px; font-weight:800; color:#1e3a8a; margin:0;">
+                                新規患者を1名予約登録する完全フロー（STEP 1 〜 STEP 5）</h3>
+                        </div>
+                        <span
+                            style="background:#ffffff; color:#0f766e; border:1px solid #99f6e4; font-size:11px; font-weight:700; padding:2px 8px; border-radius:4px;">
+                            ⚡ 初めての方でも約30秒で完了
+                        </span>
+                    </div>
+                    <p style="font-size:13.5px; color:#334155; line-height:1.7; margin:0;">
+                        電話口や受付で患者から「検査の予約を入れたい」と申し出があった場合の、最も標準的で確実な操作手順です。<br>
+                        <strong>月間カレンダーからの日程選択 ➔ 空き枠指定 ➔ カルテID入力（MALL3自動補完）➔ 医療安全確認 ➔
+                            保存完了</strong>まで、実機の画面遷移モックアップ付きで分かりやすく解説します。
+                    </p>
+                </div>
+
+                <div class="tutorial-container">
+                    <!-- STEP 1 -->
+                    <div class="tutorial-step-card">
+                        <div class="tutorial-step-header">
+                            <div class="tutorial-step-title">
+                                <span class="tutorial-step-badge">STEP 1</span>
+                                <span>カレンダーで希望受診日（日付）をクリックして選択</span>
+                            </div>
+                            <span class="badge badge-blue">カレンダー操作</span>
+                        </div>
+                        <div class="tutorial-step-content">
+                            <p style="margin-bottom:10px;">
+                                患者の希望日程（例: <strong>2026年10月1日(木)</strong>）を月間カレンダー上で探し、そのマス目を左クリックします。
+                            </p>
+                            <ul
+                                style="padding-left:20px; font-size:13px; color:#475569; margin-bottom:14px; line-height:1.6;">
+                                <li>クリックした日付セルが <strong>青色の太枠＋「選択中」バッジ</strong> でハイライト表示されます。</li>
+                                <li>セルの数字（例: <span
+                                        style="background:#dbeafe; color:#1e40af; padding:1px 5px; border-radius:3px; font-weight:bold;">●
+                                        5/6</span>）を確認し、定員枠に空きがあることを確認します。</li>
+                                <li>クリックと同時に、画面下部の「予約一覧テーブル」が <strong>2026.10.01(木) のデータに瞬時に自動連動</strong> します。</li>
+                            </ul>
+
+                            <!-- STEP 1 ミニモックアップ -->
+                            <div
+                                style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 14px; max-width:460px;">
+                                <div style="font-size:11px; color:#64748b; font-weight:700; margin-bottom:6px;">▼
+                                    カレンダー上の選択状態イメージ</div>
+                                <div
+                                    style="display:inline-block; border:2px solid #2563eb; background:#eff6ff; border-radius:6px; padding:8px 14px; box-shadow:0 2px 6px rgba(37,99,235,0.15);">
+                                    <div
+                                        style="font-weight:800; color:#1e40af; display:flex; justify-content:space-between; gap:20px;">
+                                        <span style="font-size:16px;">1</span>
+                                        <span
+                                            style="font-size:10px; background:#bfdbfe; color:#1e3a8a; padding:1px 5px; border-radius:3px; font-weight:bold;">選択中</span>
+                                    </div>
+                                    <div style="margin-top:4px; font-size:11px; color:#1e40af; font-weight:bold;">
+                                        ● 5/6 (GIF残り1枠あり)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 下向き矢印 -->
+                    <div class="tutorial-flow-arrow">
+                        <span>⬇️ 次の操作へ</span>
+                    </div>
+
+                    <!-- STEP 2 -->
+                    <div class="tutorial-step-card">
+                        <div class="tutorial-step-header">
+                            <div class="tutorial-step-title">
+                                <span class="tutorial-step-badge">STEP 2</span>
+                                <span>下部テーブルの空き枠行で「＋」ボタンをクリック</span>
+                            </div>
+                            <span class="badge badge-teal">枠の決定</span>
+                        </div>
+                        <div class="tutorial-step-content">
+                            <p style="margin-bottom:10px;">
+                                画面下部の「📋 2026.10.01(木) の予約一覧」テーブルに視線を移します。
+                            </p>
+                            <ul
+                                style="padding-left:20px; font-size:13px; color:#475569; margin-bottom:14px; line-height:1.6;">
+                                <li>テーブル上部の <code>[⬜ 空き枠表示]</code> が有効になっていることを確認します（空き枠行が表示されます）。</li>
+                                <li>患者が希望する時間帯（例: <strong>エコー9:00</strong> や <strong>GIF9:00</strong>）の空き枠スロット（患者名欄に
+                                    <code>[空き枠]</code> と青文字で表示されている行）を探します。
+                                </li>
+                                <li>操作列の左端にある青い <strong>「＋」（新規追加）アイコン</strong> をクリックします。</li>
+                            </ul>
+
+                            <!-- STEP 2 ミニモックアップ -->
+                            <div
+                                style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; max-width:620px;">
+                                <div
+                                    style="background:#f8fafc; border-bottom:1px solid #cbd5e1; padding:6px 10px; font-size:11px; font-weight:bold; color:#475569;">
+                                    ▼ 予約一覧テーブルの該当空き枠行
+                                </div>
+                                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                                    <tr style="background:#eff6ff;">
+                                        <td style="padding:6px 10px; text-align:center; width:60px;">
+                                            <span class="icon-btn-sample add"
+                                                style="width:26px; height:26px; font-size:14px; cursor:pointer; box-shadow:0 0 0 2px #3b82f6;"
+                                                title="ここをクリック！">＋</span>
+                                            <span class="icon-btn-sample none"
+                                                style="width:24px; height:24px;">🚫</span>
+                                        </td>
+                                        <td style="padding:6px 10px; font-weight:bold; color:#1e40af; width:90px;">
+                                            エコー9:00</td>
+                                        <td style="padding:6px 10px; color:#94a3b8; width:70px;">-</td>
+                                        <td style="padding:6px 10px; color:#2563eb; font-weight:bold;">
+                                            [空き枠] <span style="font-size:10px; color:#64748b; font-weight:normal;">👈
+                                                この「＋」を押す</span>
+                                        </td>
+                                        <td style="padding:6px 10px; text-align:center; color:#94a3b8;">-</td>
+                                        <td style="padding:6px 10px; color:#94a3b8;">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 下向き矢印 -->
+                    <div class="tutorial-flow-arrow">
+                        <span>⬇️ 次の操作へ</span>
+                    </div>
+
+                    <!-- STEP 3 -->
+                    <div class="tutorial-step-card">
+                        <div class="tutorial-step-header">
+                            <div class="tutorial-step-title">
+                                <span class="tutorial-step-badge">STEP 3</span>
+                                <span>Native &lt;dialog&gt; 予約登録モーダルが高速ポップアップ起動</span>
+                            </div>
+                            <span class="badge badge-purple">画面遷移なし</span>
+                        </div>
+                        <div class="tutorial-step-content">
+                            <p style="margin-bottom:10px;">
+                                「＋」ボタンを押すと、画面全体が薄暗い半透明バックドロップに包まれ、中央に洗練された
+                                <strong>予約登録・編集ダイアログ（<code>modal_edit.php</code>）</strong> が瞬時に開きます。
+                            </p>
+                            <div class="info-card" style="margin:10px 0; padding:10px 14px;">
+                                <h4 style="font-size:12.5px; margin-bottom:4px;">💡 ポイント: 日時・時間枠はすでに完全セット済み！</h4>
+                                <p style="font-size:12px; margin:0;">
+                                    別ウィンドウを開くのではなく、同一画面上のHTML5 Native <code>&lt;dialog&gt;</code>
+                                    で起動するため、ブラウザのポップアップブロックに引っかかる心配が一切ありません。また、<strong>予約日（2026-10-01）と時間枠（エコー9:00）は自動的に入力フォームへ引き継がれています</strong>。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 下向き矢印 -->
+                    <div class="tutorial-flow-arrow">
+                        <span>⬇️ 次の操作へ</span>
+                    </div>
+
+                    <!-- STEP 4 -->
+                    <div class="tutorial-step-card" style="border-left:5px solid #0f766e;">
+                        <div class="tutorial-step-header"
+                            style="background:linear-gradient(to right, #f0fdfa, #ffffff);">
+                            <div class="tutorial-step-title">
+                                <span class="tutorial-step-badge" style="background:#0f766e;">STEP 4</span>
+                                <span>カルテID入力（MALL3自動補完）＆ 医療情報・定型タグの入力</span>
+                            </div>
+                            <span class="badge badge-teal">超高速入力DX</span>
+                        </div>
+                        <div class="tutorial-step-content">
+                            <p style="margin-bottom:12px;">
+                                ダイアログ内のフォームに患者情報を入力します。ここで Antigravity の <strong>MALL3電子カルテ自動補完機能</strong> が絶大な効果を発揮します。
+                            </p>
+
+                            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+                                <div
+                                    style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:12px 16px;">
+                                    <strong
+                                        style="color:#0f172a; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                                        <span
+                                            style="background:#2563eb; color:#fff; font-size:11px; padding:1px 6px; border-radius:3px;">4-A</span>
+                                        カルテIDを入力して Enterキー（またはタブ移動）
+                                    </strong>
+                                    <p style="font-size:12.5px; color:#475569; margin:6px 0 0 0; line-height:1.6;">
+                                        「カルテNO」欄に患者番号（例: <code>22904</code>）を入力して Enter
+                                        を押すと、院内の電子カルテデータベース（MALL3）へ即時非同期通信が行われ、<strong>患者氏名（北添 由美 様）、フリガナ（キタゾエ
+                                            ユミ）、生年月日（S37.09.10）、年齢（64歳）、性別（女性）が一瞬で自動補完</strong>されます！手入力による打ち間違いや同姓同名の患者取り違えミスを完全に防止します。
+                                    </p>
+                                </div>
+
+                                <div
+                                    style="background:#fff5f5; border:1px solid #fecaca; border-radius:6px; padding:12px 16px;">
+                                    <strong
+                                        style="color:#991b1b; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                                        <span
+                                            style="background:#dc2626; color:#fff; font-size:11px; padding:1px 6px; border-radius:3px;">4-B</span>
+                                        医療安全アラートの自動確認
+                                    </strong>
+                                    <p style="font-size:12.5px; color:#7f1d1d; margin:6px 0 0 0; line-height:1.6;">
+                                        カルテIDの確定と同時に、カルテ情報から<strong>「抗血栓薬（バイアスピリン等）内服」「アレルギー歴」「B型/C型肝炎等の感染症」「直近の発熱風邪症状」</strong>が自動照合されます。該当項目がある場合はモーダル上部に赤色アラートバッジが点滅し、医療事故を未然に防止します。
+                                    </p>
+                                </div>
+
+                                <div
+                                    style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:12px 16px;">
+                                    <strong
+                                        style="color:#0f172a; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                                        <span
+                                            style="background:#0f766e; color:#fff; font-size:11px; padding:1px 6px; border-radius:3px;">4-C</span>
+                                        担当医の選択 ＆ 定型タグを1クリック入力
+                                    </strong>
+                                    <p style="font-size:12.5px; color:#475569; margin:6px 0 0 0; line-height:1.6;">
+                                        ・<strong>担当医師</strong>: ドロップダウンから希望医師（例: 「義智」）を選択します。<br>
+                                        ・<strong>定型タグDX</strong>: 備考欄の上部に並んでいる <code>[生検あり]</code> <code>[ピロリ菌検査]</code>
+                                        <code>[鎮静剤希望]</code> <code>[TEL予約]</code>
+                                        などのボタンをクリックすると、備考入力欄に定型テキストが自動挿入され、タイピングの手間を70%削減できます。
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- STEP 4 モーダルUIモックアップ -->
+                            <div
+                                style="background:#ffffff; border:2px solid #cbd5e1; border-radius:8px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.12); max-width:680px;">
+                                <div
+                                    style="background:#1e293b; color:#ffffff; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+                                    <span
+                                        style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:6px;">
+                                        <span>📝</span> 予約登録・変更 (エコー9:00 - 2026.10.01 木)
+                                    </span>
+                                    <span
+                                        style="font-size:11px; background:#334155; padding:2px 8px; border-radius:3px; color:#cbd5e1;">ESCで閉じる</span>
+                                </div>
+                                <div style="padding:16px; background:#f8fafc; font-size:12px;">
+                                    <!-- アラートバッジ例 -->
+                                    <div
+                                        style="background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; padding:6px 10px; border-radius:4px; margin-bottom:12px; font-weight:bold; display:flex; align-items:center; gap:6px;">
+                                        <span>⚠️</span> 医療安全検知: 【抗凝固薬サプリ: DHA内服中】 / 【造影剤アレルギーなし】
+                                    </div>
+                                    <!-- フォーム模擬 -->
+                                    <div
+                                        style="display:grid; grid-template-columns:120px 1fr; gap:8px; align-items:center; background:#fff; padding:12px; border:1px solid #e2e8f0; border-radius:6px;">
+                                        <span style="font-weight:bold; color:#475569;">カルテNO:</span>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <input type="text" value="22904" readonly
+                                                style="width:110px; padding:4px 8px; border:2px solid #2563eb; border-radius:4px; font-weight:bold; font-family:monospace; background:#eff6ff;">
+                                            <span
+                                                style="background:#dcfce7; color:#15803d; font-size:11px; padding:2px 6px; border-radius:3px; font-weight:bold;">✓
+                                                MALL3照合成功</span>
+                                        </div>
+
+                                        <span style="font-weight:bold; color:#475569;">患者氏名:</span>
+                                        <div>
+                                            <strong style="font-size:14px; color:#0f172a;">北添 由美</strong>
+                                            <span style="color:#64748b; font-size:11px; margin-left:8px;">(キタゾエ ユミ)
+                                                64歳・女性 (S37.09.10)</span>
+                                        </div>
+
+                                        <span style="font-weight:bold; color:#475569;">検査種別 / 担当医:</span>
+                                        <div style="display:flex; gap:8px;">
+                                            <span
+                                                style="background:#dbeafe; color:#1e40af; padding:3px 10px; border-radius:4px; font-weight:bold;">腹部エコー</span>
+                                            <span
+                                                style="border:1px solid #cbd5e1; padding:3px 10px; border-radius:4px; font-weight:bold; background:#f8fafc;">担当医:
+                                                義智 先生</span>
+                                        </div>
+
+                                        <span style="font-weight:bold; color:#475569;">定型タグ選択:</span>
+                                        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                            <span
+                                                style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:3px; font-size:10.5px; border:1px solid #bae6fd;">[生検あり]</span>
+                                            <span
+                                                style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:3px; font-size:10.5px; border:1px solid #bae6fd;">[抗血栓薬確認済]</span>
+                                            <span
+                                                style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:3px; font-size:10.5px; border:1px solid #bae6fd;">[TEL予約]</span>
+                                        </div>
+
+                                        <span style="font-weight:bold; color:#475569;">備考・指示メモ:</span>
+                                        <textarea readonly
+                                            style="width:100%; height:45px; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:11.5px; background:#fff; color:#334155; resize:none;">10/1 9:00 エコー希望 TEL予約 抗血栓薬サプリ確認済</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 下向き矢印 -->
+                    <div class="tutorial-flow-arrow">
+                        <span>⬇️ 最後のステップ</span>
+                    </div>
+
+                    <!-- STEP 5 -->
+                    <div class="tutorial-step-card" style="border-left:5px solid #15803d;">
+                        <div class="tutorial-step-header"
+                            style="background:linear-gradient(to right, #f0fdf4, #ffffff);">
+                            <div class="tutorial-step-title">
+                                <span class="tutorial-step-badge" style="background:#15803d;">STEP 5</span>
+                                <span>「💾 保存する」をクリック ➔ 画面が瞬時に自動更新！</span>
+                            </div>
+                            <span class="badge badge-green">登録完了＆安全記録</span>
+                        </div>
+                        <div class="tutorial-step-content">
+                            <p style="margin-bottom:10px;">
+                                内容を確認したら、ダイアログ右下の青い <strong>「💾 予約を保存する」</strong> ボタンをクリックします（キーボードの
+                                <code>Ctrl + S</code> でも即時保存可能）。
+                            </p>
+                            <ul
+                                style="padding-left:20px; font-size:13px; color:#475569; margin-bottom:14px; line-height:1.7;">
+                                <li><strong>画面のリロード（F5再読込）は一切不要！</strong><br>
+                                    双方向 <code>postMessage</code> 通信により、モーダルが静かに閉じた瞬間、親画面のカレンダー数値（例: <code>5/6</code> ➔
+                                    <code>6/6</code> 満枠表示）と、下部の予約一覧テーブルに新患「北添 由美 様」の行が即座に反映されます。
+                                </li>
+                                <li><strong>自端末Undo監査ログへの自動記録</strong><br>
+                                    保存と同時に、データベースの <code>t_schedule_audit_log</code>
+                                    に「どの端末で・誰が・何時に・どの枠へ登録したか」が自動スナップショット保存されます。もし時間枠を間違えて登録してしまった場合でも、ヘッダー右上の
+                                    <strong>「🕒 操作履歴」からワンクリックで登録直前の状態に復元（Undo）</strong> できます。
+                                </li>
+                            </ul>
+
+                            <!-- STEP 5 反映完了ミニモックアップ -->
+                            <div
+                                style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; max-width:680px;">
+                                <div
+                                    style="background:#f0fdf4; border-bottom:1px solid #bbf7d0; padding:6px 10px; font-size:11px; font-weight:bold; color:#15803d; display:flex; justify-content:space-between;">
+                                    <span>🎉 予約反映完了後のテーブル表示イメージ</span>
+                                    <span>自動更新完了 (所要時間: 約0.1秒)</span>
+                                </div>
+                                <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                                    <tr style="border-bottom:1px solid #f1f5f9; background:#fff;">
+                                        <td style="padding:6px 10px; text-align:center; width:60px;">
+                                            <span class="icon-btn-sample add">＋</span>
+                                            <span class="icon-btn-sample edit">✏️</span>
+                                        </td>
+                                        <td style="padding:6px 10px; font-weight:bold; color:#0f172a; width:90px;">
+                                            エコー9:00</td>
+                                        <td
+                                            style="padding:6px 10px; font-family:monospace; color:#2563eb; font-weight:bold; width:70px;">
+                                            22904</td>
+                                        <td style="padding:6px 10px;">
+                                            <strong>北添 由美</strong> <span
+                                                style="background:#dbeafe; color:#1e40af; font-size:10px; padding:0 4px; border-radius:2px;">64歳</span>
+                                        </td>
+                                        <td style="padding:6px 10px; text-align:center;">
+                                            <span
+                                                style="background:#e0f2fe; color:#0369a1; font-size:10px; padding:1px 6px; border-radius:10px; font-weight:bold;">エコー</span>
+                                        </td>
+                                        <td style="padding:6px 10px; font-size:11px; color:#475569;">
+                                            10/1 9:00 エコー希望 TEL予約 抗血栓薬サプリ確認済
+                                        </td>
+                                        <td style="padding:6px 10px; text-align:center; width:45px;">
+                                            <span class="icon-btn-sample print">印</span>
+                                        </td>
+                                        <td style="padding:6px 10px; text-align:center; width:50px;">
+                                            <span class="icon-btn-sample follow">登録</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 現場スタッフ向け登録のコツ ＆ 医療安全ルール -->
+                <div class="clinical-alert" style="margin-top:24px;">
+                    <h4>🛡️ 現場スタッフ向け: 予約登録のコツ ＆ 医療安全ルール</h4>
+                    <ul>
+                        <li><strong>電話予約スピード対応（カルテID一撃補完）:</strong>
+                            電話口で「カルテ番号はお持ちですか？」と尋ねて入力・Enterを押すだけで、患者名・生年月日の確認が約5秒で完了します。</li>
+                        <li><strong>枠なし設定（🚫）の活用:</strong>
+                            内視鏡スコープの定期点検や院内勉強会等がある時間帯は、予約が入る前に該当枠の「🚫」ボタンを押して「枠なし」にしておくことで、誤予約の受付を未然に確実にブロックできます。</li>
+                        <li><strong>大腸カメラのW制限注意:[肛門科限定]</strong>
+                            大腸内視鏡（TCF）は患者の前処置負荷および検査所要時間を考慮し、同日の同一医師枠における過密（W制限3件以上）に対して黄色・赤色のアラートが表示されます。警告が出た場合は前後の別日程への分散をご案内ください。
+                        </li>
+                        <li><strong>万が一の誤登録は「🕒 操作履歴」で即座にUndo:</strong>
+                            時間枠や患者番号を間違えて保存してしまった場合でも、焦って手作業で削除・再登録する必要はありません。ヘッダーの「操作履歴」を開き、自端末の直前アクションの「元に戻す」を押せば1秒で登録前の状態へ完全復元されます。
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            05. デイリーノート表示 (schedule_note.php)
+            ============================================================ -->
+            <section class="guide-section" id="sec-schedule-note">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">05</span>
+                        <h2 class="section-title">デイリーノート表示（紙風一覧・高速モード）</h2>
+                        <span class="section-file-pill">schedule_note.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-primary">超高速(&lt;30ms)</span>
+                        <span class="badge badge-purple">キーボード操作</span>
+                        <span class="badge badge-green">全幅一覧</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    月間カレンダー計算や外部速報トーストの描画負荷を完全に排除し、瞬時の高速応答（0.5秒未満）を実現した画面です。使い慣れた紙のバインダーノート感覚で当日の予約者を全幅一覧でき、キーボードによる直感的な日付送りに対応しています。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: schedule_note.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box">🔒
+                                192.168.1.16/endoscope/schedule_note.php?dept=GASTRO&amp;date=2026-10-01</div>
+                        </div>
+                        <span style="font-size:11px; color:#64748b;">デイリーノート表示 (Ultra Fast)</span>
+                    </div>
+                    <div class="real-mockup-canvas">
+                        <!-- 1段目: ヘッダーバー -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-weight:800; font-size:15px; color:#0f172a;">内視鏡予約 デイリーノート</span>
+                                <span
+                                    style="background:#e0f2fe; color:#0369a1; font-size:10px; padding:1px 6px; border-radius:3px; font-weight:700;">Fast
+                                    View &lt;30ms</span>
+                                <div
+                                    style="display:inline-flex; border:1px solid #cbd5e1; border-radius:4px; overflow:hidden;">
+                                    <span
+                                        style="background:#f1f5f9; color:#475569; padding:2px 8px; font-size:11px;">肛門科</span>
+                                    <span
+                                        style="background:#10b981; color:#fff; padding:2px 8px; font-size:11px; font-weight:700;">胃腸科</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
+                                <span class="rm-btn rm-btn-red">当日ホワイトボード</span>
+                                <span class="rm-btn rm-btn-blue">月間カレンダーへ</span>
+                                <span class="rm-btn rm-btn-teal">予約マトリクス</span>
+                                <span class="rm-btn rm-btn-teal">空き枠検索</span>
+                                <span class="rm-btn rm-btn-orange">重複チェック</span>
+                                <span class="rm-btn rm-btn-purple">操作履歴</span>
+                                <span class="rm-btn rm-btn-crimson">アラートスキャン</span>
+                            </div>
+                        </div>
+
+                        <!-- 2段目: 日付ナビゲーションバー (高さツライチ32px仕様 ＆ 大型日付ピッカー) -->
+                        <div
+                            style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:6px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button type="button"
+                                    style="height:32px; padding:0 8px; border:1px solid #cbd5e1; background:#fff; border-radius:4px; font-size:11.5px; font-weight:600; cursor:pointer;">
+                                    前週 <kbd
+                                        style="background:#e2e8f0; padding:1px 4px; border-radius:2px; font-size:10px;">↑</kbd>
+                                </button>
+                                <button type="button"
+                                    style="height:32px; padding:0 8px; border:1px solid #cbd5e1; background:#fff; border-radius:4px; font-size:11.5px; font-weight:600; cursor:pointer;">
+                                    前日 <kbd
+                                        style="background:#e2e8f0; padding:1px 4px; border-radius:2px; font-size:10px;">←</kbd>
+                                </button>
+                                <button type="button"
+                                    style="height:32px; padding:0 8px; border:1px solid #93c5fd; background:#eff6ff; color:#1e40af; border-radius:4px; font-size:11.5px; font-weight:700; cursor:pointer;">
+                                    前診療日 <kbd
+                                        style="background:#bfdbfe; color:#1e3a8a; padding:1px 4px; border-radius:2px; font-size:10px;">Shift+←</kbd>
+                                </button>
+                            </div>
+
+                            <!-- 大型日付ピッカー (15px太字青枠仕様) -->
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div
+                                    style="display:inline-flex; align-items:center; background:#ffffff; border:2px solid #2563eb; border-radius:6px; padding:2px 14px; height:32px; box-shadow:0 1px 3px rgba(37,99,235,0.15);">
+                                    <span
+                                        style="font-size:15px; font-weight:800; color:#1e3a8a; letter-spacing:0.5px;">📅
+                                        2026-10-01 (木)</span>
+                                </div>
+                                <span
+                                    style="font-size:11px; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:12px; font-weight:700;">診療日</span>
+                            </div>
+
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                <button type="button"
+                                    style="height:32px; padding:0 8px; border:1px solid #93c5fd; background:#eff6ff; color:#1e40af; border-radius:4px; font-size:11.5px; font-weight:700; cursor:pointer;">
+                                    次診療日 <kbd
+                                        style="background:#bfdbfe; color:#1e3a8a; padding:1px 4px; border-radius:2px; font-size:10px;">Shift+→</kbd>
+                                </button>
+                                <button type="button"
+                                    style="height:32px; padding:0 8px; border:1px solid #cbd5e1; background:#fff; border-radius:4px; font-size:11.5px; font-weight:600; cursor:pointer;">
+                                    翌日 <kbd
+                                        style="background:#e2e8f0; padding:1px 4px; border-radius:2px; font-size:10px;">→</kbd>
+                                </button>
+                                <button type="button"
+                                    style="height:32px; padding:0 8px; border:1px solid #cbd5e1; background:#fff; border-radius:4px; font-size:11.5px; font-weight:600; cursor:pointer;">
+                                    翌週 <kbd
+                                        style="background:#e2e8f0; padding:1px 4px; border-radius:2px; font-size:10px;">↓</kbd>
+                                </button>
+                                <button type="button"
+                                    style="height:32px; padding:0 10px; border:1px solid #16a34a; background:#16a34a; color:#fff; border-radius:4px; font-size:11.5px; font-weight:700; cursor:pointer;">
+                                    今日 <kbd
+                                        style="background:rgba(255,255,255,0.3); color:#fff; padding:1px 4px; border-radius:2px; font-size:10px;">T</kbd>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3段目: ツールバー (カプセル型ボタングループ ＆ 高さ32px完全ツライチ) -->
+                        <div
+                            style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-size:12px;">
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <div style="display:flex; gap:3px; align-items:center;">
+                                    <span style="color:#64748b; font-size:11px;">医師:</span>
+                                    <span
+                                        style="background:#1e293b; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; height:32px; display:inline-flex; align-items:center;">全医師</span>
+                                    <span
+                                        style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:11px; height:32px; display:inline-flex; align-items:center;">哲也
+                                        0</span>
+                                    <span
+                                        style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:11px; height:32px; display:inline-flex; align-items:center;">義智
+                                        5</span>
+                                    <span
+                                        style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:11px; height:32px; display:inline-flex; align-items:center;">慶太郎
+                                        0</span>
+                                </div>
+                                <div
+                                    style="display:inline-flex; align-items:center; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:2px 4px; gap:2px; height:32px;">
+                                    <span
+                                        style="font-size:11px; color:#475569; padding:0 4px; font-weight:700;">枠:</span>
+                                    <span
+                                        style="background:#1e40af; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700;">GIF</span>
+                                    <span
+                                        style="background:#0284c7; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700;">エコー</span>
+                                    <span
+                                        style="background:#1e293b; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700;">TCF</span>
+                                </div>
+                                <button type="button"
+                                    style="height:32px; padding:0 10px; border:1px solid #cbd5e1; background:#ffffff; border-radius:6px; font-size:11.5px; font-weight:600; cursor:pointer;">
+                                    ⬜ 空き枠表示
+                                </button>
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <span class="rm-btn rm-btn-teal"
+                                    style="height:32px; display:inline-flex; align-items:center;">部屋・下剤一括</span>
+                                <span class="rm-btn rm-btn-blue"
+                                    style="height:32px; display:inline-flex; align-items:center;">枠・供給サマリ</span>
+                                <span class="rm-btn rm-btn-green"
+                                    style="height:32px; display:inline-flex; align-items:center;">一覧印刷</span>
+                            </div>
+                        </div>
+
+                        <!-- 予約一覧テーブル (担当医師＆検査種別列の左揃え仕様) -->
+                        <div style="border:1px solid #cbd5e1; border-radius:6px; background:#ffffff; overflow:hidden;">
+                            <div
+                                style="background:#f8fafc; border-bottom:1px solid #cbd5e1; padding:6px 12px; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <strong style="font-size:12.5px; color:#0f172a;">2026年10月01日 (木) の予約一覧
+                                        (5/8枠使用中)</strong>
+                                    <span
+                                        style="border:1px solid #cbd5e1; background:#fff; padding:1px 6px; border-radius:3px; font-size:10.5px; cursor:default;">📝
+                                        日別メモ</span>
+                                </div>
+                                <span style="font-size:11px; color:#64748b;">全幅ノート表示</span>
+                            </div>
+                            <table style="width:100%; border-collapse:collapse; font-size:11.5px; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f1f5f9; border-bottom:1px solid #cbd5e1; color:#475569;">
+                                        <th style="padding:5px 6px; width:45px; text-align:center;">操作</th>
+                                        <th style="padding:5px 8px; width:80px;">時間枠</th>
+                                        <th style="padding:5px 8px; width:70px;">カルテNO</th>
+                                        <th style="padding:5px 8px; width:160px;">患者氏名</th>
+                                        <th style="padding:5px 8px; width:140px; text-align:left;">担当医 ＆ 検査種別</th>
+                                        <th style="padding:5px 8px;">予約備考・電子カルテメモ</th>
+                                        <th style="padding:5px 6px; width:40px; text-align:center;">シート</th>
+                                        <th style="padding:5px 6px; width:40px; text-align:center;">F/U</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom:1px solid #f1f5f9; color:#94a3b8;">
+                                        <td style="padding:5px; text-align:center;">＋ 🚫</td>
+                                        <td style="padding:5px 8px;">エコー9:00</td>
+                                        <td style="padding:5px 8px;">-</td>
+                                        <td style="padding:5px 8px; color:#2563eb; font-weight:700;">[空き枠]</td>
+                                        <td style="padding:5px 8px; text-align:left;">-</td>
+                                        <td style="padding:5px 8px;">-</td>
+                                        <td style="text-align:center;">-</td>
+                                        <td style="text-align:center;">-</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:5px; text-align:center;">＋ ✏️</td>
+                                        <td style="padding:5px 8px; font-weight:700;">GIF9:00</td>
+                                        <td
+                                            style="padding:5px 8px; font-family:monospace; color:#2563eb; font-weight:700;">
+                                            22904</td>
+                                        <td style="padding:5px 8px;">
+                                            <strong>北添 由美</strong> <span
+                                                style="background:#dbeafe; color:#1e40af; font-size:10px; padding:0 3px; border-radius:2px;">64歳</span>
+                                            <div style="font-size:10px; color:#94a3b8;">昭和37年9月10日</div>
+                                        </td>
+                                        <!-- 左揃え仕様 (gap:3px; justify-content:left) -->
+                                        <td style="padding:5px 8px; text-align:left;">
+                                            <div style="display:flex; align-items:center; gap:4px;">
+                                                <span
+                                                    style="background:#6b21a8; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">義智</span>
+                                                <span
+                                                    style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">GIF</span>
+                                            </div>
+                                        </td>
+                                        <td style="padding:5px 8px; font-size:11px; color:#475569;">10/10 9:20
+                                            ▲上部内視鏡:注射なし 抗凝固薬サプリ:DHA</td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">印</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">登録</span>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:5px; text-align:center;">＋ ✏️</td>
+                                        <td style="padding:5px 8px; font-weight:700;">GIF9:20</td>
+                                        <td
+                                            style="padding:5px 8px; font-family:monospace; color:#2563eb; font-weight:700;">
+                                            34602</td>
+                                        <td style="padding:5px 8px;">
+                                            <strong>野町 清佳</strong> <span
+                                                style="background:#dbeafe; color:#1e40af; font-size:10px; padding:0 3px; border-radius:2px;">62歳</span>
+                                        </td>
+                                        <td style="padding:5px 8px; text-align:left;">
+                                            <div style="display:flex; align-items:center; gap:4px;">
+                                                <span
+                                                    style="background:#6b21a8; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">義智</span>
+                                                <span
+                                                    style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">GIF</span>
+                                            </div>
+                                        </td>
+                                        <td style="padding:5px 8px; font-size:11px; color:#475569;">10/1 9:20 GIF 注あり
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">印</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">登録</span>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9; background:#fff1f2;">
+                                        <td style="padding:5px; text-align:center; color:#dc2626;">⭕</td>
+                                        <td style="padding:5px 8px; font-weight:700; color:#dc2626;">GIF9:40</td>
+                                        <td style="padding:5px 8px;">-</td>
+                                        <td style="padding:5px 8px; color:#dc2626; font-weight:700;">[枠なし設定済]</td>
+                                        <td style="padding:5px 8px; text-align:left; color:#dc2626;">-</td>
+                                        <td style="padding:5px 8px; color:#dc2626; font-weight:700;">***枠なし設定済***</td>
+                                        <td style="text-align:center;">-</td>
+                                        <td style="text-align:center;">-</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:5px; text-align:center;">＋ ✏️</td>
+                                        <td style="padding:5px 8px; font-weight:700;">GIF10:00</td>
+                                        <td
+                                            style="padding:5px 8px; font-family:monospace; color:#2563eb; font-weight:700;">
+                                            48303</td>
+                                        <td style="padding:5px 8px;">
+                                            <strong>藤戸 壽恵</strong> <span
+                                                style="background:#fef3c7; color:#92400e; font-size:10px; padding:0 3px; border-radius:2px;">72歳</span>
+                                        </td>
+                                        <td style="padding:5px 8px; text-align:left;">
+                                            <div style="display:flex; align-items:center; gap:4px;">
+                                                <span
+                                                    style="background:#6b21a8; color:#fff; font-size:10px; padding:1px 5px; border-radius:3px;">義智</span>
+                                                <span
+                                                    style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">GIF</span>
+                                            </div>
+                                        </td>
+                                        <td style="padding:5px 8px; font-size:11px; color:#475569;">TEL予約 10/1(木)GIF
+                                            10:00 注あり</td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">印</span>
+                                        </td>
+                                        <td style="text-align:center;"><span
+                                                style="background:#7c3aed; color:#fff; font-size:9.5px; padding:1px 4px; border-radius:2px;">登録</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- キーボードショートカット完全仕様表 -->
+                <div class="info-card">
+                    <h4>⌨️ キーボードショートカット日付移動仕様（2026-09-29 確定仕様）</h4>
+                    <p style="margin-bottom:10px;">診療室での片手操作や高速な日付確認を可能にするため、マウスを使わずにキーボードだけで自在に日付移動が可能です。</p>
+                    <table class="feature-table" style="background:#fff; margin-top:8px;">
+                        <thead>
+                            <tr style="background:#f1f5f9;">
+                                <th style="width:25%;">ショートカットキー</th>
+                                <th style="width:35%;">動作・移動先</th>
+                                <th style="width:40%;">誤爆防止・フェイルセーフ仕様</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">←</kbd>
+                                    / <kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">→</kbd>
+                                </td>
+                                <td><strong>前日 / 翌日</strong> へ移動</td>
+                                <td rowspan="4"
+                                    style="background:#f8fafc; font-size:12px; color:#475569; line-height:1.5;">
+                                    <code>input</code>, <code>textarea</code>, <code>select</code>,
+                                    <code>contentEditable</code> の入力操作中、および <code>dialog[open]</code>
+                                    モーダル表示中は<strong>自動的にキーイベントを無効化</strong>。電子カルテ入力や検索時の誤遷移を100%防止します。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">↑</kbd>
+                                    / <kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">↓</kbd>
+                                </td>
+                                <td><strong>前週（-7日） / 翌週（+7日）</strong> へ移動</td>
+                            </tr>
+                            <tr>
+                                <td><kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">Shift</kbd>
+                                    + <kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">←</kbd>
+                                    / <kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">→</kbd>
+                                </td>
+                                <td>小野会休日ルールを自動スキップし、<strong>前診療日 / 次診療日</strong> へ移動</td>
+                            </tr>
+                            <tr>
+                                <td><kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">T</kbd>
+                                    / <kbd
+                                        style="background:#1e293b; color:#fff; padding:2px 6px; border-radius:3px;">Home</kbd>
+                                </td>
+                                <td><strong>今日（本日日付）</strong> へ即座にジャンプ（本日表示時はトースト通知）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 詳しい機能説明テーブル -->
+                <div class="feature-table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">機能パーツ</th>
+                                <th style="width: 25%;">配置 / 仕様</th>
+                                <th style="width: 50%;">詳細説明 ＆ 現場での役割</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>大型日付ピッカー</strong></td>
+                                <td>2段目中央</td>
+                                <td>フォント15px太字、青枠線強調、高さ32px。クリック領域が広くタッチパネルやマウス操作での誤タップを防止。カレンダーピッカーから任意の日付へ即時ジャンプ。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>担当医＆検査種別列</strong></td>
+                                <td>テーブル第5列目</td>
+                                <td><strong>【2026-09-29改善】</strong>ユーザーフィードバックに基づき、医師名と検査種別バッジを左揃え（<code>gap: 3px; justify-content: left;</code>）に配置。視線移動の負荷を軽減。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>カプセル型枠トグル</strong></td>
+                                <td>3段目中央 `枠: [GIF] [エコー] [TCF]`</td>
+                                <td>チェックボックスを完全撤廃し、クリックでアクティブが切り替わるカプセルボタン。エコー枠専用水色（<code>#0284c7</code>）に完全同期。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>日別メモ共有</strong></td>
+                                <td>テーブル上部 `[📝 日別メモ]`</td>
+                                <td><code>t_daily_memo</code> テーブルとリアルタイム非同期連動。休診・学会・機械点検などの連絡事項を日付ごとに記録・共有。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            06. 空き枠検索
+            ============================================================ -->
+            <section class="guide-section" id="sec-slot-search">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">06</span>
+                        <h2 class="section-title">空き枠検索（速報 ＆ 条件指定）</h2>
+                        <span class="section-file-pill">slot_search.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-green">高速絞り込み</span>
+                        <span class="badge badge-orange">直近速報</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    外来診療中に「急ぎで大腸内視鏡を入れたい」「特定曜日の枠を探したい」場面で、医師・検査種別・曜日別の直近空き枠をミリ秒単位で高速検索し、その場で予約確保します。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: slot_search.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box">🔒 192.168.1.16/endoscope/slot_search.php</div>
+                        </div>
+                        <span style="font-size:11px; color:#64748b;">空き枠検索</span>
+                    </div>
+                    <div class="real-mockup-canvas" style="background:#f8fafc;">
+                        <!-- ヘッダー -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <strong style="font-size:16px; color:#0f172a; display:flex; align-items:center; gap:6px;">🔍
+                                空き枠検索</strong>
+                            <div style="display:flex; gap:6px;">
+                                <span class="rm-btn rm-btn-dark">メニューへ</span>
+                                <span class="rm-btn rm-btn-blue">月間カレンダーへ</span>
+                                <span class="rm-btn rm-btn-teal">予約マトリクス</span>
+                            </div>
+                        </div>
+
+                        <!-- 速報バナーボックス -->
+                        <div
+                            style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div
+                                style="display:inline-flex; align-items:center; gap:6px; border:1px solid #f59e0b; background:#fffbeb; padding:3px 12px; border-radius:20px;">
+                                <span style="color:#d97706; font-weight:800; font-size:12px;">⚡ 直近空き枠速報
+                                    (全科横断・30日大腸CF)</span>
+                                <span
+                                    style="background:#ea580c; color:#fff; font-size:10.5px; padding:1px 6px; border-radius:10px; font-weight:700;">64枠</span>
+                            </div>
+                            <span style="font-size:12px; color:#2563eb; font-weight:700; cursor:default;">🔍 条件指定検索
+                                (月・曜日・胃カメラ等)</span>
+                        </div>
+
+                        <!-- 医師フィルター行 -->
+                        <div
+                            style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 12px; margin-bottom:12px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <span
+                                style="background:#0f172a; color:#fff; padding:3px 10px; border-radius:14px; font-size:11px; font-weight:700;">全員
+                                64</span>
+                            <span
+                                style="background:#15803d; color:#fff; padding:3px 10px; border-radius:14px; font-size:11px; font-weight:700;">●
+                                誠吾 肛門科 55</span>
+                            <span
+                                style="background:#f1f5f9; color:#1e40af; border:1px solid #bfdbfe; padding:3px 10px; border-radius:14px; font-size:11px; font-weight:700;">●
+                                哲也 胃腸科 2</span>
+                            <span
+                                style="background:#f1f5f9; color:#6b21a8; border:1px solid #e9d5ff; padding:3px 10px; border-radius:14px; font-size:11px; font-weight:700;">●
+                                義智 胃腸科 7</span>
+                            <span
+                                style="background:#f1f5f9; color:#c2410c; border:1px solid #fed7aa; padding:3px 10px; border-radius:14px; font-size:11px; font-weight:700;">●
+                                慶太郎 胃腸科 0</span>
+                        </div>
+
+                        <!-- オプション行 -->
+                        <div
+                            style="display:flex; gap:10px; align-items:center; margin-bottom:12px; font-size:11.5px; color:#475569;">
+                            <span
+                                style="border:1px solid #f59e0b; background:#fffbeb; color:#b45309; padding:2px 8px; border-radius:4px; font-weight:700;">⚡
+                                キャンセル空きのみ 0</span>
+                            <span
+                                style="border:1px solid #cbd5e1; background:#fff; padding:2px 8px; border-radius:4px;">直近30日間
+                                (推奨) ▼</span>
+                            <span
+                                style="border:1px solid #cbd5e1; background:#fff; padding:2px 8px; border-radius:4px; font-weight:700;">🔄
+                                最新に更新</span>
+                        </div>
+
+                        <!-- 3列カードグリッド -->
+                        <div
+                            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:10px;">
+                            <!-- カード 1 -->
+                            <div
+                                style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-weight:700; font-size:12px; color:#0f172a;">📅 2026-10-03 土 <span
+                                            style="background:#f59e0b; color:#fff; font-size:9.5px; padding:0 3px; border-radius:2px;">第1週</span></span>
+                                    <span
+                                        style="border:1px solid #cbd5e1; color:#64748b; font-size:10px; padding:0 4px; border-radius:2px;">肛門科</span>
+                                </div>
+                                <div style="margin-bottom:6px;">
+                                    <span
+                                        style="background:#15803d; color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:3px;">👨
+                                        誠吾 先生</span>
+                                </div>
+                                <div
+                                    style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                                    <span style="color:#64748b;">予約進捗 (使用: 6 / 定員: 7)</span>
+                                    <strong style="color:#15803d; font-size:12px;">残 1枠</strong>
+                                </div>
+                                <div
+                                    style="background:#e2e8f0; height:4px; border-radius:2px; overflow:hidden; margin-bottom:8px;">
+                                    <div style="background:#16a34a; width:85%; height:100%;"></div>
+                                </div>
+                                <div style="display:flex; gap:6px;">
+                                    <span
+                                        style="flex:1; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; text-align:center; padding:3px; border-radius:3px; font-size:11px; font-weight:700;">カレンダー表示</span>
+                                    <span
+                                        style="flex:1; background:#2563eb; color:#fff; text-align:center; padding:3px; border-radius:3px; font-size:11px; font-weight:700;">＋
+                                        この枠で予約</span>
+                                </div>
+                            </div>
+                            <!-- カード 2 -->
+                            <div
+                                style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-weight:700; font-size:12px; color:#0f172a;">📅 2026-10-05 月 <span
+                                            style="background:#e2e8f0; color:#475569; font-size:9.5px; padding:0 3px; border-radius:2px;">4日後</span></span>
+                                    <span
+                                        style="border:1px solid #cbd5e1; color:#64748b; font-size:10px; padding:0 4px; border-radius:2px;">肛門科</span>
+                                </div>
+                                <div style="margin-bottom:6px;">
+                                    <span
+                                        style="background:#15803d; color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:3px;">👨
+                                        誠吾 先生</span>
+                                </div>
+                                <div
+                                    style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                                    <span style="color:#64748b;">予約進捗 (使用: 5 / 定員: 7)</span>
+                                    <strong style="color:#15803d; font-size:12px;">残 2枠</strong>
+                                </div>
+                                <div
+                                    style="background:#e2e8f0; height:4px; border-radius:2px; overflow:hidden; margin-bottom:8px;">
+                                    <div style="background:#16a34a; width:71%; height:100%;"></div>
+                                </div>
+                                <div style="display:flex; gap:6px;">
+                                    <span
+                                        style="flex:1; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; text-align:center; padding:3px; border-radius:3px; font-size:11px; font-weight:700;">カレンダー表示</span>
+                                    <span
+                                        style="flex:1; background:#2563eb; color:#fff; text-align:center; padding:3px; border-radius:3px; font-size:11px; font-weight:700;">＋
+                                        この枠で予約</span>
+                                </div>
+                            </div>
+                            <!-- カード 3 -->
+                            <div
+                                style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-weight:700; font-size:12px; color:#0f172a;">📅 2026-10-06 火 <span
+                                            style="background:#e2e8f0; color:#475569; font-size:9.5px; padding:0 3px; border-radius:2px;">5日後</span></span>
+                                    <span
+                                        style="border:1px solid #cbd5e1; color:#64748b; font-size:10px; padding:0 4px; border-radius:2px;">肛門科</span>
+                                </div>
+                                <div style="margin-bottom:6px;">
+                                    <span
+                                        style="background:#15803d; color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:3px;">👨
+                                        誠吾 先生</span>
+                                </div>
+                                <div
+                                    style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px;">
+                                    <span style="color:#64748b;">予約進捗 (使用: 6 / 定員: 7)</span>
+                                    <strong style="color:#15803d; font-size:12px;">残 1枠</strong>
+                                </div>
+                                <div
+                                    style="background:#e2e8f0; height:4px; border-radius:2px; overflow:hidden; margin-bottom:8px;">
+                                    <div style="background:#16a34a; width:85%; height:100%;"></div>
+                                </div>
+                                <div style="display:flex; gap:6px;">
+                                    <span
+                                        style="flex:1; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; text-align:center; padding:3px; border-radius:3px; font-size:11px; font-weight:700;">カレンダー表示</span>
+                                    <span
+                                        style="flex:1; background:#2563eb; color:#fff; text-align:center; padding:3px; border-radius:3px; font-size:11px; font-weight:700;">＋
+                                        この枠で予約</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            07. 当日進捗モニター (LIVE)
+            ============================================================ -->
+            <section class="guide-section" id="sec-progress-monitor">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">07</span>
+                        <h2 class="section-title">当日進捗モニター（電子ホワイトボード）</h2>
+                        <span class="section-file-pill">progress_monitor.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-danger">LIVE</span>
+                        <span class="badge badge-purple">リカバリタイマー</span>
+                        <span class="badge badge-cyan">五十音インデックス</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    内視鏡室の大画面モニターやナースステーションで常時稼働させる「電子ホワイトボード」です。患者の来院から前処置、検査入室、リカバリー、帰宅までの動線をリアルタイム共有します。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: progress_monitor.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar"
+                        style="background:#0f172a; border-bottom:1px solid #334155; color:#94a3b8;">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box"
+                                style="background:#1e293b; border-color:#475569; color:#f8fafc;">🔒
+                                192.168.1.16/endoscope/progress_monitor.php</div>
+                        </div>
+                        <span style="font-size:11px; color:#cbd5e1;">当日進捗ステータスモニター</span>
+                    </div>
+                    <div class="real-mockup-canvas dark-theme" style="position:relative; padding-right:32px;">
+                        <!-- ヘッダー行 -->
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <strong style="font-size:15px; color:#fff;">当日進捗ステータスモニター</strong>
+                                <span
+                                    style="background:#ef4444; color:#fff; font-size:10.5px; padding:2px 7px; border-radius:12px; font-weight:800;">●
+                                    LIVE</span>
+                                <div
+                                    style="display:inline-flex; border:1px solid #475569; border-radius:4px; overflow:hidden;">
+                                    <span
+                                        style="background:#2563eb; color:#fff; padding:2px 8px; font-size:11px; font-weight:700;">全体俯瞰</span>
+                                    <span
+                                        style="background:#1e293b; color:#94a3b8; padding:2px 6px; font-size:11px;">医師</span>
+                                    <span
+                                        style="background:#1e293b; color:#94a3b8; padding:2px 6px; font-size:11px;">看護師</span>
+                                    <span
+                                        style="background:#1e293b; color:#94a3b8; padding:2px 6px; font-size:11px;">補助看護師</span>
+                                    <span
+                                        style="background:#1e293b; color:#94a3b8; padding:2px 6px; font-size:11px;">受付事務</span>
+                                </div>
+                                <div
+                                    style="display:inline-flex; border:1px solid #475569; border-radius:4px; overflow:hidden;">
+                                    <span
+                                        style="background:#1e293b; color:#94a3b8; padding:2px 6px; font-size:11px;">タイル</span>
+                                    <span
+                                        style="background:#0284c7; color:#fff; padding:2px 8px; font-size:11px; font-weight:700;">高密度表</span>
+                                    <span
+                                        style="background:#1e293b; color:#94a3b8; padding:2px 6px; font-size:11px;">標準表</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
+                                <span
+                                    style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">自動更新:
+                                    10秒 ▼</span>
+                                <span
+                                    style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">端末保存</span>
+                                <span
+                                    style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">今すぐ更新</span>
+                                <span class="rm-btn rm-btn-green">＋ 当日・緊急追加</span>
+                                <span class="rm-btn rm-btn-crimson">アラートスキャン</span>
+                                <span class="rm-btn rm-btn-orange">直近空き枠速報 64</span>
+                                <span
+                                    style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">当日印刷</span>
+                                <span
+                                    style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">カレンダー</span>
+                                <span
+                                    style="background:#1e293b; border:1px solid #475569; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:11px;">ポータル</span>
+                            </div>
+                        </div>
+
+                        <!-- 2段目: フィルタバー -->
+                        <div
+                            style="background:#1e293b; border:1px solid #334155; border-radius:4px; padding:4px 8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; font-size:11px;">
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <span
+                                    style="background:#334155; color:#cbd5e1; padding:2px 6px; border-radius:3px;">◀</span>
+                                <span style="font-weight:700; color:#fff;">2026-10-01(木) 本日</span>
+                                <span
+                                    style="background:#334155; color:#cbd5e1; padding:2px 6px; border-radius:3px;">▶</span>
+                                <div
+                                    style="display:inline-flex; border:1px solid #475569; border-radius:3px; overflow:hidden;">
+                                    <span style="background:#2563eb; color:#fff; padding:1px 6px;">全診療科横断</span>
+                                    <span style="background:#0f172a; color:#94a3b8; padding:1px 6px;">肛門科</span>
+                                    <span style="background:#0f172a; color:#94a3b8; padding:1px 6px;">胃腸科</span>
+                                </div>
+                                <div
+                                    style="display:inline-flex; border:1px solid #475569; border-radius:3px; overflow:hidden;">
+                                    <span style="background:#0284c7; color:#fff; padding:1px 6px;">全内視鏡</span>
+                                    <span style="background:#0f172a; color:#94a3b8; padding:1px 6px;">大腸系(TCF)</span>
+                                    <span style="background:#0f172a; color:#94a3b8; padding:1px 6px;">浣腸CF</span>
+                                    <span style="background:#0f172a; color:#94a3b8; padding:1px 6px;">胃カメラ</span>
+                                </div>
+                            </div>
+                            <span>🏃 滞在中のみ [OFF]</span>
+                        </div>
+
+                        <!-- 3段目: ステータス集計リボン -->
+                        <div
+                            style="display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap; font-size:10.5px;">
+                            <span
+                                style="background:#1e293b; color:#93c5fd; border:1px solid #334155; padding:2px 8px; border-radius:12px; font-weight:700;">総計
+                                17</span>
+                            <span
+                                style="background:#1e293b; color:#86efac; border:1px solid #334155; padding:2px 8px; border-radius:12px;">TCF
+                                7</span>
+                            <span
+                                style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:2px 8px; border-radius:12px;">浣腸
+                                0</span>
+                            <span
+                                style="background:#1e293b; color:#93c5fd; border:1px solid #334155; padding:2px 8px; border-radius:12px;">胃
+                                10</span>
+                            <span style="color:#64748b;">|</span>
+                            <span
+                                style="background:#2563eb; color:#fff; padding:2px 7px; border-radius:3px; font-weight:700;">1.受付
+                                17</span>
+                            <span style="background:#1e293b; color:#cbd5e1; padding:2px 6px; border-radius:3px;">2.トイレ
+                                0</span>
+                            <span style="background:#1e293b; color:#cbd5e1; padding:2px 6px; border-radius:3px;">3.検査待
+                                0</span>
+                            <span style="background:#1e293b; color:#cbd5e1; padding:2px 6px; border-radius:3px;">4.検査中
+                                0</span>
+                            <span style="background:#1e293b; color:#cbd5e1; padding:2px 6px; border-radius:3px;">5.リカバリ
+                                0</span>
+                            <span style="background:#1e293b; color:#cbd5e1; padding:2px 6px; border-radius:3px;">6.説明待
+                                0</span>
+                            <span style="background:#1e293b; color:#cbd5e1; padding:2px 6px; border-radius:3px;">7.完了
+                                0</span>
+                        </div>
+
+                        <!-- テーブル本体 (高密度表モード) -->
+                        <table
+                            style="width:100%; border-collapse:collapse; font-size:11px; text-align:left; color:#f8fafc; border:1px solid #334155;">
+                            <thead>
+                                <tr style="background:#1e293b; color:#cbd5e1; border-bottom:1px solid #334155;">
+                                    <th style="padding:6px; width:75px;">枠/科</th>
+                                    <th style="padding:6px; width:150px;">患者情報 &amp; 鎮静</th>
+                                    <th style="padding:6px; width:65px;">受付時刻</th>
+                                    <th style="padding:6px; width:100px;">マイトイレ/下剤</th>
+                                    <th style="padding:6px;">動線ステータス進捗 (7段階)</th>
+                                    <th style="padding:6px; width:95px;">検体 &amp; 洗浄タスク</th>
+                                    <th style="padding:6px; width:95px;">リカバリ / 説明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom:1px solid #1e293b; background:#0f172a;">
+                                    <td style="padding:6px;">
+                                        <strong>12:30</strong><br>
+                                        <span
+                                            style="background:#1e40af; color:#fff; font-size:9.5px; padding:0 4px; border-radius:2px;">肛門科</span>
+                                    </td>
+                                    <td style="padding:6px;">
+                                        <div style="color:#94a3b8; font-size:10.5px;">※枠なし</div>
+                                        <div style="font-size:10px; color:#cbd5e1;">ID: TCF 鎮静:プロポ 査定◆</div>
+                                    </td>
+                                    <td style="padding:6px;"><span
+                                            style="border:1px solid #475569; padding:2px 6px; border-radius:3px; font-size:10px;">打刻</span>
+                                    </td>
+                                    <td style="padding:6px; color:#94a3b8;">[(未設定) ▼]<br><span
+                                            style="font-size:9px;">下剤: 未作成</span></td>
+                                    <td style="padding:6px;">
+                                        <div
+                                            style="display:inline-flex; border:1px solid #475569; border-radius:4px; overflow:hidden;">
+                                            <span
+                                                style="background:#2563eb; color:#fff; padding:3px 8px; font-weight:700;">受付済
+                                                <span style="font-size:9px;">次へ進む ▶</span></span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">マイトイレ</span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">検査待ち</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">検査中</span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">リカバリ</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">説明</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">完了</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:6px; color:#64748b;">-</td>
+                                    <td style="padding:6px; color:#64748b;">-</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #1e293b; background:#0f172a;">
+                                    <td style="padding:6px;">
+                                        <strong>13:00</strong><br>
+                                        <span
+                                            style="background:#1e40af; color:#fff; font-size:9.5px; padding:0 4px; border-radius:2px;">肛門科</span>
+                                    </td>
+                                    <td style="padding:6px;">
+                                        <div style="color:#94a3b8; font-size:10.5px;">※枠なし</div>
+                                        <div style="font-size:10px; color:#cbd5e1;">ID: TCF 鎮静:プロポ 査定◆</div>
+                                    </td>
+                                    <td style="padding:6px;"><span
+                                            style="border:1px solid #475569; padding:2px 6px; border-radius:3px; font-size:10px;">打刻</span>
+                                    </td>
+                                    <td style="padding:6px; color:#94a3b8;">[(未設定) ▼]</td>
+                                    <td style="padding:6px;">
+                                        <div
+                                            style="display:inline-flex; border:1px solid #475569; border-radius:4px; overflow:hidden;">
+                                            <span
+                                                style="background:#2563eb; color:#fff; padding:3px 8px; font-weight:700;">受付済
+                                                <span style="font-size:9px;">次へ進む ▶</span></span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">マイトイレ</span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">検査待ち</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">検査中</span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">リカバリ</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">説明</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">完了</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:6px; color:#64748b;">-</td>
+                                    <td style="padding:6px; color:#64748b;">-</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #1e293b; background:#0f172a;">
+                                    <td style="padding:6px;">
+                                        <strong>14:30</strong><br>
+                                        <span
+                                            style="background:#1e40af; color:#fff; font-size:9.5px; padding:0 4px; border-radius:2px;">肛門科</span>
+                                    </td>
+                                    <td style="padding:6px;">
+                                        <div style="color:#94a3b8; font-size:10.5px;">※枠なし</div>
+                                        <div style="font-size:10px; color:#cbd5e1;">ID: TCF 鎮静:プロポ 査定◆</div>
+                                    </td>
+                                    <td style="padding:6px;"><span
+                                            style="border:1px solid #475569; padding:2px 6px; border-radius:3px; font-size:10px;">打刻</span>
+                                    </td>
+                                    <td style="padding:6px; color:#94a3b8;">[(未設定) ▼]</td>
+                                    <td style="padding:6px;">
+                                        <div
+                                            style="display:inline-flex; border:1px solid #475569; border-radius:4px; overflow:hidden;">
+                                            <span
+                                                style="background:#2563eb; color:#fff; padding:3px 8px; font-weight:700;">受付済
+                                                <span style="font-size:9px;">次へ進む ▶</span></span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">マイトイレ</span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">検査待ち</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">検査中</span>
+                                            <span
+                                                style="background:#1e293b; color:#94a3b8; padding:3px 6px;">リカバリ</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">説明</span>
+                                            <span style="background:#1e293b; color:#94a3b8; padding:3px 6px;">完了</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding:6px; color:#64748b;">-</td>
+                                    <td style="padding:6px;">
+                                        <span
+                                            style="background:#ffffff; color:#0f172a; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:700;">リカバリ中</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 右端: 五十音インデックスバー -->
+                        <div
+                            style="position:absolute; right:0; top:40px; bottom:0; width:26px; background:#1e293b; border-left:1px solid #334155; display:flex; flex-direction:column; align-items:center; justify-content:space-around; font-size:10px; color:#94a3b8; padding:4px 0;">
+                            <span style="background:#2563eb; color:#fff; padding:1px 3px; border-radius:2px;">全</span>
+                            <span>あ</span><span>か</span><span>さ</span><span>た</span><span>な</span><span>は</span><span>ま</span><span>や</span><span>ら</span><span>わ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 詳しい機能説明テーブル -->
+                <div class="feature-table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">機能項目</th>
+                                <th style="width: 25%;">配置 / 制御</th>
+                                <th style="width: 50%;">詳細機能説明 ＆ 臨床運用</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>職種別初期モード</strong></td>
+                                <td>ヘッダー `[全体俯瞰] [医師] [看護師] [補助看] [事務]`</td>
+                                <td>職種ごとの役割に応じて必要な情報列を最適化。各端末で一度選択したモードはローカルストレージに自動記憶されます。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>動線7ステップ進行</strong></td>
+                                <td>テーブル内ボタングループ</td>
+                                <td>
+                                    <code>[受付済] ➔ [マイトイレ] ➔ [検査待ち] ➔ [検査中] ➔ [リカバリ] ➔ [説明] ➔ [完了]</code><br>
+                                    青い「次へ進む ▶」ボタンを1タップするだけでステータスが進みます。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>セデーション・タイマー</strong></td>
+                                <td>リカバリー中ステータス連動</td>
+                                <td>
+                                    <strong>【2026-09-28改修】</strong>鎮静剤使用患者のリカバリ目標時間を自動カウントダウン。満了時は<strong>「画面全体パルス点滅」＆「ピピッ×3回
+                                        音声アラート」＆「大型覚醒確認モーダル」</strong>が起動し放置事故をゼロ化。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>五十音インデックス</strong></td>
+                                <td>画面右端縦型バー（あ〜わ）</td>
+                                <td>患者名頭文字をワンタップするだけで該当患者へスクロール・即時絞り込み。キーボード入力不要でタブレット運用に最適。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>➕ 当日・緊急追加</strong></td>
+                                <td>ヘッダー緑ボタン</td>
+                                <td>当日急遽発生した飛び込み検査をその場で即座にリストへ登録・リアルタイム反映。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            08. 予約登録・編集ダイアログ (modal_edit.php)
+            ============================================================ -->
+            <section class="guide-section" id="sec-modal-edit">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">08</span>
+                        <h2 class="section-title">予約登録・編集ダイアログ（Native Dialog モーダル）</h2>
+                        <span class="section-file-pill">modal_edit.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-primary">本物インページモーダル</span>
+                        <span class="badge badge-purple">postMessage自動更新</span>
+                        <span class="badge badge-green">MALL3即時連携</span>
+                        <span class="badge badge-orange">定型文DX</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    新規の予約枠確保、または既存予約の内容を厳密にデータベースへ登録・更新・削除するためのコアモーダルです。2026-09-29に従来の別ウィンドウポップアップから、親画面を暗転させて立ち上がる<strong>HTML5標準
+                        Native &lt;dialog&gt; ＋ postMessage 双方向自動リフレッシュアーキテクチャ</strong>へ完全刷新されました。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: modal_edit.php -->
+                <div class="real-mockup-window"
+                    style="border: 2px solid #2563eb; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+                    <div class="real-mockup-browser-bar" style="background:#1e293b; color:#fff;">
+                        <div class="real-mockup-browser-left">
+                            <span
+                                style="background:#2563eb; color:#fff; font-size:10px; padding:1px 6px; border-radius:3px; font-weight:700;">Native
+                                &lt;dialog&gt;</span>
+                            <div class="real-mockup-url-box"
+                                style="background:#0f172a; border-color:#334155; color:#93c5fd;">🔒
+                                192.168.1.16/endoscope/modal_edit.php?date=2026-10-01&amp;slot_name=GIF9:00</div>
+                        </div>
+                        <span style="font-size:11px; color:#cbd5e1;">予約登録・変更ダイアログ</span>
+                    </div>
+                    <div class="real-mockup-canvas" style="background:#f8fafc; padding:12px;">
+                        <!-- モーダルトップバー -->
+                        <div
+                            style="background:#1e3a8a; color:#fff; padding:8px 12px; border-radius:6px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:800; font-size:13.5px; display:flex; align-items:center; gap:8px;">
+                                <span>✏️ 予約変更: 2026-10-01(木) 胃腸科 GIF9:00 (北添 由美 様)</span>
+                                <span
+                                    style="background:rgba(255,255,255,0.2); font-size:10.5px; padding:1px 6px; border-radius:3px;">ID:
+                                    22904</span>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <span
+                                    style="background:#2563eb; color:#fff; padding:3px 10px; border-radius:4px; font-size:11.5px; font-weight:700;">💾
+                                    保存する</span>
+                                <span
+                                    style="background:#059669; color:#fff; padding:3px 10px; border-radius:4px; font-size:11.5px; font-weight:700;">🖨️
+                                    保存して印刷</span>
+                                <span
+                                    style="background:#dc2626; color:#fff; padding:3px 8px; border-radius:4px; font-size:11.5px; font-weight:700;">🗑️
+                                    削除</span>
+                                <span
+                                    style="background:#475569; color:#fff; padding:3px 8px; border-radius:4px; font-size:11.5px; font-weight:700;">✕
+                                    閉じる</span>
+                            </div>
+                        </div>
+
+                        <!-- 2ペインレイアウト -->
+                        <div style="display:grid; grid-template-columns: 1.15fr 0.85fr; gap:12px;">
+                            <!-- 左ペイン: 予約登録フォーム -->
+                            <div style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:12px;">
+                                <div
+                                    style="font-weight:700; color:#1e293b; font-size:12px; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">
+                                    📋 予約入力・基本情報
+                                </div>
+
+                                <!-- 医療安全アラート検知バナー -->
+                                <div
+                                    style="background:#fffbeb; border:1.5px solid #f59e0b; border-radius:6px; padding:8px 10px; margin-bottom:10px;">
+                                    <div
+                                        style="color:#b45309; font-weight:800; font-size:11.5px; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                                        <span>⚠️ 医療安全アラート検知</span>
+                                        <span
+                                            style="background:#fee2e2; color:#b91c1c; font-size:10px; padding:1px 5px; border-radius:2px;">抗血栓薬・休薬注意</span>
+                                    </div>
+                                    <div style="font-size:11px; color:#78350f; line-height:1.45;">
+                                        カルテ記事より <strong>「抗凝固薬サプリ: DHA/EPA服用中」</strong> を検知しました。<br>
+                                        生検・ポリペクトミー時の出血リスクを確認してください。
+                                    </div>
+                                    <label
+                                        style="display:flex; align-items:center; gap:5px; margin-top:5px; font-size:11px; font-weight:700; color:#b45309; cursor:pointer;">
+                                        <input type="checkbox" checked> 医師・看護師確認済み（アラート承認）
+                                    </label>
+                                </div>
+
+                                <!-- フォームグリッド -->
+                                <div
+                                    style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:11.5px; margin-bottom:8px;">
+                                    <div>
+                                        <label
+                                            style="color:#64748b; font-size:10.5px; font-weight:700; display:block;">カルテNO
+                                            (MALL3検索):</label>
+                                        <div style="display:flex; gap:4px;">
+                                            <input type="text" value="22904"
+                                                style="width:100%; padding:4px 6px; border:1.5px solid #2563eb; border-radius:3px; font-weight:700; font-family:monospace; background:#eff6ff;"
+                                                readonly>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label
+                                            style="color:#64748b; font-size:10.5px; font-weight:700; display:block;">患者氏名
+                                            / カナ:</label>
+                                        <input type="text" value="北添 由美 (キタゾエ ユミ)"
+                                            style="width:100%; padding:4px 6px; border:1px solid #cbd5e1; border-radius:3px; font-weight:700;"
+                                            readonly>
+                                    </div>
+                                    <div>
+                                        <label
+                                            style="color:#64748b; font-size:10.5px; font-weight:700; display:block;">生年月日
+                                            / 年齢 / 性別:</label>
+                                        <input type="text" value="昭和37年9月10日 (64歳) 女性"
+                                            style="width:100%; padding:4px 6px; border:1px solid #cbd5e1; border-radius:3px;"
+                                            readonly>
+                                    </div>
+                                    <div>
+                                        <label
+                                            style="color:#64748b; font-size:10.5px; font-weight:700; display:block;">検査種別:</label>
+                                        <select
+                                            style="width:100%; padding:4px 6px; border:1px solid #cbd5e1; border-radius:3px; font-weight:700;">
+                                            <option>● GIF (胃カメラ)</option>
+                                            <option>● TCF (大腸カメラ)</option>
+                                            <option>● エコー</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="color:#64748b; font-size:10.5px; font-weight:700; display:block;">
+                                            担当医師: <span style="font-weight:normal; color:#2563eb; cursor:pointer;">[👥
+                                                全員表示切替]</span>
+                                        </label>
+                                        <select
+                                            style="width:100%; padding:4px 6px; border:1px solid #cbd5e1; border-radius:3px; font-weight:700;">
+                                            <option selected>👨 義智 先生 (出勤)</option>
+                                            <option>👨 哲也 先生</option>
+                                            <option>👨 誠吾 先生</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="color:#64748b; font-size:10.5px; font-weight:700; display:block;">
+                                            実施場所: <span style="font-size:9.5px; color:#059669;">(胃腸科自動補完)</span>
+                                        </label>
+                                        <select
+                                            style="width:100%; padding:4px 6px; border:1px solid #cbd5e1; border-radius:3px; font-weight:700; background:#f0fdf4;">
+                                            <option selected>内視鏡室1 (GIF標準)</option>
+                                            <option>内視鏡室2 (TCF標準)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- 🏥 病棟管理システム連動用コントロール (Ver 1004 新機能) -->
+                                <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:5px; padding:6px 10px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="font-weight:700; color:#166534; font-size:11px;">🏥 病棟管理連動:</span>
+                                        <label style="display:inline-flex; align-items:center; gap:4px; background:#dcfce7; border:1px solid #16a34a; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; color:#15803d;">
+                                            <input type="checkbox" checked style="accent-color:#16a34a;"> 入院予定 (ポリペク確定)
+                                        </label>
+                                        <span style="font-size:10px; padding:1px 5px; border-radius:3px; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-weight:700;">💡 ポリペク確定</span>
+                                    </div>
+                                    <div style="font-size:9.5px; color:#15803d;">※ TCF/Wで即表示、ポリペクで自動ON、厨房食事予測へ即連動</div>
+                                </div>
+
+                                <!-- 備考 ＆ 定型文パレットDX -->
+                                <div style="margin-bottom:8px;">
+                                    <div
+                                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                                        <label style="color:#64748b; font-size:10.5px; font-weight:700;">予約備考
+                                            (定型タグ挿入対応):</label>
+                                        <span style="font-size:10px; color:#2563eb; cursor:pointer;">📌 定型文パレット表示 /
+                                            リサイズ</span>
+                                    </div>
+                                    <textarea
+                                        style="width:100%; height:46px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:3px; font-size:11px; font-family:sans-serif;"
+                                        readonly>10/10 9:20 ▲上部内視鏡:注射なし 抗凝固薬サプリ:DHA</textarea>
+
+                                    <!-- 定型文チップパレット -->
+                                    <div
+                                        style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; padding:4px 6px; margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">
+                                        <span
+                                            style="background:#fff; border:1px solid #cbd5e1; padding:1px 6px; border-radius:3px; font-size:10px; cursor:pointer;">＋【生検あり】</span>
+                                        <span
+                                            style="background:#fff; border:1px solid #cbd5e1; padding:1px 6px; border-radius:3px; font-size:10px; cursor:pointer;">＋【ポリペク希望】</span>
+                                        <span
+                                            style="background:#fff; border:1px solid #cbd5e1; padding:1px 6px; border-radius:3px; font-size:10px; cursor:pointer;">＋【送迎あり】</span>
+                                        <span
+                                            style="background:#fff; border:1px solid #cbd5e1; padding:1px 6px; border-radius:3px; font-size:10px; cursor:pointer;">＋【鎮静希望】</span>
+                                        <span
+                                            style="background:#fff; border:1px solid #cbd5e1; padding:1px 6px; border-radius:3px; font-size:10px; cursor:pointer;">＋【休薬確認済】</span>
+                                        <span
+                                            style="color:#64748b; font-size:10px; margin-left:auto; cursor:pointer;">✏️
+                                            編集</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 右ペイン: 電子カルテMALL3情報 ＆ 検査履歴 -->
+                            <div
+                                style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">
+                                    <span style="font-weight:700; color:#1e293b; font-size:12px;">🏥 電子カルテ MALL3
+                                        連携メモ</span>
+                                    <button type="button"
+                                        style="background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:700; cursor:pointer;">
+                                        🔄 メモ再読み込み
+                                    </button>
+                                </div>
+
+                                <div
+                                    style="font-size:11px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px;">
+                                    <strong style="color:#0369a1; font-size:10.5px;">【本日メモ】</strong>
+                                    <p style="color:#334155; margin:2px 0 6px 0;">10/1 上部内視鏡予約。朝食絶食。DHAサプリ中止指導済み。</p>
+
+                                    <strong style="color:#475569; font-size:10.5px;">【カルテメモ】</strong>
+                                    <p style="color:#334155; margin:2px 0 6px 0;">逆流性食道炎既往。PPI処方歴あり。キシロカインアレルギーなし。</p>
+
+                                    <strong style="color:#6b21a8; font-size:10.5px;">【患者固定メモ】</strong>
+                                    <p style="color:#334155; margin:2px 0 0 0;">午前中受診希望。車送迎あり。</p>
+                                </div>
+
+                                <div style="border-top:1px solid #e2e8f0; padding-top:6px;">
+                                    <span
+                                        style="font-weight:700; color:#1e293b; font-size:11.5px; display:block; margin-bottom:4px;">📜
+                                        過去の内視鏡検査歴</span>
+                                    <div style="font-size:10.5px; color:#475569; line-height:1.45;">
+                                        ・2024-09-18: GIF (胃カメラ) 担当: 義智先生 (表在性胃炎・ピロリ陰性)<br>
+                                        ・2023-04-12: TCF (大腸カメラ) 担当: 誠吾先生 (直腸ポリープ1個切除)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 詳しい機能説明テーブル -->
+                <div class="feature-table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">確定仕様・アーキテクチャ</th>
+                                <th style="width: 25%;">実装モジュール</th>
+                                <th style="width: 50%;">詳細仕様 ＆ 現場での効果</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>本物インページモーダル</strong></td>
+                                <td><code>HTML5 &lt;dialog&gt;</code> ＋ <code>modal_edit_runner.js</code></td>
+                                <td><strong>【2026-09-29刷新】</strong>親画面のDOMを一切汚染せず、外部スクリプトが <code>&lt;dialog&gt;</code> ＋
+                                    <code>&lt;iframe&gt;</code> を動的注入。別ウィンドウの「ウィンドウ迷子」や背面に隠れるトラブルを100%根絶。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>双方向 postMessage 通信</strong></td>
+                                <td><code>postMessage</code> 自動リフレッシュ</td>
+                                <td>モーダル内で保存（または削除・キャンセル）が完了すると、親画面（カレンダーやマトリクス）へ通知を送信し、親画面を安全に自動リロード。別ウィンドウ（<code>window.opener</code>）からの起動時もフォールバックで完全両対応。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>実施場所の自動補完</strong></td>
+                                <td>胃腸科GIF/TCF連動</td>
+                                <td><strong>【2026-09-26確定】</strong>胃腸科の検査種別を選択すると、GIF枠は「内視鏡室1」、TCF枠は「内視鏡室2」を自動補完。現場スタッフの入力ステップを短縮。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>担当医師「👥 全員」トグル</strong></td>
+                                <td>出勤例外・代診対応</td>
+                                <td>通常は当日出勤の医師のみをリスト表示しますが、「全員」を押すことで非常勤医師や学会代診の医師へも例外的に割当・登録が可能。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>医療安全アラート承認機構</strong></td>
+                                <td>抗血栓薬・アレルギー・感染症</td>
+                                <td>電子カルテMALL記事からキーワードを自動検知。スタッフが意識的にチェックボックスで「確認済み」を承認するまで黄色・赤色で警告を維持するフェイルセーフ設計。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>無変更保存の履歴スキップ</strong></td>
+                                <td>差分チェックロジック</td>
+                                <td>入力内容に全く変更がないまま「保存」が押された場合、データベース監査ログや医師通知の無駄な生成を自動スキップし、ログの肥大化を防止。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            09. 予約変更履歴 (Audit Log) ＆ ワンクリックUndo
+            ============================================================ -->
+            <section class="guide-section" id="sec-audit-undo">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">09</span>
+                        <h2 class="section-title">予約変更履歴 (Audit Log) ＆ ワンクリック復元 (Undo)</h2>
+                        <span class="section-file-pill">t_schedule_audit_log / action_audit_log.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-purple">自端末Undo</span>
+                        <span class="badge badge-green">完全復元</span>
+                        <span class="badge badge-blue">JSON差分スナップショット</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    「間違えて別の行へドラッグ移動してしまった」「誤って削除して患者カルテ番号が分からなくなった」という現場のヒューマンエラーを救済する医療安全バックアップシステムです。全操作（追加・変更・移動・削除）をデータベースにJSONスナップショット保存し、直前の状態へワンクリックで完全復元できます。
+                </p>
+
+                <!-- 実機完全再現UIモックアップ: action_audit_log.php -->
+                <div class="real-mockup-window">
+                    <div class="real-mockup-browser-bar">
+                        <div class="real-mockup-browser-left">
+                            <div class="real-mockup-dots"><span class="real-mockup-dot dot-red"></span><span
+                                    class="real-mockup-dot dot-yellow"></span><span
+                                    class="real-mockup-dot dot-green"></span></div>
+                            <div class="real-mockup-url-box">🔒 192.168.1.16/endoscope/action_audit_log.php</div>
+                        </div>
+                        <span style="font-size:11px; color:#64748b;">操作履歴 (Undo / 監査ログ)</span>
+                    </div>
+                    <div class="real-mockup-canvas">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#fff; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <div
+                                style="font-weight:800; font-size:14px; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                                <span>🕒 予約変更操作履歴 ＆ 自端末ワンクリックUndo</span>
+                                <span
+                                    style="background:#ede9fe; color:#6b21a8; font-size:10.5px; padding:1px 6px; border-radius:3px;">自端末セッション連動</span>
+                            </div>
+                            <span style="font-size:11px; color:#64748b;">保持期間: 1年間</span>
+                        </div>
+
+                        <!-- 履歴テーブル -->
+                        <table
+                            style="width:100%; border-collapse:collapse; font-size:11px; text-align:left; background:#fff; border:1px solid #cbd5e1;">
+                            <thead>
+                                <tr style="background:#f1f5f9; color:#475569; border-bottom:1.5px solid #cbd5e1;">
+                                    <th style="padding:6px 8px; width:125px;">操作日時</th>
+                                    <th style="padding:6px 8px; width:70px; text-align:center;">操作種別</th>
+                                    <th style="padding:6px 8px; width:75px;">対象予約ID</th>
+                                    <th style="padding:6px 8px; width:130px;">患者情報</th>
+                                    <th style="padding:6px 8px;">変更内容・移動詳細 (JSON差分)</th>
+                                    <th style="padding:6px 8px; width:90px; text-align:center;">復元 (Undo)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom:1px solid #cbd5e1; background:#fef2f2;">
+                                    <td style="padding:6px 8px; font-family:monospace;">10-01 14:22:15</td>
+                                    <td style="padding:6px 8px; text-align:center;"><span
+                                            style="background:#fee2e2; color:#b91c1c; font-weight:700; padding:1px 6px; border-radius:3px;">DELETE</span>
+                                    </td>
+                                    <td style="padding:6px 8px; font-family:monospace;">#10842</td>
+                                    <td style="padding:6px 8px;"><strong>佐藤 健一</strong><br><span
+                                            style="color:#64748b;">ID: 71203 (55歳)</span></td>
+                                    <td style="padding:6px 8px; color:#b91c1c;">
+                                        【予約削除】2026-10-02 (金) TCF 13:00 (誠吾先生) の予約枠を削除
+                                    </td>
+                                    <td style="padding:6px 8px; text-align:center;">
+                                        <button type="button"
+                                            style="background:#2563eb; color:#fff; border:none; padding:3px 8px; border-radius:3px; font-size:10.5px; font-weight:700; cursor:pointer;">
+                                            ↩️ 復活復元
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #cbd5e1; background:#fffbeb;">
+                                    <td style="padding:6px 8px; font-family:monospace;">10-01 14:18:02</td>
+                                    <td style="padding:6px 8px; text-align:center;"><span
+                                            style="background:#fef3c7; color:#b45309; font-weight:700; padding:1px 6px; border-radius:3px;">MOVE</span>
+                                    </td>
+                                    <td style="padding:6px 8px; font-family:monospace;">#10840</td>
+                                    <td style="padding:6px 8px;"><strong>渡部 正記</strong><br><span
+                                            style="color:#64748b;">ID: 21872 (58歳)</span></td>
+                                    <td style="padding:6px 8px; color:#92400e;">
+                                        【D&amp;D枠移動】10/2 14:30 ➔ 10/2 15:00 へ時間枠を変更
+                                    </td>
+                                    <td style="padding:6px 8px; text-align:center;">
+                                        <button type="button"
+                                            style="background:#7c3aed; color:#fff; border:none; padding:3px 8px; border-radius:3px; font-size:10.5px; font-weight:700; cursor:pointer;">
+                                            ↩️ 元に戻す
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #cbd5e1;">
+                                    <td style="padding:6px 8px; font-family:monospace;">10-01 13:50:33</td>
+                                    <td style="padding:6px 8px; text-align:center;"><span
+                                            style="background:#dbeafe; color:#1e40af; font-weight:700; padding:1px 6px; border-radius:3px;">UPDATE</span>
+                                    </td>
+                                    <td style="padding:6px 8px; font-family:monospace;">#10838</td>
+                                    <td style="padding:6px 8px;"><strong>山下 広昭</strong><br><span
+                                            style="color:#64748b;">ID: 46662 (62歳)</span></td>
+                                    <td style="padding:6px 8px; color:#475569;">
+                                        【備考変更】「生検希望」タグを追加
+                                    </td>
+                                    <td style="padding:6px 8px; text-align:center;">
+                                        <button type="button"
+                                            style="background:#64748b; color:#fff; border:none; padding:3px 8px; border-radius:3px; font-size:10.5px; cursor:pointer;">
+                                            ↩️ 復元
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 詳しい機能説明テーブル -->
+                <div class="feature-table-wrap">
+                    <table class="feature-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">機能・仕様</th>
+                                <th style="width: 25%;">対象テーブル / ロジック</th>
+                                <th style="width: 50%;">詳細機能説明 ＆ 現場での役割</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>自端末Undo機能</strong></td>
+                                <td>セッションID ＋ IP照合</td>
+                                <td>自端末が行った直前のドラッグ誤移動や誤削除をワンクリックで即座に取り消し。患者のカルテ番号や備考を完全に元の状態へ巻き戻します。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>完全スナップショット</strong></td>
+                                <td><code>t_schedule_audit_log</code> (JSONB)</td>
+                                <td>変更前（<code>old_data</code>）と変更後（<code>new_data</code>）の全カラムをJSON形式で完全記録。名前・生年月日・保険情報・備考・担当医の消失を防止。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>マスタ監査ログ</strong></td>
+                                <td><code>t_master_audit_log</code></td>
+                                <td><strong>【2026-09-29マイグレーション】</strong>医師マスタ、時間枠設定、休日マスタの変更履歴を記録。設定ミス発生時の原因特定と保守ツールを完備。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            10. 予約済患者検索
+            ============================================================ -->
+            <section class="guide-section" id="sec-patient-search">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">10</span>
+                        <h2 class="section-title">予約済患者検索 ＆ 検査履歴照会</h2>
+                        <span class="section-file-pill">search_patient.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-blue">全期間横断検索</span>
+                        <span class="badge badge-green">カレンダージャンプ</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    全期間の予約データベースから患者を検索し、過去の検査歴および未来の予約状況をタイムライン表示します。日付リンクをクリックすると、カレンダービューの該当日へ自動遷移して患者がハイライトされます。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            11. フォローアップ管理
+            ============================================================ -->
+            <section class="guide-section" id="sec-followup">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">11</span>
+                        <h2 class="section-title">フォローアップ管理</h2>
+                        <span class="section-file-pill">followup/index.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-purple">次回来院管理</span>
+                        <span class="badge badge-neutral">F/U期間シート</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    ポリペクトミー後の1年後経過観察やピロリ除菌後のフォローアップなど、次回受診時期・目的・ステータス（予定/完了/延期）を管理・案内シートを発行します。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            12. 検査数集計・実績統計
+            ============================================================ -->
+            <section class="guide-section" id="sec-stats">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">12</span>
+                        <h2 class="section-title">検査数集計・実績統計</h2>
+                        <span class="section-file-pill">stats.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-blue">月別・科別集計</span>
+                        <span class="badge badge-green">CSVエクスポート</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    月別・科別・医師別の実績集計（GIF/TCF/エコー/術前F区分）をグラフや一覧で確認でき、CSVデータのエクスポートに対応しています。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            13. 検査枠マスターメンテ
+            ============================================================ -->
+            <section class="guide-section" id="sec-slot-master">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">13</span>
+                        <h2 class="section-title">検査枠マスターメンテナンス</h2>
+                        <span class="section-file-pill">slot_master_maintenance.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-dark">管理者専用</span>
+                        <span class="badge badge-orange">医師枠パターン</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    曜日ごとの担当医スケジュール、時間枠定義、枠数パターン、日別例外（祝日・出張等）を一括集中管理します。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            14. 汎用マスタメンテナンス
+            ============================================================ -->
+            <section class="guide-section" id="sec-master">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">14</span>
+                        <h2 class="section-title">汎用マスタメンテナンス</h2>
+                        <span class="section-file-pill">master_maintenance.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-dark">管理者専用</span>
+                        <span class="badge badge-neutral">選択肢管理</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    検査種別、来院時刻、実施場所などシステム内の各種選択肢の文言・表示順を保守します。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            15. 前処置室ベッド管理
+            ============================================================ -->
+            <section class="guide-section" id="sec-prep-room">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">15</span>
+                        <h2 class="section-title">前処置室・リカバリーベッド管理</h2>
+                        <span class="section-file-pill">bulk_edit_prep_room.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-green">空床ロス防止</span>
+                        <span class="badge badge-blue">ベッド一括管理</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    大腸内視鏡の前処置個室（ベッド1〜10号）およびリカバリーベッドの稼働状況を一括把握し、患者のベッド移動・スライドをワンクリックで実行します。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            16. 帳票出力・印刷システム
+            ============================================================ -->
+            <section class="guide-section" id="sec-print">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">16</span>
+                        <h2 class="section-title">帳票出力・印刷システム</h2>
+                        <span class="section-file-pill">print_schedule_daily.php / print_endoscopy_sheet.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-blue">A4最適化</span>
+                        <span class="badge badge-dark">伝票出力</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    毎朝の内視鏡室カンファレンス用日別一覧台帳、検査室内指示伝票、患者配布用案内票（来院時刻・注意事項印字）を出力します。
+                </p>
+            </section>
+
+            <!-- ============================================================
+            17. 医療安全・抗血栓薬・感染症管理
+            ============================================================ -->
+            <section class="guide-section" id="sec-safety">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">17</span>
+                        <h2 class="section-title">医療安全アラート・抗血栓薬・感染症一貫管理</h2>
+                        <span class="section-file-pill">medical_alert_modal_inc.php /
+                            lib/medical_alert_helper.php</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-danger">感染症配慮</span>
+                        <span class="badge badge-warning">抗血栓薬警告</span>
+                        <span class="badge badge-purple">トレーサビリティ</span>
+                    </div>
+                </div>
+                <div class="clinical-alert">
+                    <h4>🚨 医療安全自動チェック項目（電子カルテMALL3連携）</h4>
+                    <ul>
+                        <li><strong>抗血栓薬・抗凝固薬の休薬確認:</strong>
+                            バイアスピリン、プラビックス、ワーファリン、イグザレルト、リクシアナ、エリキュース、エディサバン、シロスタゾール等の服用患者を自動検知。休薬期間の遵守を確認。</li>
+                        <li><strong>アレルギー歴警告:</strong> キシロカイン、麻酔薬、ラテックス等のアレルギー既往を検知し注意喚起。</li>
+                        <li><strong>感染症隔離配慮:</strong> HBV、HCV、梅毒TP、HIV等の陽性患者にはアイコンが表示され、当日の最終枠への配置やスコープ洗浄の徹底を支援。</li>
+                        <li><strong>発熱・風邪症状:</strong> 新型コロナ・インフルエンザ流行期における院内感染防止アラート。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            18. システム改修作業履歴アーカイブ (Changelog)
+            ============================================================ -->
+            <section class="guide-section" id="sec-changelog">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">18</span>
+                        <h2 class="section-title">システム改修作業履歴アーカイブ (Changelog)</h2>
+                        <span class="section-file-pill">仕様書/ フォルダ連携</span>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-green">完全動作検証済</span>
+                        <span class="badge badge-primary">本番環境同期</span>
+                    </div>
+                </div>
+                <p class="section-desc">
+                    現場スタッフの操作性向上および医療安全の強化を目的に実施された主要な改修履歴です。仕様書フォルダ内の各作業報告書と完全連動しています。
+                </p>
+
+                <div class="step-flow">
+                    <!-- 2026-09-29 -->
+                    <div class="step-card">
+                        <div class="step-index" style="background:#059669;">9/29</div>
+                        <div class="step-body">
+                            <h4>UI/UX全面刷新 ＆ Native Dialogモーダル化 ＆ アセット正規化統合</h4>
+                            <p style="margin-bottom:4px;">
+                                ・<strong>ツールバー高さツライチ統一</strong>:
+                                カレンダー・ノートを32px、マトリクスを24pxに完全統一。チェックボックスを撤廃しカプセル型トグルボタンへ刷新。<br>
+                                ・<strong>エコー枠の水色同期</strong>: エコー枠を専用水色（<code>#0284c7</code> / 短縮「US」）に統一。<br>
+                                ・<strong>schedule_note.php キーボード移動</strong>:
+                                <code>←</code>/<code>→</code>（前後日）、<code>↑</code>/<code>↓</code>（前後週）、<code>Shift+←/→</code>（休診スキップ）、<code>T/Home</code>（今日）。入力中誤爆防止完備。<br>
+                                ・<strong>modal_edit.php Native Dialog化</strong>: <code>&lt;dialog&gt;</code> ＋
+                                <code>postMessage</code> 自動リフレッシュによるインページモーダル化。<br>
+                                ・<strong>直近空き枠速報 Glassmorphism化</strong>: 画面右下に常時ドラッグ滞空（localStorage 24時間保持）。
+                            </p>
+                            <a href="仕様書/2026-9-29works.html" target="_blank"
+                                style="font-size:11.5px; color:#059669; font-weight:700; text-decoration:none;">📄
+                                2026-9-29works.html で詳細を見る ➔</a>
+                        </div>
+                    </div>
+
+                    <!-- 2026-09-28 -->
+                    <div class="step-card">
+                        <div class="step-index" style="background:#2563eb;">9/28</div>
+                        <div class="step-body">
+                            <h4>巨大PHPからのCSS/JS外部分離 ＆ 高速化 ＆ セデーションタイマー</h4>
+                            <p style="margin-bottom:4px;">
+                                ・<strong>モジュール分離</strong>: 3,039行のPHPからCSS/JSを
+                                <code>assets/css/month_schedule.css</code>, <code>assets/js/month_schedule.js</code>
+                                へ独立外出し。IDE編集フリーズを解消。<br>
+                                ・<strong>カレンダー制御復旧</strong>: カレンダーの折りたたみおよび上下入替の動作不良を解消。<br>
+                                ・<strong>セデーション覚醒アラート</strong>: リカバリ目標時間満了時の画面パルス点滅・ピピッ×3回音声アラート・覚醒確認ダイアログを実装。
+                            </p>
+                            <a href="仕様書/2026-9-28works.html" target="_blank"
+                                style="font-size:11.5px; color:#2563eb; font-weight:700; text-decoration:none;">📄
+                                2026-9-28works.html で詳細を見る ➔</a>
+                        </div>
+                    </div>
+
+                    <!-- 2026-09-27 -->
+                    <div class="step-card">
+                        <div class="step-index" style="background:#7c3aed;">9/27</div>
+                        <div class="step-body">
+                            <h4>自端末Undo監査ログ ＆ 医療安全アラート ＆ 備考定型文DX</h4>
+                            <p style="margin-bottom:4px;">
+                                ・<strong>予約変更履歴 (t_schedule_audit_log)</strong>:
+                                全操作のJSONスナップショット保存と自端末Undoワンクリック復元を実装。<br>
+                                ・<strong>医療安全アラート基盤</strong>: MALL3カルテメモおよび予約備考から抗血栓薬・アレルギー・感染症・風邪症状を自動検知。<br>
+                                ・<strong>備考定型文パレットDX</strong>: リサイズ可能・ドラッグ移動・タグ挿入・インライン編集を完備。<br>
+                                ・<strong>直近空き枠速報</strong>: 向こう30日間の大腸カメラ空き枠を瞬時に集計しスマート予約アシスト連携。
+                            </p>
+                            <a href="仕様書/2026-9-27works.html" target="_blank"
+                                style="font-size:11.5px; color:#7c3aed; font-weight:700; text-decoration:none;">📄
+                                2026-9-27works.html で詳細を見る ➔</a>
+                        </div>
+                    </div>
+
+                    <!-- 2026-09-26 -->
+                    <div class="step-card">
+                        <div class="step-index" style="background:#d97706;">9/26</div>
+                        <div class="step-body">
+                            <h4>当日進捗ステータスモニター (電子ホワイトボード) ＆ 日別メモ機能</h4>
+                            <p style="margin-bottom:4px;">
+                                ・<strong>当日進捗ステータスモニター (progress_monitor.php)</strong>:
+                                7段階動線管理、五十音インデックス、職種別視点切替、ダークテーマ大型リリース。<br>
+                                ・<strong>日別カレンダーメモ (t_daily_memo)</strong>: カレンダー日付セル上部への連絡メモ共有機能を新設。<br>
+                                ・<strong>実施場所デフォルト自動補完</strong>: 胃腸科GIFなら内視鏡室1、TCFなら内視鏡室2を自動選択。
+                            </p>
+                            <a href="仕様書/2026-9-26works.html" target="_blank"
+                                style="font-size:11.5px; color:#d97706; font-weight:700; text-decoration:none;">📄
+                                2026-9-26works.html で詳細を見る ➔</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================
+            19. FAQ・トラブルシューティング
+            ============================================================ -->
+            <section class="guide-section" id="sec-faq">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-badge-num">19</span>
+                        <h2 class="section-title">よくある質問 ＆ トラブルシューティング</h2>
+                    </div>
+                    <div class="section-meta-tags">
+                        <span class="badge badge-orange">Q &amp; A</span>
+                    </div>
+                </div>
+
+                <div class="step-flow">
+                    <div class="step-card">
+                        <div class="step-index" style="background:#f59e0b;">Q1</div>
+                        <div class="step-body">
+                            <h4>マトリクスで文字が赤くなっている、または「迷子」の警告が出る</h4>
+                            <p><strong>A:</strong> 予約の予定時刻とマトリクスのコマ枠時間が不整合を起こしています。予約修正画面を開き、「時間枠」を選び直して再保存してください。</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-index" style="background:#f59e0b;">Q2</div>
+                        <div class="step-body">
+                            <h4>カルテ（MALL3）で書いた最新メモが予約画面に出ない</h4>
+                            <p><strong>A:</strong> 予約ダイアログ右上の「🔄 メモ再読み込み」を押してください。SQL Serverから最新の診療記事メモを即座に再取得します。</p>
+                        </div>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-index" style="background:#f59e0b;">Q3</div>
+                        <div class="step-body">
+                            <h4>画面が動かなくなった / 接続エラーが表示される</h4>
+                            <p><strong>A:</strong> キーボードの [F5] または [Ctrl +
+                                F5]（強制再読み込み）を押してください。改善しない場合はLANケーブルやネットワーク接続をご確認ください。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- フッター -->
+            <footer class="doc-footer">
+                <p>&copy; 2026 医療法人小野会 内視鏡検査予約管理システム (Modernized Edition)</p>
+                <p style="font-size: 11px; color: var(--slate-400); margin-top: 4px;">
+                    本システムおよびドキュメントの著作権は医療法人小野会に帰属します。無断転載・複製を禁じます。
+                </p>
+            </footer>
+
+        </main>
+    </div>
+
+    <!-- ── スクリプト（検索・カテゴリフィルタ・目次追従） ── -->
+    <script>
+        // 1. カテゴリ切り替え
+        function filterCategory(cat, element) {
+            document.querySelectorAll('.cat-chip').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            const items = document.querySelectorAll('#tocList .toc-item');
+            items.forEach(item => {
+                const itemCat = item.getAttribute('data-cat') || '';
+                if (cat === 'all' || itemCat.includes(cat)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // 2. リアルタイム全文検索
+        function handleManualSearch() {
+            const query = document.getElementById('manualSearchInput').value.trim().toLowerCase();
+            const sections = document.querySelectorAll('.guide-section');
+            const tocItems = document.querySelectorAll('#tocList .toc-item');
+
+            if (!query) {
+                sections.forEach(s => s.style.display = 'block');
+                tocItems.forEach(t => t.style.display = 'block');
+                return;
+            }
+
+            sections.forEach(sec => {
+                const text = sec.innerText.toLowerCase();
+                if (text.includes(query)) {
+                    sec.style.display = 'block';
+                } else {
+                    sec.style.display = 'none';
+                }
+            });
+
+            tocItems.forEach(t => {
+                const text = t.innerText.toLowerCase();
+                const targetId = t.querySelector('a').getAttribute('href').replace('#', '');
+                const targetSec = document.getElementById(targetId);
+                if (text.includes(query) || (targetSec && targetSec.style.display !== 'none')) {
+                    t.style.display = 'block';
+                } else {
+                    t.style.display = 'none';
+                }
+            });
+        }
+
+        // 3. スクロールスパイ（目次自動ハイライト）
+        window.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('.guide-section');
+            const navItems = document.querySelectorAll('#tocList .toc-item');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        navItems.forEach(item => {
+                            const link = item.querySelector('a');
+                            if (link && link.getAttribute('href') === '#' + id) {
+                                item.classList.add('active');
+                            } else {
+                                item.classList.remove('active');
+                            }
+                        });
+                    }
+                });
+            }, {
+                rootMargin: '-80px 0px -70% 0px'
+            });
+
+            sections.forEach(sec => observer.observe(sec));
+        });
+    </script>
+</body>
+
+</html>

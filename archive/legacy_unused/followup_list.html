@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フォローアップ管理 一覧（プレースホルダ）</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .header h1 { margin: 0; font-size: 22px; }
+        .header .badge {
+            background: #3b82f6;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .filters select, .filters input {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .filters button {
+            padding: 6px 20px;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .summary {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .summary-card {
+            padding: 12px 20px;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            flex: 1;
+            min-width: 120px;
+        }
+        .summary-card .num { font-size: 24px; font-weight: bold; }
+        .summary-card .label { font-size: 12px; color: #64748b; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background: #f1f5f9;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-badge.pending { background: #fef3c7; color: #92400e; }
+        .status-badge.scheduled { background: #dbeafe; color: #1e40af; }
+        .status-badge.done { background: #d1fae5; color: #065f46; }
+        .status-badge.canceled { background: #f3f4f6; color: #6b7280; }
+        .status-badge.postponed { background: #fed7aa; color: #9a3412; }
+        .biopsy-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .biopsy-badge.pending { background: #fef3c7; color: #92400e; }
+        .biopsy-badge.received { background: #dbeafe; color: #1e40af; }
+        .biopsy-badge.confirmed { background: #d1fae5; color: #065f46; }
+        .biopsy-badge.printed { background: #ede9fe; color: #5b21b6; }
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .actions button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-success { background: #22c55e; color: #fff; }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        .btn-purple { background: #8b5cf6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-purple:hover { background: #7c3aed; }
+        .btn-edit {
+            padding: 2px 12px;
+            font-size: 11px;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .btn-edit:hover { background: #2563eb; }
+        .placeholder-note {
+            background: #fef2f2;
+            border: 2px dashed #fca5a5;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            color: #991b1b;
+            font-size: 13px;
+        }
+        .mock-badge {
+            font-size: 10px;
+            background: #f59e0b;
+            color: #fff;
+            padding: 1px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .nav-links a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .nav-links a:hover { text-decoration: underline; }
+        .home-link {
+            background: #2c3e50;
+            color: #fff !important;
+            padding: 4px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .home-link:hover { background: #34495e; text-decoration: none !important; }
+        @media (max-width: 768px) {
+            .filters { flex-direction: column; }
+            .summary { flex-direction: column; }
+            table { font-size: 11px; }
+            th, td { padding: 4px 6px; }
+            .header { flex-direction: column; align-items: stretch; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- トップナビゲーション -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+        <div class="nav-links">
+            <a href="index.php" class="home-link">🏠 メニューへ</a>
+            <span style="color:#94a3b8;">|</span>
+            <a href="month_matrix_v2.php">📊 マトリクス</a>
+            <a href="month_schedule.php">📅 カレンダー</a>
+        </div>
+        <div style="font-size:12px; color:#94a3b8;">
+            <a href="followup_edit.html" style="color:#3b82f6; text-decoration:none;">📝 新規登録</a>
+            <span style="margin:0 6px;">|</span>
+            <a href="followup_print.html" target="_blank" style="color:#22c55e; text-decoration:none;">🖨️ 印刷</a>
+        </div>
+    </div>
+
+    <!-- プレースホルダ注意書き -->
+    <div class="placeholder-note">
+        ⚠️ これは <strong>プレースホルダ（モックアップ）</strong> です。実際のデータ連携はまだ行われていません。
+        職員の皆様は「こんな画面になる」というイメージをご確認ください。
+    </div>
+
+    <!-- ヘッダー -->
+    <div class="header">
+        <h1>🔍 フォローアップ管理 <span class="mock-badge">開発中</span></h1>
+        <span class="badge">最終更新: 2026-08-14</span>
+    </div>
+
+    <!-- フィルタ -->
+    <div class="filters">
+        <select><option>すべての診療科</option><option>肛門科</option><option>胃腸科</option></select>
+        <select><option>すべてのステータス</option><option>未対応</option><option>予定済み</option><option>完了</option></select>
+        <select><option>対象期間: 3ヶ月以内</option><option>1ヶ月以内</option><option>6ヶ月以内</option><option>すべて</option></select>
+        <select><option>組織検査: すべて</option><option>未着</option><option>受領済み</option><option>確認済み</option></select>
+        <input type="text" placeholder="患者名 or カルテNo" style="flex:1; min-width:150px;">
+        <button>🔍 検索</button>
+        <button style="background:#6c757d;">クリア</button>
+    </div>
+
+    <!-- サマリー -->
+    <div class="summary">
+        <div class="summary-card"><div class="num" style="color:#3b82f6;">12</div><div class="label">今月フォローアップ対象</div></div>
+        <div class="summary-card"><div class="num" style="color:#f59e0b;">5</div><div class="label">未対応</div></div>
+        <div class="summary-card"><div class="num" style="color:#22c55e;">7</div><div class="label">予定済み</div></div>
+        <div class="summary-card"><div class="num" style="color:#ef4444;">2</div><div class="label">組織検査 未着</div></div>
+    </div>
+
+    <!-- 一覧テーブル -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width:5%;">No</th>
+                <th style="width:11%;">カルテNo</th>
+                <th style="width:13%;">患者名</th>
+                <th style="width:8%;">診療科</th>
+                <th style="width:10%;">検査日</th>
+                <th style="width:12%;">次回検査</th>
+                <th style="width:8%;">組織</th>
+                <th style="width:10%;">ステータス</th>
+                <th style="width:13%;">備考</th>
+                <th style="width:10%; text-align:center;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>74819</strong></td>
+                <td>山田 太郎</td>
+                <td>肛門科</td>
+                <td>2026-08-14</td>
+                <td>2027-08-14<br><span style="font-size:10px; color:#64748b;">GIF（1年後）</span></td>
+                <td><span class="biopsy-badge confirmed">✅ 確認済</span></td>
+                <td><span class="status-badge scheduled">🔵 予定</span></td>
+                <td style="font-size:11px; color:#64748b;">組織: 胃角部</td>
+                <td style="text-align:center;">
+                    <a href="followup_edit.html"><button class="btn-edit">編集</button></a>
+                </td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><strong>79253</strong></td>
+                <td>赤星 美和</td>
+                <td>肛門科</td>
+                <td>2026-08-10</td>
+                <td>2026-11-20<br><span style="font-size:10px; color:#64748b;">TCF（3ヶ月後）</span></td>
+                <td><span class="biopsy-badge pending">🟡 未着</span></td>
+                <td><span class="status-badge pending">🟡 未対応</span></td>
+                <td style="font-size:11px; color:#64748b;">BML待ち</td>
+                <td style="text-align:center;">
+                    <a href="followup_edit.html"><button class="btn-edit">編集</button></a>
+                </td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><strong>25612</strong></td>
+                <td>大野 信人</td>
+                <td>胃腸科</td>
+                <td>2026-07-28</td>
+                <td>2026-09-01<br><span style="font-size:10px; color:#64748b;">呼気検査（1ヶ月後）</span></td>
+                <td><span class="biopsy-badge" style="background:#e2e8f0; color:#64748b;">−</span></td>
+                <td><span class="status-badge done">🟢 完了</span></td>
+                <td style="font-size:11px; color:#64748b;">ピロリ除菌完了</td>
+                <td style="text-align:center;">
+                    <a href="followup_edit.html"><button class="btn-edit">編集</button></a>
+                </td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><strong>71067</strong></td>
+                <td>山本 太</td>
+                <td>肛門科</td>
+                <td>2026-08-01</td>
+                <td>2027-08-01<br><span style="font-size:10px; color:#64748b;">GIF（1年後）</span></td>
+                <td><span class="biopsy-badge received">🔵 受領済</span></td>
+                <td><span class="status-badge scheduled">🔵 予定</span></td>
+                <td style="font-size:11px; color:#64748b;">組織: S状結腸</td>
+                <td style="text-align:center;">
+                    <a href="followup_edit.html"><button class="btn-edit">編集</button></a>
+                </td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><strong>77553</strong></td>
+                <td>山本 香奈</td>
+                <td>胃腸科</td>
+                <td>2026-07-15</td>
+                <td>2029-07-15<br><span style="font-size:10px; color:#64748b;">TCF（3年後）</span></td>
+                <td><span class="biopsy-badge" style="background:#e2e8f0; color:#64748b;">−</span></td>
+                <td><span class="status-badge done">🟢 完了</span></td>
+                <td style="font-size:11px; color:#64748b;">異常なし</td>
+                <td style="text-align:center;">
+                    <a href="followup_edit.html"><button class="btn-edit">編集</button></a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 凡例 -->
+    <div style="margin-top:12px; font-size:11px; color:#64748b; display:flex; gap:16px; flex-wrap:wrap;">
+        <span>🟡 未着（BML結果待ち）</span>
+        <span>🔵 受領済み（結果届いた）</span>
+        <span>🟢 確認済み（医師確認）</span>
+        <span>🟣 印刷済み（患者渡し済）</span>
+        <span style="color:#94a3b8;">− 組織検査なし</span>
+    </div>
+
+    <!-- アクションボタン -->
+    <div class="actions">
+        <a href="followup_edit.html" style="text-decoration:none;">
+            <button class="btn-primary">＋ 新規フォローアップ登録</button>
+        </a>
+        <a href="followup_print.html" target="_blank" style="text-decoration:none;">
+            <button class="btn-success">📋 一覧印刷</button>
+        </a>
+        <a href="followup_print.html" target="_blank" style="text-decoration:none;">
+            <button class="btn-purple">🖨️ 個別通知書印刷</button>
+        </a>
+        <button class="btn-secondary">📤 CSV出力</button>
+    </div>
+
+    <!-- フッター -->
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid #e2e8f0; font-size:11px; color:#94a3b8; text-align:center;">
+        おの肛門科胃腸科内視鏡クリニック ｜ フォローアップ管理システム（プレースホルダ v0.1）
+    </div>
+
+</div>
+</body>
+</html>

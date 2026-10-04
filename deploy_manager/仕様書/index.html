@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>システム詳細設計・仕様書 | 院内システム総合デプロイマネージャー</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #eff6ff;
+            --primary-border: #bfdbfe;
+            --teal: #0f766e;
+            --teal-light: #f0fdfa;
+            --teal-border: #99f6e4;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --border: #cbd5e1;
+
+            --success: #15803d;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --warning: #b45309;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --danger: #b91c1c;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --purple: #7e22ce;
+            --purple-bg: #f3e8ff;
+            --purple-border: #e9d5ff;
+
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.09), 0 4px 6px -4px rgba(0,0,0,0.04);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        /* ── ヘッダー ── */
+        .doc-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0f766e 100%);
+            color: #ffffff;
+            padding: 36px 40px;
+            border-bottom: 3px solid #38bdf8;
+            position: relative;
+        }
+
+        .header-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-title-area h1 {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+
+        .header-title-area p {
+            font-size: 14px;
+            color: #cbd5e1;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .header-badges {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ffffff;
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-print {
+            background: #ffffff;
+            color: var(--primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-print:hover {
+            background: #eff6ff;
+            transform: translateY(-1px);
+        }
+
+        /* ── レイアウト ── */
+        .layout-container {
+            max-width: 1440px;
+            margin: 30px auto;
+            padding: 0 30px;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+
+        /* ── サイドバー（目次） ── */
+        .sidebar {
+            position: sticky;
+            top: 24px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+        }
+
+        .toc-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--slate-500);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--slate-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toc-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .toc-item a {
+            display: block;
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12.5px;
+            color: var(--slate-700);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            font-weight: 500;
+            border-left: 2px solid transparent;
+        }
+
+        .toc-item a:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+            border-left-color: var(--primary);
+        }
+
+        .toc-sublist {
+            list-style: none;
+            padding-left: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin: 2px 0;
+        }
+
+        .toc-sublist a {
+            font-size: 11.5px;
+            color: var(--slate-500);
+            padding: 4px 8px;
+        }
+
+        /* ── メインコンテンツ ── */
+        .content {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 40px 48px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .section {
+            margin-bottom: 56px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--slate-900);
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--slate-200);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2 .section-num {
+            background: var(--primary);
+            color: #ffffff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--slate-800);
+            margin: 28px 0 14px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3::before {
+            content: "";
+            width: 4px;
+            height: 18px;
+            background: var(--teal);
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--slate-700);
+            margin: 18px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 14px;
+            color: var(--slate-700);
+            line-height: 1.8;
+        }
+
+        ul, ol {
+            margin: 0 0 16px 24px;
+            color: var(--slate-700);
+        }
+
+        li {
+            margin-bottom: 6px;
+            line-height: 1.7;
+        }
+
+        /* ── コールアウト / メモボックス ── */
+        .callout {
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin: 18px 0;
+            border-left: 4px solid;
+            font-size: 13.5px;
+        }
+
+        .callout-info {
+            background: var(--primary-light);
+            border-left-color: var(--primary);
+            color: #1e3a8a;
+        }
+
+        .callout-warning {
+            background: var(--warning-bg);
+            border-left-color: #f59e0b;
+            color: #92400e;
+        }
+
+        .callout-danger {
+            background: var(--danger-bg);
+            border-left-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .callout-success {
+            background: var(--success-bg);
+            border-left-color: #22c55e;
+            color: #166534;
+        }
+
+        .callout-title {
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        /* ── コードブロック / シンタックス ── */
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 16px 20px;
+            border-radius: var(--radius-md);
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12.5px;
+            line-height: 1.6;
+            margin: 14px 0 20px 0;
+            border: 1px solid #1e293b;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            border: none;
+        }
+
+        /* ── テーブル ── */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 18px 0 24px 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: #ffffff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+            color: var(--slate-700);
+            font-weight: 700;
+            padding: 10px 14px;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--slate-200);
+            vertical-align: top;
+            color: var(--slate-800);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        /* ── ダイアグラム / アーキテクチャ図 ── */
+        .diagram-container {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            margin: 20px 0;
+        }
+
+        .diagram-box {
+            font-family: 'JetBrains Mono', monospace;
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 20px;
+            border-radius: var(--radius-sm);
+            line-height: 1.5;
+            font-size: 12.5px;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-get { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .badge-post { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        /* ── フッター ── */
+        .doc-footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--slate-500);
+            font-size: 12.5px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        /* ── 印刷用スタイル ── */
+        @media print {
+            body {
+                background: #ffffff;
+                color: #000000;
+                font-size: 11pt;
+            }
+            .doc-header {
+                padding: 16px;
+                border-bottom: 2px solid #000;
+                background: none;
+                color: #000;
+            }
+            .header-title-area h1 { color: #000; font-size: 18pt; }
+            .meta-pill, .btn-print, .sidebar { display: none !important; }
+            .layout-container {
+                display: block;
+                margin: 0;
+                padding: 0;
+            }
+            .content {
+                border: none;
+                padding: 0;
+                box-shadow: none;
+            }
+            .section {
+                page-break-inside: avoid;
+                margin-bottom: 24pt;
+            }
+            pre {
+                background: #f8fafc;
+                color: #0f172a;
+                border: 1px solid #cbd5e1;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .layout-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: static;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ヘッダー -->
+    <header class="doc-header">
+        <div class="header-inner">
+            <div class="header-title-area">
+                <h1>🚀 院内システム総合デプロイマネージャー システム詳細仕様書</h1>
+                <p>
+                    <span><strong>所属:</strong> 医療法人小野会 情報システム開発室</span>
+                    <span><strong>対象プログラム:</strong> Deploy Manager (Local Safe Engine)</span>
+                    <span><strong>文書番号:</strong> SPEC-DM-2026-001</span>
+                </p>
+            </div>
+            <div class="header-badges">
+                <span class="meta-pill">バージョン 2.1.0 安定版</span>
+                <span class="meta-pill">ステータス: 稼働・安定運用中</span>
+                <button type="button" class="btn-print" onclick="window.print()">🖨️ 仕様書を印刷 / PDF保存</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="layout-container">
+
+        <!-- サイドバー: 目次 -->
+        <aside class="sidebar">
+            <div class="toc-title">
+                <span>📑 目次 (Navigation)</span>
+            </div>
+            <ul class="toc-list">
+                <li class="toc-item"><a href="#section-1">1. システム概要と開発背景</a></li>
+                <li class="toc-item"><a href="#section-2">2. システム構成とアーキテクチャ</a></li>
+                <li class="toc-item">
+                    <a href="#section-3">3. 技術的課題と設計決定（核心原理）</a>
+                    <ul class="toc-sublist">
+                        <li><a href="#section-3-1">3.1 Windowsサービス(SYSTEM)のSMB制約</a></li>
+                        <li><a href="#section-3-2">3.2 一般ユーザー常駐Nodeデーモンの採用</a></li>
+                    </ul>
+                </li>
+                <li class="toc-item"><a href="#section-4">4. ディレクトリ構成とファイル責務</a></li>
+                <li class="toc-item">
+                    <a href="#section-5">5. 詳細動作原理とアルゴリズム</a>
+                    <ul class="toc-sublist">
+                        <li><a href="#section-5-1">5.1 差分検知（スキャン）原理</a></li>
+                        <li><a href="#section-5-2">5.2 事前ZIPバックアップ機構</a></li>
+                        <li><a href="#section-5-3">5.3 安全配布（コピー）処理</a></li>
+                        <li><a href="#section-5-4">5.4 ワンクリック・ロールバック</a></li>
+                    </ul>
+                </li>
+                <li class="toc-item"><a href="#section-6">6. 自動常駐・プロセス管理機構</a></li>
+                <li class="toc-item"><a href="#section-7">7. REST API 詳細仕様リファレンス</a></li>
+                <li class="toc-item"><a href="#section-8">8. セキュリティ・整合性設計</a></li>
+                <li class="toc-item"><a href="#section-9">9. 環境自己診断 ＆ トラブルシューティング</a></li>
+                <li class="toc-item"><a href="#section-10">10. 付録・設定定数一覧</a></li>
+            </ul>
+        </aside>
+
+        <!-- メインコンテンツ -->
+        <main class="content">
+
+            <!-- 1. システム概要と開発背景 -->
+            <section class="section" id="section-1">
+                <h2><span class="section-num">1</span> システム概要と開発背景</h2>
+                <p>
+                    <strong>「院内システム総合デプロイマネージャー」</strong>は、医療法人小野会における院内Webアプリケーション群（内視鏡システム、手術台帳、カルテビューア、ヒヤリハット、予定管理等）の開発端末（ローカルApache環境）と本番サーバー（<code>192.168.1.16</code>）間におけるソースコードの**同期・配布（デプロイ）・世代バックアップ・ロールバック（復元）**を極めて安全かつ迅速に行うために開発された専門管理システムです。
+                </p>
+
+                <h3>主要な目的と提供機能</h3>
+                <ul>
+                    <li><strong>全自動の事前バックアップ担保:</strong> 本番サーバーへのファイル上書き前に、上書き対象となる既存ファイルを抽出してタイムスタンプ付きZIPアーカイブを自動生成。人的ミスによるコード消失や不具合を100%防止。</li>
+                    <li><strong>精密な差分検知:</strong> ローカルと本番の全ファイルを高速に再帰スキャンし、サイズおよび更新日時の差（2秒しきい値）から「更新 (MODIFIED)」「新規 (NEW)」「一致 (SAME)」を自動分類。</li>
+                    <li><strong>ワンクリック・ロールバック:</strong> デプロイ後に予期せぬ不具合が発生した場合、履歴一覧から対象時点を選択して「復元」ボタンを押すだけで、本番環境を過去の確定状態へ即時復旧。</li>
+                    <li><strong>ゼロ構成・標準機能駆動:</strong> Node.jsの標準モジュールおよびWindows標準のPowerShell / VBScriptのみで構築。外部ライブラリ（<code>npm install</code>等）への依存を一切排除し、PC交換時やOS再インストール時も即座に復元可能な堅牢性を実現。</li>
+                </ul>
+
+                <div class="callout callout-success">
+                    <div class="callout-title">✅ 安定稼働の実績</div>
+                    複数回にわたる院内デプロイ検証を経て、ファイルの取りこぼし、パーミッションエラー、プロセスハングアップが皆無であり、極めて安定した稼働状態が実証されています。
+                </div>
+            </section>
+
+            <!-- 2. システム構成とアーキテクチャ -->
+            <section class="section" id="section-2">
+                <h2><span class="section-num">2</span> システム構成とアーキテクチャ</h2>
+                <p>
+                    システム全体は、<strong>ブラウザUI（SPAフロントエンド）</strong>、<strong>ローカル支援サーバー（Node.jsデーモン: ポート5050）</strong>、<strong>ローカルファイルシステム</strong>、およびネットワークドライブ（SMB共有）経由で接続された<strong>本番サーバー（192.168.1.16）</strong>で構成されます。
+                </p>
+
+                <div class="diagram-container">
+                    <div class="diagram-box">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 【開発用クライアントPC (Windows)】                                           │
+│                                                                             │
+│   ┌──────────────────────────────────────────────────────────────┐          │
+│   │ [フロントエンド UI]  (SPA: HTML5 / CSS3 / Vanilla JS)         │          │
+│   │   - URL: http://localhost:5050/ または http://localhost/deploy_manager/ │
+│   │   - 差分プレビュー / 選択デプロイ / 履歴管理 / リアルタイム自己診断      │
+│   └──────────────────────────────┬───────────────────────────────┘          │
+│                                  │ HTTP (REST API / JSON)                   │
+│                                  ▼                                          │
+│   ┌──────────────────────────────────────────────────────────────┐          │
+│   │ [ローカル支援サーバー: server.js] (Node.js 待機ポート 5050)   │          │
+│   │   ★ 実行権限: Windows一般ログインユーザー (Owner)            │          │
+│   │   - 差分判定エンジン (mtime & size 比較)                      │          │
+│   │   - 事前バックアップ生成エンジン (PowerShell Compress-Archive)  │          │
+│   │   - 安全アトミック配布エンジン (fs.copyFileSync & utimesSync)   │          │
+│   │   - 瞬時復元エンジン (PowerShell Expand-Archive)                │          │
+│   └───────────────┬──────────────────────────────┬───────────────┘          │
+│                   │ ローカルI/O                  │ ネットワークI/O          │
+│                   ▼                              ▼                          │
+│   ┌─────────────────────────┐    ┌───────────────────────────────────────┐  │
+│   │ ローカルソースコード    │    │ ネットワークドライブマウント          │  │
+│   │ c:\Apache24\htdocs\     │    │   T:\ (自動再接続・資格情報保存)      │  │
+│   └─────────────────────────┘    └───────────────────┬───────────────────┘  │
+│                   │                                  │                      │
+│                   ▼                                  │ SMB (Port 445)       │
+│   ┌─────────────────────────┐                        │                      │
+│   │ 事前バックアップ保存先  │                        │                      │
+│   │ c:\deploy_backups\      │                        │                      │
+│   └─────────────────────────┘                        │                      │
+└──────────────────────────────────────────────────────┼──────────────────────┘
+                                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 【本番サーバー (IP: 192.168.1.16)】                                          │
+│                                                                             │
+│   - Windows Server / Apache 2.4 (稼働中)                                    │
+│   - 公開ディレクトリ: c:\Apache24\htdocs\                                   │
+│   - SMB共有名: \\192.168.1.16\c$\Apache24\htdocs (または \htdocs)          │
+│   - 配布対象システム: endoscope, op, karteview, hiyarihat, yotei ...        │
+└─────────────────────────────────────────────────────────────────────────────┘</div>
+                </div>
+            </section>
+
+            <!-- 3. 技術的課題と設計決定（核心原理） -->
+            <section class="section" id="section-3">
+                <h2><span class="section-num">3</span> 技術的課題と設計決定（核心原理）</h2>
+                
+                <h3 id="section-3-1">3.1 なぜ Apache (PHP) 単体では本番配布が不可能なのか？</h3>
+                <p>
+                    開発初期段階では、ローカル開発環境のApache上で動作する <code>api.php</code> を通じて本番サーバー（<code>\\192.168.1.16\htdocs</code>）へ直接ファイルをコピーする設計が検討されました。しかし、Windows環境特有の厳格なセキュリティモデルに起因する<strong>致命的な制約</strong>が判明しました。
+                </p>
+
+                <div class="callout callout-danger">
+                    <div class="callout-title">⚠️ Windowsサービス (NT AUTHORITY\SYSTEM) のSMB遮断仕様</div>
+                    ローカルのApache HTTP Serverは、Windowsサービスとして <strong><code>NT AUTHORITY\SYSTEM</code>（LocalSystemアカウント）</strong> で動作しています。<br>
+                    Windowsのセキュリティ仕様上、SYSTEMアカウントはネットワーク越しのSMB共有フォルダ（ネットワークドライブ <code>T:</code> や UNCパス <code>\\192.168.1.16\...</code>）に対して認証トークンを送信できず、<strong>「アクセス拒否（Access Denied）」</strong>となります（Null Sessionの禁止規則）。
+                </div>
+
+                <p>
+                    この制約により、ブラウザから <code>api.php</code> を呼び出して本番サーバーへファイルを転送・比較しようとすると、本番フォルダが存在しないと判定されたり、ファイル書き込みがすべてエラーとなってしまいます。
+                </p>
+
+                <h3 id="section-3-2">3.2 一般ユーザー権限常駐 Node.js デーモンによるブレークスルー</h3>
+                <p>
+                    この問題を根本解決するため、<strong>「Windowsにログインしている一般ユーザー（Owner）の権限で動作するバックグラウンド常駐サーバー（Node.js）」</strong>をポート <code>5050</code> に配置するアーキテクチャが採用されました。
+                </p>
+                <ul>
+                    <li><strong>ユーザー資格情報の継承:</strong> 一般ユーザープロセスとして起動されるため、Windowsエクスプローラーで保存された <code>T:</code> ドライブのネットワーク資格情報（本番サーバーへの認証セッション）がそのまま有効になります。</li>
+                    <li><strong>完全非同期・安全なファイルI/O:</strong> Node.jsのファイルシステムAPIおよび子プロセス実行（<code>child_process</code>）により、本番サーバーとの大容量ファイル通信、ZIP圧縮・解凍、タイムスタンプ制御を確実に行うことができます。</li>
+                    <li><strong>ダブルアクセス経路の冗長性:</strong> UIおよびAPIは、<code>http://localhost:5050/</code>（Node.js直通）だけでなく、Apacheの <code>http://localhost/deploy_manager/</code> からもCORS（Cross-Origin Resource Sharing）ヘッダーを介して相互にシームレスに連携できます。</li>
+                </ul>
+            </section>
+
+            <!-- 4. ディレクトリ構成とファイル責務 -->
+            <section class="section" id="section-4">
+                <h2><span class="section-num">4</span> ディレクトリ構成とファイル責務</h2>
+                <p>
+                    プログラム群は <code>c:\Apache24\htdocs\deploy_manager\</code> 配下に配置されており、無駄なファイルが一切ないクリーンな構成となっています。
+                </p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 220px;">ファイル / ディレクトリ名</th>
+                                <th style="width: 130px;">種別 / 言語</th>
+                                <th>役割と詳細な責務</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong><code>server.js</code></strong></td>
+                                <td>Node.js サーバー</td>
+                                <td><strong>【システムの中核】</strong> ポート5050で待機するHTTP API＆静的配信サーバー。差分スキャン、事前ZIP作成、ファイルコピー、ロールバック、接続自己診断の全ビジネスロジックを実行。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>index.html</code></strong></td>
+                                <td>フロントエンド (SPA)</td>
+                                <td>洗練されたWeb管理コンソール。差分表示テーブル、システム選択ピル、リアルタイムログターミナル、ロールバック管理タブ、環境自己診断モーダルを内包。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>start_server.js</code></strong></td>
+                                <td>Node.js 起動スクリプト</td>
+                                <td>手動起動用ランチャー。本番T:ドライブの接続チェック、ポート5050の二重起動防止チェック、detachedモードでのバックグラウンド起動、ブラウザ自動オープンを担当。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>start_deploy_manager.bat</code></strong></td>
+                                <td>Windows バッチ</td>
+                                <td><code>start_server.js</code> をダブルクリックで即座に実行するための起動エントリーポイント。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>setup_startup.js</code></strong></td>
+                                <td>Node.js 管理スクリプト</td>
+                                <td>Windowsの「スタートアップ」フォルダ（<code>shell:startup</code>）へのVBSランチャーの登録（<code>--register</code>）および登録解除（<code>--unregister</code>）を制御。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>startup_launcher.vbs</code></strong></td>
+                                <td>VBScript ランチャー</td>
+                                <td>Windows起動時に黒いコンソール画面を一切表示せず（<code>WshShell.Run cmd, 0, False</code>）、完全バックグラウンドで <code>server.js</code> を自動常駐させるスクリプト。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>register_startup.bat</code></strong></td>
+                                <td>Windows バッチ</td>
+                                <td>ダブルクリックするだけで <code>setup_startup.js --register</code> を実行し、自動常駐を完了させるスクリプト。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>unregister_startup.bat</code></strong></td>
+                                <td>Windows バッチ</td>
+                                <td>自動常駐を解除するための管理スクリプト。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>diagnostics.js</code></strong></td>
+                                <td>Node.js CLI ツール</td>
+                                <td>コマンドラインから実行可能な6項目の総合自己診断スクリプト（Node、ポート5050、T:ドライブ、UNC、htdocs、バックアップディレクトリ）。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>diagnostics.bat</code></strong></td>
+                                <td>Windows バッチ</td>
+                                <td><code>diagnostics.js</code> をワンクリックで実行し、画面上で接続要件を即座に確認するツール。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>api.php</code></strong></td>
+                                <td>PHP (参照・保守用)</td>
+                                <td>初期開発時のプロトタイプ兼、Apache環境からのローカル診断用エンドポイント。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>README_SETUP.md</code></strong></td>
+                                <td>Markdown 手順書</td>
+                                <td>PC交換時やトラブル発生時のクイックセットアップ手順書。</td>
+                            </tr>
+                            <tr>
+                                <td><strong><code>仕様書/</code></strong></td>
+                                <td>ディレクトリ</td>
+                                <td>本仕様書（HTMLおよび関連ドキュメント）を永続格納する専用ディレクトリ。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 5. 詳細動作原理とアルゴリズム -->
+            <section class="section" id="section-5">
+                <h2><span class="section-num">5</span> 詳細動作原理とアルゴリズム</h2>
+
+                <h3 id="section-5-1">5.1 差分検知（スキャン）原理</h3>
+                <p>
+                    差分検知は、ローカルディレクトリ（<code>c:\Apache24\htdocs\&lt;system&gt;\</code>）を再帰的に走査（<code>scanDirectoryFiles</code>）し、本番環境の対応ファイルと照合することで行われます。
+                </p>
+
+                <h4>除外フィルタリング規則</h4>
+                <p>
+                    開発環境に特有の管理ファイルや一時ファイルが誤って本番に配布されないよう、以下の強力な除外フィルターが適用されます：
+                </p>
+                <ul>
+                    <li><strong>除外ディレクトリ:</strong> <code>.git</code>, <code>.agents</code>, <code>.gemini</code>, <code>node_modules</code>, <code>vendor</code>, <code>scratch</code>, <code>bak</code>, <code>ip_bak</code>, <code>gitshare</code>, <code>deploy_manager</code></li>
+                    <li><strong>除外ファイルパターン:</strong> <code>*.bak</code>, <code>*.tmp</code>, <code>*.log</code>, <code>test_*.js</code>, <code>scratch_*.js</code>, <code>Thumbs.db</code>, <code>desktop.ini</code></li>
+                </ul>
+
+                <h4>判定ロジックと2秒しきい値の理由</h4>
+                <pre><code>// 差分判定ロジック (server.js lines 201-216)
+const isDiff = (lf.size !== pStat.size) || (Math.abs(lf.mtime - pStat.mtimeMs) > 2000);
+
+if (isDiff) {
+    status = 'MODIFIED'; // 既存ファイルに変更あり
+} else {
+    status = 'SAME';     // 完全一致
+}
+// 本番にファイルが存在しない場合: status = 'NEW' (新規追加)</code></pre>
+                <div class="callout callout-info">
+                    <div class="callout-title">💡 2秒しきい値（2000ms）を採用している技術的理由</div>
+                    WindowsのFAT/SMBファイルシステムやNTFS間のファイルコピーでは、OSの仕様によりタイムスタンプの精度に最大2秒の分解能差異（2-second granularity）が生じる場合があります。そのため、1秒未満の微細な時間ズレで「更新」と誤誤認される現象を防ぐため、業界標準の2秒しきい値を設けています。
+                </div>
+
+                <h3 id="section-5-2">5.2 事前ZIPバックアップ機構（フェイルセーフ設計）</h3>
+                <p>
+                    本システムの最も重要な安全機能です。ユーザーがデプロイを実行した際、本番ファイルを1つでも上書きする<strong>「直前」</strong>に以下のステップが厳格に実行されます：
+                </p>
+                <ol>
+                    <li>配布対象として選択されたファイルのうち、<strong>本番サーバー側に既に存在しているファイルのみ</strong>を特定。</li>
+                    <li>一時ステージングディレクトリ（<code>c:\deploy_backups\&lt;system&gt;\_staging_YYYYMMDD_HHMMSS\</code>）に対象ファイルを相対パス構造を保ったまま一時退避。</li>
+                    <li>PowerShell標準の <code>Compress-Archive</code> コマンドを実行し、日時付きZIP（例: <code>endoscope_backup_20261002_123045.zip</code>）を生成。</li>
+                    <li>ZIPファイルが正常に生成されたことを確認（<code>fs.existsSync</code>）した後にのみ、一時ステージングを安全消去し、次の配布処理へ進む。</li>
+                    <li><strong>【強制中断機構】:</strong> もしZIPバックアップの生成に失敗した場合、<strong>デプロイ処理は即座に中止され、本番ファイルには一切触れません（ゼロ変更の保証）</strong>。</li>
+                </ol>
+
+                <h3 id="section-5-3">5.3 安全配布（コピー）処理</h3>
+                <p>
+                    事前バックアップの成功後、ローカルから本番サーバーへのファイルコピーが行われます。
+                </p>
+                <ul>
+                    <li><strong>階層ディレクトリの自動生成:</strong> <code>fs.mkdirSync(path.dirname(dest), { recursive: true })</code> により、新規追加されたサブフォルダも本番側に自動作成されます。</li>
+                    <li><strong>タイムスタンプ完全同期（utimesSync）:</strong> ファイルコピー後、ローカルファイルの更新日時（<code>mtime</code>）およびアクセス日時（<code>atime</code>）を本番ファイルに適用します（<code>fs.utimesSync(dest, srcStat.atime, srcStat.mtime)</code>）。これにより、デプロイ完了後の次回スキャン時に即座に「✓ 一致 (SAME)」と判定され、再配布の重複を防ぎます。</li>
+                </ul>
+
+                <h3 id="section-5-4">5.4 ワンクリック・ロールバック機構</h3>
+                <p>
+                    本番環境に不具合が発覚した場合、画面の「🕒 過去バックアップ ＆ ロールバック」タブから対象のZIPを選択して復元を実行します。
+                </p>
+                <pre><code>// server.js lines 426-429
+const psCmd = `Expand-Archive -Path '${zipPath}' -DestinationPath '${prodDir}' -Force`;
+execSync(`powershell -NoProfile -Command "${psCmd}"`);</code></pre>
+                <p>
+                    PowerShellの <code>Expand-Archive -Force</code> オプションにより、該当のZIPに格納されている確定状態のファイル群が本番サーバー（<code>T:\&lt;system&gt;\</code>）へ一括で直接上書き展開され、数秒で元の安全な状態に巻き戻されます。
+                </p>
+            </section>
+
+            <!-- 6. 自動常駐・プロセス管理機構 -->
+            <section class="section" id="section-6">
+                <h2><span class="section-num">6</span> 自動常駐・プロセス管理機構</h2>
+                <p>
+                    日常業務において、開発者が意識してサーバーを起動する手間をなくすため、Windowsの標準機能のみを活用した洗練された自動常駐メカニズムが組み込まれています。
+                </p>
+
+                <div class="diagram-container">
+                    <div class="diagram-box">
+【Windows サインイン時】
+   │
+   ├─ スタートアップフォルダ: %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\
+   │    └─ Onokai_Deploy_Manager_Daemon.vbs (自動実行)
+   │         │
+   │         ├─ WScript.Shell.Run (ウィンドウ表示スタイル = 0: 完全非表示)
+   │         ▼
+   │       node.exe "c:\Apache24\htdocs\deploy_manager\server.js"
+   │         │
+   │         └─ ポート 5050 でバックグラウンド待機 (メモリ消費約 25MB の軽量常駐)
+   │
+   ▼
+【ユーザーがブラウザで開く】
+   └─ http://localhost:5050/ (即座に操作可能・黒いコマンドプロンプト画面は一切出ない)</div>
+                </div>
+
+                <h3>常駐管理の要点</h3>
+                <ul>
+                    <li><strong>黒い画面（コンソール）の完全抑止:</strong> <code>startup_launcher.vbs</code> 内で <code>WshShell.Run cmd, 0, False</code> を指定することにより、コマンドプロンプトのウィンドウを一切表示させずに完全なバックグラウンドサービスとして実行します。</li>
+                    <li><strong>多重起動の安全制御:</strong> <code>start_server.js</code> は起動前に <code>netstat -ano -p tcp</code> をチェックし、ポート5050が既に待機中（LISTENING）の場合は新規起動をスキップしてブラウザのみを開くため、多重起動によるポート衝突が起きません。</li>
+                </ul>
+            </section>
+
+            <!-- 7. REST API 詳細仕様リファレンス -->
+            <section class="section" id="section-7">
+                <h2><span class="section-num">7</span> REST API 詳細仕様リファレンス</h2>
+                <p>
+                    ローカル支援サーバー（<code>http://localhost:5050</code>）が提供する全エンドポイントの仕様です。
+                </p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 180px;">エンドポイント</th>
+                                <th style="width: 80px;">メソッド</th>
+                                <th style="width: 200px;">パラメータ</th>
+                                <th>機能概要とレスポンス仕様</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>/api/diagnostics</code></td>
+                                <td><span class="badge badge-get">GET</span></td>
+                                <td>なし</td>
+                                <td><strong>接続環境自己診断:</strong> Nodeバージョン、実行ユーザー名、稼働秒数、T:ドライブ疎通状態、UNC疎通状態、ローカルhtdocs存在確認などを返却。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/systems</code></td>
+                                <td><span class="badge badge-get">GET</span></td>
+                                <td>なし</td>
+                                <td><strong>システム一覧取得:</strong> <code>c:\Apache24\htdocs\</code> 配下のフォルダ一覧と、本番サーバー上での存在有無（<code>prodExists</code>）を返却。主要システム順にソート。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/diff</code></td>
+                                <td><span class="badge badge-get">GET</span></td>
+                                <td><code>system</code> (string)</td>
+                                <td><strong>差分スキャン:</strong> 指定システムのローカル全ファイルと本番ファイルを比較し、<code>MODIFIED</code>, <code>NEW</code>, <code>SAME</code> の内訳と各ファイルのパス・サイズ・日時リストを返却。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/deploy</code></td>
+                                <td><span class="badge badge-post">POST</span></td>
+                                <td><code>{ system, files: [] }</code> (JSON)</td>
+                                <td><strong>安全デプロイ実行:</strong> 対象本番ファイルの事前ZIPバックアップを取得後、選択されたローカルファイルを本番へ上書きコピーし、タイムスタンプを同期。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/backups</code></td>
+                                <td><span class="badge badge-get">GET</span></td>
+                                <td><code>system</code> (string)</td>
+                                <td><strong>バックアップ履歴一覧:</strong> <code>c:\deploy_backups\&lt;system&gt;\</code> 内に存在する過去のバックアップZIP一覧（ファイル名、容量、作成日時）を降順で返却。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/rollback</code></td>
+                                <td><span class="badge badge-post">POST</span></td>
+                                <td><code>{ system, zipFilename }</code> (JSON)</td>
+                                <td><strong>ロールバック復元:</strong> 指定された過去のZIPファイルをPowerShell経由で本番ディレクトリへ上書き展開し、元のコードベースへ復元。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 8. セキュリティ・整合性設計 -->
+            <section class="section" id="section-8">
+                <h2><span class="section-num">8</span> セキュリティ・整合性設計</h2>
+                
+                <h3>パストラバーサル（ディレクトリ遡り）の防止</h3>
+                <p>
+                    システム名パラメータには厳格な正規表現バリデーション（<code>/^[a-zA-Z0-9_\-]+$/</code>）を適用。<code>../</code> や <code>..\</code> を含んだ不正なリクエストを完全に遮断し、意図しないディレクトリの走査や書き換えを防止しています。
+                </p>
+
+                <h3>ロールバックファイル名のサニタイズ</h3>
+                <p>
+                    <code>path.basename(body.zipFilename || '')</code> を通すことで、バックアップファイル指定におけるディレクトリ指定を強制的にファイル名単体に丸め込み、バックアップディレクトリ外のファイルを解凍・実行させる攻撃を無力化しています。
+                </p>
+
+                <h3>リッスンアドレスのローカルホスト限定</h3>
+                <p>
+                    支援サーバー（<code>server.js</code>）は、外部ネットワークからの不正アクセスを防ぐため、明示的に <code>127.0.0.1</code>（localhost）のみにバインドしてリッスンしています（外部からのポート5050直接接続は不可）。
+                </p>
+            </section>
+
+            <!-- 9. 環境自己診断 ＆ トラブルシューティング -->
+            <section class="section" id="section-9">
+                <h2><span class="section-num">9</span> 環境自己診断 ＆ トラブルシューティング</h2>
+                <p>
+                    万が一のPC障害、Windows Update後のトラブル、端末の移行時に備え、UI画面上およびコマンドラインの両方で一発診断が可能な機構が備わっています。
+                </p>
+
+                <h3>PC交換・OS再インストール時の復旧手順（完全3ステップ）</h3>
+                <div class="callout callout-info">
+                    <ol style="margin-left: 18px; margin-bottom: 0;">
+                        <li><strong>Node.js (LTS版) のインストール:</strong> 公式サイト（nodejs.org）から推奨版インストーラー（.msi）をダウンロードし、標準設定のままインストール。</li>
+                        <li><strong>本番サーバーの「T:ドライブ」割り当て:</strong> エクスプローラーで <code>\\192.168.1.16\c$\Apache24\htdocs</code> をネットワークドライブ <strong><code>T:</code></strong> として割り当て、「サインイン時に再接続する」にチェック。</li>
+                        <li><strong>自動常駐の登録:</strong> フォルダ内の <code>register_startup.bat</code> をダブルクリックして実行。</li>
+                    </ol>
+                </div>
+
+                <h3>よくあるトラブルと対処マトリクス</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 250px;">発生現象・エラーメッセージ</th>
+                                <th style="width: 200px;">原因</th>
+                                <th>復旧・解決手順</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>「Failed to fetch」</strong><br>（画面上部赤バナー表示）</td>
+                                <td>ローカル支援サーバー（Node.js: ポート5050）が未起動。</td>
+                                <td><code>start_deploy_manager.bat</code> をダブルクリックして起動。恒久対策として <code>register_startup.bat</code> を実行しスタートアップ登録。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>「⚠️ 本番サーバー (192.168.1.16) 未接続」</strong></td>
+                                <td>本番PCの電源断、LAN断線、または「T:」ドライブの未マウント/切断。</td>
+                                <td>エクスプローラーで「T:」ドライブをクリックして開く。赤い✕マークがある場合は再接続（資格情報入力）。本番PCの稼働を確認。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>事前ZIPバックアップ失敗エラー</strong></td>
+                                <td>バックアップ先ディスク（Cドライブ）の容量不足、またはPowerShellの実行権限制限。</td>
+                                <td>Cドライブの空き容量を確認。一時ファイル等を整理。<code>c:\deploy_backups\</code> への書き込み権限を確認。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 10. 付録・設定定数一覧 -->
+            <section class="section" id="section-10">
+                <h2><span class="section-num">10</span> 付録・設定定数一覧</h2>
+                <p>
+                    <code>server.js</code> 内で定義されているシステム全体の環境定数です。設定変更が必要な場合はここを参照します。
+                </p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 200px;">定数名</th>
+                                <th style="width: 280px;">デフォルト設定値</th>
+                                <th>説明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>PORT</code></td>
+                                <td><code>5050</code></td>
+                                <td>支援サーバーの待機ポート（HTTP）</td>
+                            </tr>
+                            <tr>
+                                <td><code>LOCAL_HTDOCS</code></td>
+                                <td><code>c:/Apache24/htdocs/</code></td>
+                                <td>ローカル開発環境のドキュメントルート</td>
+                            </tr>
+                            <tr>
+                                <td><code>PROD_DRIVE</code></td>
+                                <td><code>T:/</code></td>
+                                <td>本番サーバーの割り当てネットワークドライブ</td>
+                            </tr>
+                            <tr>
+                                <td><code>PROD_UNC</code></td>
+                                <td><code>//192.168.1.16/c$/Apache24/htdocs/</code></td>
+                                <td>T:ドライブ未接続時の代替UNC共有パス</td>
+                            </tr>
+                            <tr>
+                                <td><code>BACKUP_ROOT</code></td>
+                                <td><code>c:/deploy_backups/</code></td>
+                                <td>事前バックアップZIPファイルのローカル永続保存先</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 30px; padding: 16px; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--slate-600);">
+                    <strong>文書管理情報:</strong><br>
+                    初版作成: 2026年10月02日 / 作成者: 医療法人小野会 情報システム開発室 (Pair Programming via Antigravity Agent)<br>
+                    最終レビュー: 2026年10月02日 / レビュー結果: 実機安定稼働確認済み・承認完了
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- フッター -->
+    <footer class="doc-footer">
+        <p>© 2026 医療法人小野会 (Medical Corporation Onokai). All Rights Reserved. 院内システム総合デプロイマネージャー仕様書</p>
+    </footer>
+
+</body>
+</html>

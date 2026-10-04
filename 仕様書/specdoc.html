@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 画面別機能仕様書 (specdoc.html)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --secondary: #0f172a;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --purple-light: #f5f3ff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.65;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.spec-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-badge {
+            background: rgba(59, 130, 246, 0.25);
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .header-date {
+            font-size: 12.5px;
+            color: #94a3b8;
+            font-family: var(--font-mono);
+        }
+
+        h1.main-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 10px;
+            line-height: 1.35;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 12.5px;
+            color: #cbd5e1;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        .header-meta span strong {
+            color: #ffffff;
+        }
+
+        nav.toc-nav {
+            background: #f1f5f9;
+            padding: 18px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+
+        .toc-grid a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .toc-grid a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        main.content {
+            padding: 36px;
+        }
+
+        section.spec-section {
+            margin-bottom: 44px;
+        }
+
+        section.spec-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.category-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .screen-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .screen-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);
+        }
+
+        .screen-header {
+            background: #f8fafc;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .screen-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .screen-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .screen-file {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            background: #e2e8f0;
+            color: #334155;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .screen-body {
+            padding: 18px;
+        }
+
+        .screen-desc {
+            font-size: 13.5px;
+            color: #334155;
+            margin-bottom: 14px;
+            line-height: 1.6;
+        }
+
+        .feature-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        ul.feature-list {
+            padding-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        ul.feature-list li {
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        ul.feature-list li strong {
+            color: #0f172a;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .badge-primary { background: #dbeafe; color: #1e40af; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger  { background: #fee2e2; color: #991b1b; }
+        .badge-purple  { background: #ede9fe; color: #5b21b6; }
+        .badge-neutral { background: #e2e8f0; color: #475569; }
+
+        .diagram-container {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .flow-tree {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            font-size: 13px;
+        }
+
+        .flow-node {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: #ffffff;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        .flow-node.root {
+            background: #1e293b;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .flow-subnodes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            margin-left: 24px;
+            padding-left: 16px;
+            border-left: 2px dashed #cbd5e1;
+        }
+
+        .flow-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+
+        .flow-card-title {
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .flow-card-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        footer.spec-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .container { box-shadow: none; border: none; max-width: 100%; }
+            nav.toc-nav { display: none; }
+            header.spec-header { background: #0f172a !important; -webkit-print-color-adjust: exact; }
+            .screen-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="spec-header">
+        <div class="header-top">
+            <span class="header-badge">医療法人小野会 内視鏡予約管理システム</span>
+            <span class="header-date">文書番号: SPEC-202610-02 (ver1004)</span>
+        </div>
+        <h1 class="main-title">システム機能一覧 ＆ 画面別仕様書</h1>
+        <div class="header-meta">
+            <span>対象システム: <strong>内視鏡予約・枠管理システム (Modernized Edition / ver1004)</strong></span>
+            <span>更新日: <strong>2026年10月4日</strong></span>
+            <span>稼働環境: <strong>Windows / Apache 2.4 / PostgreSQL 18.3 / PHP 8.5.9</strong></span>
+        </div>
+    </header>
+
+    <!-- ── 関連ドキュメントナビゲーション ── -->
+    <div style="background: #f1f5f9; padding: 10px 36px; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; color: #475569; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+        <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
+        <a href="plan.html" style="color: #2563eb; text-decoration: none;">📋 中長期開発計画書 (plan.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-10-4works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-10-4works.html / ver1004)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-10-1works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-10-1works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="../help.php" style="color: #7c3aed; text-decoration: none;">❓ 操作マニュアル (help.php)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="../index.php" style="color: #0f172a; text-decoration: none;">🏠 予約システムポータル (index.php)</a>
+    </div>
+
+    <!-- ── 目次 ── -->
+    <nav class="toc-nav">
+        <div class="toc-title">📋 機能カテゴリ一覧</div>
+        <ul class="toc-grid">
+            <li><a href="#cat-portal">1. ポータル・メニュー系</a></li>
+            <li><a href="#cat-monitor">2. 当日進捗モニター系 (電子ホワイトボード)</a></li>
+            <li><a href="#cat-booking">3. 予約操作・メインカレンダー系</a></li>
+            <li><a href="#cat-search">4. 検索・照会系</a></li>
+            <li><a href="#cat-print">5. 帳票・印刷系</a></li>
+            <li><a href="#cat-fu">6. フォローアップ系 <span style="font-size:10px; color:#94a3b8; font-weight:normal;">(凍結)</span></a></li>
+            <li><a href="#cat-stats">7. 集計・実績統計系</a></li>
+            <li><a href="#cat-master">8. マスタ管理・保守系</a></li>
+            <li><a href="#cat-flow">9. 画面遷移フロー図</a></li>
+            <li><a href="#cat-future">10. 今後の連携計画 (DICOM)</a></li>
+            <li><a href="#cat-safety">11. 医療安全・監査ログ・定型文DX系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">v0927新設</span></a></li>
+            <li><a href="#cat-urgent">12. 医師通知 ＆ 直近空き枠速報（予約アシスト）系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">v0927新設</span></a></li>
+            <li><a href="#cat-modern">13. Modern Web 最適化 ＆ 高速化モジュール分離 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">v0928/0929統合</span></a></li>
+            <li><a href="#cat-ux20260929">14. UI/UX全面刷新 ＆ 本物インページモーダルランナー系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">v0929新設</span></a></li>
+            <li><a href="#cat-medical-alert-onshi">15. 医療安全アラート完全独立ファイル化 ＆ オン資連携強化 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-01新設</span></a></li>
+            <li><a href="#cat-ward-admission">16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">ver1004新設</span></a></li>
+        </ul>
+    </nav>
+
+    <!-- ── 本文 ── -->
+    <main class="content">
+
+        <!-- ============================================================
+        1. ポータル・メニュー系
+        ============================================================ -->
+        <section class="spec-section" id="cat-portal">
+            <h2 class="category-title">1. ポータル・メニュー系</h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🏠 統合ポータル・ダッシュボード</span>
+                        <span class="screen-file">index.php</span>
+                    </div>
+                    <span class="badge badge-primary">エントリーポータル</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">システム全体の玄関口となる統合メニュー画面です。当日の予約状況をリアルタイムに集計表示するとともに、全機能へのクイックアクセスを提供します。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>当日予約サマリバー:</strong> 本日の日付・曜日と、肛門科・胃腸科ごとの当日確定予約件数をリアルタイム表示。</li>
+                        <li><strong>カテゴリ別メニューカード:</strong> 「予約操作」「検索・集計」「マスタ管理」に分類されたカード型UIから各画面へ遷移。</li>
+                        <li><strong>詳細説明トグルスイッチ:</strong> 初心者向けの詳細解説文を一括で表示／非表示切り替え。</li>
+                        <li><strong>デバッグモード切替:</strong> <code>system_debug.log</code> への詳細SQL・トランザクション記録のON/OFF制御。</li>
+                        <li><strong>システムヘルプ連携:</strong> ヘッダーの「❓」ボタンから別ウィンドウで <code>help.php</code>（操作マニュアル）を表示。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        2. 当日進捗モニター系 (電子ホワイトボード)
+        ============================================================ -->
+        <section class="spec-section" id="cat-monitor">
+            <h2 class="category-title">2. 当日進捗モニター系 (電子ホワイトボード)</h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📊 当日進捗ステータスモニター (電子ホワイトボード)</span>
+                        <span class="screen-file">progress_monitor.php</span>
+                    </div>
+                    <span class="badge badge-success">現場LIVE運用</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        検査当日の内視鏡室・前処置室・リカバリ室の動線と部屋の空き状況、安全タスクを一目で把握するリアルタイム電子ホワイトボード画面です。iPadや壁掛け大型モニター、各PC端末での運用に対応しています。1日最大15名超の内視鏡患者動線を漏れなく管理し、インシデント未然防止と職種間連携を支援します。
+                    </p>
+
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>7段階動線ステータス管理:</strong> ①来院・受付済 ➔ ②前処置準備 (マイトイレ案内) ➔ ③前処置完了 (検査待ち) ➔ ④検査中 ➔ ⑤リカバリ中 ➔ ⑥説明 ➔ ⑦帰宅・完了 を直感的にワンタップ進捗。状態遷移時にタイムスタンプを自動打刻。</li>
+                        <li><strong>エコー (ECHO) の完全除外:</strong> 電子ホワイトボードは内視鏡動線専用のため、データ取得API（<code>get_progress_data.php</code>）にて <code>exam_type NOT IN ('ECHO', 'エコー')</code> を適用し、エコー検査を完全除外。</li>
+                        <li><strong>検査種別フィルター4タブ独立化 (ALL / TCF / ENEMA / GIF):</strong> ヘッダーに「🔬 全内視鏡」「🟢 大腸系 (TCF)」「🟣 浣腸CF」「🔵 胃カメラ」の独立切替タブを常設。大腸TCF系と浣腸CF、胃カメラを完全に分離・集約可能。</li>
+                        <li><strong>新検査種別「浣腸CF」完全対応（前処置なし・GIF枠消化・緊急当日飛び込み連動）:</strong>
+                            <ul>
+                                <li>完全な腸洗浄を行わず、浣腸（環跳）のみで肛門近傍・直腸〜S状結腸を迅速検査する動線に完全最適化。</li>
+                                <li><strong>前処置スキップ（1➔3直行）:</strong> 下剤調剤・マイトイレ部屋案内（ステップ2）を自動スキップし、受付打刻からダイレクトにステップ3（検査待ち・浣腸待機）へ遷移。前処置室セルには「💉 浣腸のみ (下剤不要)」と明示。</li>
+                                <li><strong>枠消化と医師提供数:</strong> 原則として胃カメラ（GIF枠）で実施され、既存のGIF提供数の中で柔軟に消化（新規枠増設や提供数加算は不要）。TCF枠での実施にも対応。</li>
+                                <li><strong>🚨「➕ 当日・緊急追加」ボタン新設:</strong> 予定検査に加え、外来からの緊急検査やヘモOP前検査が発生した際、ホワイトボード画面からダイレクトに当日予約モーダルを開き、即座に入力・リアルタイム反映が可能。</li>
+                                <li><strong>視認性の高い専用バッジ:</strong> <code>.exam-chip-enema</code>（🟣 浣腸CF）により、通常TCF（緑）やGIF（青）と瞬時に識別可能。</li>
+                            </ul>
+                        </li>
+                        <li><strong>胃カメラ (GIF) の前処置自動スキップ:</strong> GIFは下剤・マイトイレ案内が不要なため、受付済(1)から進める際に<strong>ステップ2を自動スキップして直接ステップ3（検査待ち）へ遷移</strong>（<code>is_prep_skipped = TRUE</code>）。画面上でも「GIF前処置なし」と明示。</li>
+                        <li><strong>セデーション (鎮静剤) 有無連動 & 自動判定:</strong>
+                            <ul>
+                                <li>カルテメモ（<code>remarks</code>）の「注あり/なし」「注射あり/なし」「鎮静あり/なし」「プロポフォール」等の記載から初期状態を自動検知（肛門科プロポフォール、胃腸科ミダゾラム等）。浣腸CFにおけるヘモOP前の覚醒下（注なし）も高精度に自動判定。</li>
+                                <li>画面上でワンタップでセデーション有無（あり/なし/種別）を切替可能。</li>
+                                <li><strong>鎮静なしの場合:</strong> 検査中(4)から進める際、<strong>ステップ5（リカバリ中）を自動スキップして直接ステップ6（説明）へ遷移</strong>。不要なベッド占有表示を排除。</li>
+                            </ul>
+                        </li>
+                        <li><strong>【重大インシデント未然防止】組織採取・病理検体 カルテ声出し照合:</strong> 検査中からリカバリへの退室時、採取部位（盲腸C、上行A、横行T、下行D、S状S、直腸Rb/Ra、肛門管P等）と個数をカルテと声出し確認するモーダルを必須化。未照合時は <code>🚨 検体未照合⚠️</code> が点滅警告。</li>
+                        <li><strong>スコープ洗浄指示タスク連動:</strong> 検査終了時に補助看護師へ洗浄指示タスク（指示中 ➔ 洗浄中 ➔ 完了）を自動発行。洗浄完了時刻まで追跡管理。</li>
+                        <li><strong>誤操作巻き戻し (Undo) 機能:</strong> 誤ってステータスを進めた場合、理由選択（「押し間違い」「前処置遅延」「医師指示」「その他」）付きで直前のステータスへ安全に差し戻し可能。変更ログ（<code>t_progress_status_log</code>）に完全永続化。</li>
+                        <li><strong>職種別ビュー切替 (5職種・専用ガイダンス ＆ 完全特化UI):</strong>
+                            <ul>
+                                <li><code>🌐 全体俯瞰 (all)</code>: 全体大型モニター・統括用。全7列（枠/科、患者情報、来院受付、マイトイレ、ステータス、検体/洗浄、リカバリ/説明）をバランス良く均等表示。</li>
+                                <li><code>👨‍⚕️ 医師 (doctor)</code>: <strong>【新設・完全特化】</strong>
+                                    <ul>
+                                        <li><strong>不要列の自動非表示:</strong> 医師業務に無関係な「マイトイレ/下剤」「来院受付打刻」列を完全非表示（<code>display: none;</code>）にして画面を広々と確保（受付時刻は患者情報内にバッジで小さく提示）。</li>
+                                        <li><strong>カルテ特記事項の特大強調:</strong> ポリープ切除予定や抗血栓薬、既往歴（<code>remarks</code>）をゴールド枠の特大カードで患者名直下に大きく展開。</li>
+                                        <li><strong>臨床直結アクション:</strong> 「🚪 検査開始 (入室)」「✅ 検査終了」「📋 結果説明完了」の大型医師ボタンをワンタップ直結。</li>
+                                        <li><strong>医師専用クイック絞り込み:</strong> 「🔥 診察・検査対象のみに絞り込む」トグルで、前処置中や帰宅済の患者を瞬時に隠し、今診るべき患者だけを一覧化。</li>
+                                    </ul>
+                                </li>
+                                <li><code>👩‍⚕️ 看護師 (nurse)</code>: <strong>【ケア＆安全特化】</strong>
+                                    <ul>
+                                        <li><strong>不要列の最小化:</strong> 来院受付列を最小幅に圧縮。</li>
+                                        <li><strong>重大インシデント防止:</strong> <code>🚨 検体未照合⚠️</code> を画面最優先で強烈パルス点滅。</li>
+                                        <li><strong>安静管理の主役化:</strong> リカバリ安静タイマー（⏱️ ○分/○分）を特大表示し、覚醒目安達成時はグリーンで誘導。セデーションバッジも特大化。</li>
+                                        <li><strong>看護師専用クイック絞り込み:</strong> 「🚨 介助・リカバリ・未照合のみ絞り込む」トグルで、要対応患者に即座に集中。</li>
+                                    </ul>
+                                </li>
+                                <li><code>🧑‍🔬 補助看護師 (assistant)</code>: <strong>【前処置＆洗浄特化】</strong>
+                                    <ul>
+                                        <li><strong>不要列の自動非表示:</strong> 補助看護師の管轄外である「リカバリ/説明」列を完全非表示（<code>display: none;</code>）。</li>
+                                        <li><strong>マイトイレ・下剤列のドカン拡大:</strong> 横幅260pxで画面中央に拡大。部屋割プルダウンや下剤作成トグル（未作成/作成済/配薬済）を大型化。</li>
+                                        <li><strong>スコープ洗浄指示の最優先キャッチ:</strong> 検査終了後の <code>🧼 スコープ洗浄指示中</code>（ORDERED）行をオレンジ点滅で特大表示し、ワンタップで洗浄完了へ移行。</li>
+                                        <li><strong>補助専用クイック絞り込み:</strong> 「🧼 トイレ案内 ＆ 洗浄指示のみ絞り込む」トグル完備。</li>
+                                    </ul>
+                                </li>
+                                <li><code>📋 受付事務 (clerk)</code>: <strong>【受付＆所在確認特化】</strong>
+                                    <ul>
+                                        <li><strong>不要列の完全非表示:</strong> 医療処置列（マイトイレ、検体/スコープ、リカバリ詳細）の3列をごっそり非表示（<code>display: none;</code>）にし、受付カウンターのPCで超シンプルな4列構成にスッキリ整理。</li>
+                                        <li><strong>来院受付打刻の大型化:</strong> 未打刻の患者行に巨大なエメラルドボタン「🕒 来院受付 打刻」を提示。</li>
+                                        <li><strong>患者の現在所在をリアルタイム表示:</strong> 「📍 待合室」「🚽 マイトイレ」「🚪 検査待合」「🔬 内視鏡室」「🛏️ リカバリ室」「💬 診察室」「🏁 帰宅完了」の所在バッジを明示。</li>
+                                        <li><strong>会計帰宅完了直結:</strong> 結果説明済みの患者に「🚪 帰宅・完了 (会計済) ▶」を大きく提示。</li>
+                                        <li><strong>受付専用クイック絞り込み:</strong> 「📋 未受付 ＆ 会計待ちのみ絞り込む」トグル完備。</li>
+                                    </ul>
+                                </li>
+                                <li><strong>職種専用テーマカラー ＆ インジケーターバー:</strong> テーブル直上のバーが各職種専用カラー（医師: エメラルド、看護師: インディゴ、補助: アンバー、受付: ティール、全体: スレート）に美しく切り替わり、現場リアルタイム人数とクイック絞り込みボタンを常設。</li>
+                            </ul>
+                        </li>
+                        <li><strong>マイトイレ・下剤作成配薬指示:</strong> 汎用マスタ（<code>toilet_room</code>: ﾏ101〜ｺ212）から部屋を即時割当。下剤（モビ/マグP/ニフ）の作成指示・配薬完了ステータスおよび注意ガイダンスを表示。</li>
+                        <li><strong>受付時刻の打刻・手打ち修正連携:</strong> ワンクリックで現在時刻を打刻可能。手打ちでの修正にも対応し、既存の <code>t_endoscopy_schedule.arrival_time</code> と双方向連動。</li>
+                        <li><strong>自動更新タイマー ＆ クライアント個別保存 (localStorage):</strong> 10秒 / 20秒 / 30秒 / 60秒 / 停止 を切替可能（カウントダウンバー付き）。<strong>設定した更新秒数および選択した職種ビューはブラウザの <code>localStorage</code> に完全保存</strong>され、リロードや次回アクセス時も各端末（処置室iPad・受付PC・診察室端末・ナースステーション）ごとに最適な設定が永続維持される（ヘッダーに「💾 端末保存」バッジおよびトースト通知を常備）。</li>
+                        <li><strong>【v0927新設】医療安全アラートサマリーバー ＆ ワンクリック確認トグル:</strong> 画面上部の動線サマリーバーに「💊 要休薬確認」「🔴 感染症注意」「⚠️ 局麻注意」「😷 風邪・発熱」の集計カードを常備。患者カード上の <code>💊 要休薬確認 ⚠️（赤点滅）</code> をワンタップで <code>💊 休薬確認済 ✔</code> へ反転保存。風邪・発熱トグルも装備。</li>
+                        <li><strong>【v0927新設】直近操作履歴・自端末Undo復元 ＆ アラート一括スキャン:</strong> ヘッダーに「🕒 操作履歴・復元」「🛡️ アラートスキャン」ボタンを常備。誤操作時の即時巻き戻しや、当日予約患者のアラート再スキャンに対応。</li>
+                    </ul>
+
+                    <div class="feature-title" style="margin-top: 18px;">🗄️ 専用データベーステーブル構成</div>
+                    <table class="spec-table" style="width:100%; margin-top:8px; border-collapse:collapse; font-size:12.5px;">
+                        <thead>
+                            <tr style="background:#f1f5f9; text-align:left;">
+                                <th style="padding:6px 10px; border:1px solid #cbd5e1;">テーブル名</th>
+                                <th style="padding:6px 10px; border:1px solid #cbd5e1;">役割・特徴</th>
+                                <th style="padding:6px 10px; border:1px solid #cbd5e1;">主要カラム</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;"><code>m_progress_status</code></td>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;">動線ステータスマスタ (1〜7)</td>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;">status_id, status_code, status_name, primary_role, action_roles, step_order</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;"><code>t_today_progress</code></td>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;">当日進捗管理テーブル (予約と1対1)</td>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;">schedule_id, exam_date, current_status_id, arrival_time, toilet_room, has_sedation, sedation_type, is_prep_skipped, scope_cleaning_status, has_biopsy, biopsy_count, biopsy_sites, biopsy_verified</td>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;"><code>t_progress_status_log</code></td>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;">ステータス変更履歴・監査ログ</td>
+                                <td style="padding:6px 10px; border:1px solid #cbd5e1;">log_id, schedule_id, from_status_id, to_status_id, action_type (FORWARD/REVERT), revert_reason, operator_name, created_at</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="feature-title" style="margin-top: 18px;">🔌 関連APIモジュール一覧</div>
+                    <ul class="feature-list">
+                        <li><code>get_progress_data.php</code>: 当日予約データの同期生成、エコー除外、GIF/セデーション自動判定、サマリ集計、リアルタイムJSON配信API。</li>
+                        <li><code>action_progress.php</code>: ステータス進捗（スキップ自動判定含む）、Undo差し戻し、受付打刻、マイトイレ変更、下剤作成、スコープ洗浄、検体照合、セデーション切替のトランザクション更新API。</li>
+                        <li><code>lib/progress_db.php</code>: 初回アクセス時にテーブル・インデックス・マスタデータを自動生成（<code>initProgressTables()</code>）する安全設計モジュール。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        3. 予約操作・メインカレンダー系
+        ============================================================ -->
+        <section class="spec-section" id="cat-booking">
+            <h2 class="category-title">3. 予約操作・メインカレンダー系</h2>
+
+            <!-- 予約マトリクス -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📊 予約マトリクス (縦型V2)</span>
+                        <span class="screen-file">month_matrix_v2.php</span>
+                    </div>
+                    <span class="badge badge-success">メイン予約画面</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">縦軸に日付、横軸に時間枠を配した月間・週間の予約総覧テーブル画面です。ドラッグ＆ドロップ操作による予約変更に対応しています。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>予約状況の総覧表示:</strong> 時間枠ごとに患者氏名、検査種別バッジ（GIF/TCF/エコー）、担当医を視覚的に表示。</li>
+                        <li><strong>ドラッグ＆ドロップ（D&D）予約変更:</strong> 予約セルを別の日付・時間枠へ直感的にD&Dして即時変更可能。</li>
+                        <li><strong>新規予約登録:</strong> 空きセルをクリックして予約モーダル（<code>modal_edit.php</code>）を起動。</li>
+                        <li><strong>期間切替:</strong> 1ヶ月表示／3ヶ月連続表示の切り替え。</li>
+                        <li><strong>診療科切替:</strong> 🟢 肛門科 / 🔵 胃腸科 のワンクリック切り替え。</li>
+                        <li><strong>絞り込みフィルター:</strong> 医師別、検査種別（GIF/エコー/TCF）での絞り込み。</li>
+                        <li><strong>詳細／簡略表示トグル:</strong> セル内の情報密度（患者名のみ／詳細情報付き）の切り替え。</li>
+                        <li><strong>日別カレンダーメモ連携:</strong> <code>t_daily_memo</code> から対象期間内の連絡事項・メモを一括プリフェッチし、システム共通のメモ基盤と連携。</li>
+                        <li><strong>【v0927新設】コンパクト医療安全ピクトグラム表示:</strong> 各予約タイル内に 💊（抗血栓/休薬）、⚠️（局麻アレルギー）、🔴（感染症）、😷（風邪症状）をピクトグラム表示。</li>
+                        <li><strong>【v0927新設】操作履歴復元（Undo）＆ アラートスキャン:</strong> ヘッダーに「🕒 操作履歴・復元」「🛡️ アラートスキャン」ボタンを常備。誤移動時の即時巻き戻しに対応。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 月間カレンダービュー -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📅 月間カレンダービュー ＆ 予約一覧</span>
+                        <span class="screen-file">month_schedule.php</span>
+                    </div>
+                    <span class="badge badge-warning">運用ダッシュボード</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">上部に月間カレンダー（各日の枠数・残数サマリ）、下部に選択日の予約一覧を配置したダッシュボード画面です。ワイドモニターに最適化されたレイアウト（1680px対応）を搭載しています。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>月間カレンダー表示:</strong> 各日の医師別・検査種別ごとの予約状況（使用数/最大枠、残数、検査数）を表示。休診日や肛門科W制限（2件超過）警告バッジを表示。</li>
+                        <li><strong>📝 日別カレンダーメモ機能（<code>t_daily_memo</code> 連携）:</strong> 各日付セルに <code>📝 メモ内容</code> バッジ（黄色背景）をインメモリ一括プリフェッチ（N+1解消）で高速描画。セルクリックによる画面遷移と競合せず直接編集モーダルを起動可能。選択日詳細ヘッダーにも現在のメモを表示し、ワンクリックで再編集や「＋メモ追加」が可能。空文字保存時はDBから物理削除（自動クリーンアップ）。</li>
+                        <li><strong>出勤例外（<code>m2_doctor_attendance</code>）の完全連動:</strong> 共通ライブラリ <code>lib/slot_helper.php</code> の3層優先度（出勤例外 ＞ 日別上書き ＞ 曜日パターン）に基づき、臨時出勤（例: 土曜の哲也先生）や臨時休診を最優先でカレンダー枠数集計・青丸バッジ描画。</li>
+                        <li><strong>🎨 選択セル強調UI（2重線 ＆ グラデーション）:</strong> カレンダー上で選択中の日付セルを青色2重線（<code>outline: 3.5px double #033bb3ff</code>）および淡色グラデーション（<code>linear-gradient(to bottom, #ddeaffff 0%, #7bbbffff 100%)</code>）で強調表示。内部の枠数バッジや文字レイアウトを崩さずに高い視認性を実現。</li>
+                        <li><strong>日別予約一覧（下ペイン）:</strong> 時間枠、カルテNO、患者名（年齢・誕生日）、種別、部屋、下剤、RTF装飾対応備考の一覧表示。患者名ホバーで「スケジュールID（システムデータ）」「作成日時」「更新日時」のツールチップを表示。</li>
+                        <li><strong>独立操作列:</strong> 各行に ➕（新規追加）、🚫（枠なし設定・解除）、✏️（予約編集・削除）を配置。</li>
+                        <li><strong>電カル連携リンク:</strong> カルテNOをクリックすると別タブで電子カルテビューアー（<code>karteview.php</code>）が直接起動。</li>
+                        <li><strong>⚠️ 未来予約 重複・併用チェック（モーダル）:</strong> 本日以降の複数予約データを自動検出し、「🚨 異常の疑い」「ℹ️ ① 同日併用」「📅 ② 別日計画」の3カテゴリに自動分類して表示。モーダル内から電カル連携・日付ジャンプ・編集が可能。各予約行ホバー（またはℹ️アイコン）で異常データ判別用の「スケジュールID（システムデータ）」「作成日時」「更新日時」ツールチップを表示。</li>
+                        <li><strong>上下レイアウト入れ替え:</strong> カレンダーと予約一覧の上下配置を反転（localStorage保持）。</li>
+                        <li><strong>【v0927新設】患者名横の医療安全アラートバッジ表示:</strong> 予約一覧の患者名横にカラーバッジ（💊抗血栓、⚠️局麻注意、🔴感染症、😷風邪）を表示。クリックで個別のアラート確認・変更モーダルが起動。</li>
+                        <li><strong>【v0927新設】操作履歴復元（Undo）＆ アラート一括スキャン:</strong> ヘッダーに「🕒 操作履歴・復元」「🛡️ アラートスキャン」ボタンを常備。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 予約登録モーダル -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">✏️ 予約新規登録・編集モーダル</span>
+                        <span class="screen-file">modal_edit.php</span>
+                    </div>
+                    <span class="badge badge-neutral">ポップアップ入力画面</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">予約マトリクスや月間カレンダーから起動される予約データ入力・更新・削除画面です。電子カルテ連携および入力支援機能を備えています。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>患者検索・インクリメンタルサジェスト:</strong> カルテNO入力時に患者名・カナ・生年月日を自動補完。</li>
+                        <li><strong>出勤例外医師のプルダウン自動反映 ＆ 👥全員トグル切替:</strong> <code>get_present_doctors.php</code> APIの刷新により、出勤例外で臨時出勤する医師を正確に担当医選択肢へ動的展開。さらにプルダウン横に <code>[👥 全員]</code> ボタンを配置し、通常は当日の検査枠提供医師のみ表示して誤選択を防ぎつつ、他科医師や代診医師を指定したい場合はワンクリックで全登録医師（誠吾・哲也・義智・慶太郎等）へ0msで瞬時切替可能（枠あり ⇄ 全員 トグル）。</li>
+                        <li><strong>診療科別（肛門科・胃腸科）特別処理・初期値制御:</strong>
+                            <ul style="margin:4px 0 6px 16px;">
+                                <li><strong>🟢 肛門科 (PROCT):</strong> 新規予約時に担当医「誠吾」、場所「内視鏡室（おの）」、来院時間「9:00」を固定セット。出勤判定API結果に関わらずリスト先頭に「誠吾」を強制追加。</li>
+                                <li><strong>🔵 胃腸科 (GASTRO):</strong> GIF枠またはTCF枠選択時、実施場所プルダウンをマスタ最上位の「内視鏡室」に自動セット（エコー枠等は未選択維持）。GIF枠選択時は枠開始30分前時刻を来院時間に自動算出。既存予約編集時は登録済みの実施場所を100%保持（非破壊）。</li>
+                            </ul>
+                        </li>
+                        <li><strong>検査枠・医師・種別選択:</strong> 予約日、時間枠、担当医師、検査種別、来院時刻、検査場所の指定。時間枠変更時・種別変更時の動的JavaScript連動。</li>
+                        <li><strong>前処置・部屋割り指定:</strong> 前処置室（部屋番号1〜4等）および下剤（モビプレップ、マグコロールP、ニフレック等）の指定。</li>
+                        <li><strong>RTF装飾対応備考欄:</strong> 太字、文字色、マーカー装飾付きのリッチテキスト備考入力。定型文パレット連携。</li>
+                        <li><strong>電子カルテMALL連携:</strong> 「電カル」ボタンによるカルテ起動と、「MALL3メモ表示」パネル（電カル側の最新メモを参照しワンクリックで備考欄へコピー）。</li>
+                        <li><strong>【v0927新設】医療安全アラート意識的設定コントロール:</strong> 患者情報パネル下部に4大アラート（💊抗血栓、⚠️アレルギー、🔴感染症、😷風邪）のトグルチェックボックスを設置。新規予約時はカルテID入力時にMALLメモから注意キーワードを自動検知して初期ON＋根拠スニペットヒントを表示。スタッフが必要に応じて手動で自由に調整可能。</li>
+                        <li><strong>【v0927新設】予約保存時のアラート同期（抜け防止）:</strong> 予約テーブル（<code>t_endoscopy_schedule</code>）のINSERT/UPDATEと同一トランザクション内で <code>syncMedicalAlertOnScheduleSave</code> を実行。備考変更時の同期漏れを100%防止。</li>
+                        <li><strong>【v0927新設】備考定型文パレット（#remarksPalette）のフルリニューアル:</strong> 確実なドラッグ移動（境界はみ出し防止）、右下ドラッグによるサイズ可変（リサイズ対応）、医療安全タグワンクリック挿入ボタン常設、各チップのインライン「編集（✏️）」および「削除（🗑️）」機能を装備。</li>
+                        <li><strong>【v0927新設】予約削除時のA+Bハイブリッド判定（誤登録除外 ＆ 削除理由選択）:</strong> 予約作成から10分以内の削除は「誤登録の即時取消・打ち直し」と自動判定して理由モーダルを省略し即時削除（キャンセル速報バッジも非付与）。10分超経過時は「🗑️ 削除理由選択モーダル（患者都合キャンセル / 日程変更 / 誤登録）」を表示し、スタッフが選んだ真のキャンセルのみを直近空き枠速報へ連携。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 枠・供給サマリ -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📊 枠・供給サマリ</span>
+                        <span class="screen-file">daily_slot_summary.php</span>
+                    </div>
+                    <span class="badge badge-neutral">分析・診断画面</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">当日の「時間枠（需要枠）」と「出勤医師の最大受入枠（供給枠）」のバランスを詳細分析する画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>需要と供給の比較サマリ:</strong> 時間枠定義数と出勤医師枠数の過不足診断。</li>
+                        <li><strong>検査種別ごとの残枠数・不足警告:</strong> GIF・エコー・TCFそれぞれの定員超過・残枠判定。</li>
+                        <li><strong>同日の部屋割り重複チェック:</strong> 同一の部屋番号が重複設定されている場合の警告。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 部屋・下剤一括設定 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🚪 部屋割り・前処置下剤一括設定</span>
+                        <span class="screen-file">bulk_edit_prep_room.php</span>
+                    </div>
+                    <span class="badge badge-neutral">業務効率化画面</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">当日の大腸内視鏡検査等の患者全員の「前処置室」と「下剤」を単一画面で一括指定できる高速入力画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>当日患者の一覧テーブル表示:</strong> 氏名、カルテNO、時間枠、現在の部屋・下剤設定を表示。</li>
+                        <li><strong>ドロップダウンによる一括変更:</strong> 各患者の部屋番号（1〜4号室等）と下剤種別を選択。</li>
+                        <li><strong>リアルタイム部屋重複アラート:</strong> 同一の部屋番号を複数人に割り当てた際にハイライト警告。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 日別カレンダーメモ機能 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📝 日別カレンダーメモ機能（業務連絡・体制メモ共有）</span>
+                        <span class="screen-file">t_daily_memo / month_schedule.php (AJAX連携)</span>
+                    </div>
+                    <span class="badge badge-warning">全科対応・リアルタイム共有</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">カレンダー上の各日付に対して、医師の午後休診・学会出張、臨時体制、看護師連絡事項、内視鏡機器点検などの業務連絡・特記事項を直接記録・共有できる常設メモ機能です。ページ遷移を伴わず、ポップアップモーダルから即時保存・削除が可能です。</p>
+                    <div class="feature-title">📌 主な機能・仕様詳細</div>
+                    <ul class="feature-list">
+                        <li><strong>データベース構造（<code>t_daily_memo</code>）:</strong> 診療科（<code>department_code</code>: GASTRO/PROCT）および対象日（<code>target_date</code>: YYYY-MM-DD）の複合主キーでメモ本文（<code>memo</code>）と更新日時（<code>updated_at</code>）を管理。診療科ごとに独立した連絡メモを保持。</li>
+                        <li><strong>超高速インメモリ一括プリフェッチ（N+1問題の根絶）:</strong> カレンダー表示対象月（前月末〜翌月初を含む全カレンダー枠）のメモを <code>SELECT target_date, memo FROM t_daily_memo WHERE department_code = :dept AND target_date BETWEEN :start AND :end</code> の単一クエリで一括取得（<code>FETCH_KEY_PAIR</code>）。カレンダー描画ループ内で個別クエリを発行せず、0msクラスの超高速描画を実現。</li>
+                        <li><strong>カレンダーセル直接連動（黄色メモバッジ）:</strong> 日付セルの日番号横に <code>📝 メモ内容</code> の視認性の高いバッジを常時表示。長文は自動省略され、マウスホバーで全文ツールチップを確認可能。セルクリックによる画面遷移を起こさず（<code>event.stopPropagation()</code>）、バッジクリックで直接メモ編集モーダルを起動。</li>
+                        <li><strong>選択日ヘッダー連携 ＆ クイック追加:</strong> 画面下部の日別予約一覧ヘッダーに、現在選択されている日のメモを <code>📢 メモ内容 ✏️</code> として大きく表示。メモが未登録の日には <code>[＋メモ追加]</code> ボタンが表示され、どちらからでもワンクリックで編集・新規登録が可能。</li>
+                        <li><strong>専用編集モーダル（<code>#dailyMemoModal</code>）:</strong> 対象日付・診療科の明記、複数行テキストエリア、入力支援プレースホルダー（「例：〇〇先生午後休診」）、安全な閉じる操作（✕ボタン / キャンセル / ESCキー / 背景クリック）を完備。</li>
+                        <li><strong>シームレスなAJAX保存・自動物理クリーンアップ:</strong> 「保存」実行時に <code>action=ajax_save_daily_memo</code> を非同期通信で呼出。Upsert（<code>INSERT ... ON CONFLICT (department_code, target_date) DO UPDATE</code>）で即時更新。空文字で保存した場合はレコードを <code>DELETE</code> する安全な物理クリーンアップが自動実行され、無駄な空レコードを残さない設計。</li>
+                        <li><strong>複数カレンダー画面連携:</strong> <code>month_schedule.php</code>（月間カレンダー）のみならず、<code>month_matrix_v2.php</code>（予約マトリクス）でもデータプリフェッチに対応し、システム共通のメモ基盤として設計。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        4. 検索・照会系
+        ============================================================ -->
+        <section class="spec-section" id="cat-search">
+            <h2 class="category-title">4. 検索・照会系</h2>
+
+            <!-- 空き枠検索 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🔍 空き枠検索 ＆ 直近速報（タブ切り替え型統合）</span>
+                        <span class="screen-file">slot_search.php</span>
+                    </div>
+                    <span class="badge badge-success">アルゴリズム完全整合 ＆ 直近速報統合済</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        大腸内視鏡の直近空き枠（30日間）を最優先表示する「⚡ 直近空き枠速報」と、月・曜日・検査種別を細かく指定できる「🔍 条件指定検索」を1画面に統合したタブ切り替え型検索画面です。カレンダー画面と100%同一の枠数・消化集計ロジックを搭載し、初期表示時は逼迫する大腸カメラの直近枠が即座に展開されます。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>【v0927新設】デフォルト直近速報モード:</strong> 初期アクセス時（パラメータなし）は「⚡ 直近空き枠速報（全科横断・30日大腸CF）」が最優先表示。医師別タブ（全員/誠吾/哲也/義智/慶太郎）、残枠メーター、直前キャンセル枠バッジ、カレンダー遷移＆新規予約起動ボタンをカード形式で一覧表示。</li>
+                        <li><strong>【v0927新設】タブ切り替え型UI:</strong> 上部タブ「🔍 条件指定検索」をクリックすると、従来の月別・曜日別・胃カメラ等の詳細検索フォームへシームレスに切り替え。検索実行後や <code>?mode=custom</code> 指定時は自動で条件指定検索側がアクティブに維持。</li>
+                        <li><strong>多角的検索条件（条件指定時）:</strong> 診療科（胃腸科/肛門科）、検査種別（GIF/エコー/TCF）、担当医師、曜日（月〜土の個別指定・全選択）、期間指定、月ショートカット（直近12ヶ月分）。</li>
+                        <li><strong>曜日パターンの正確な集約（MAX / GROUP BY）:</strong> <code>m2_doctor_slot_pattern</code> の複数行構造（GIF/ECHO/TCF）に対応した <code>MAX()</code> 集約クエリを採用。複数行ループ時の上書き消失によるエコー枠等の誤検知・0枠判定を根絶。</li>
+                        <li><strong>カレンダー準拠の予約消化集計:</strong> カレンダー画面（<code>month_schedule.php</code>）と同等の検査種別グループ（GIF/胃がん検診、ECHO/エコー、TCF/W/ポリペク）で消化数を正確に集計。「🚫枠なし🚫」ダミー予約の除外処理も完備。</li>
+                        <li><strong>月ショートカットと期間入力欄の完全同期:</strong> 月ボタン（例: 12月）を選択した際、期間入力欄の表示日付（<code>YYYY-MM-01 〜 YYYY-MM-末日</code>）も自動で同期更新され、視覚的な混乱を防止。</li>
+                        <li><strong>空き枠一覧表示:</strong> 日付、曜日、担当医、検査種別バッジ、<strong>残枠 / 定員</strong>の視認性の高いテーブル表示。</li>
+                        <li><strong>カレンダー直接ジャンプ ＆ 即時予約起動:</strong> 検索結果の各行をクリックすると、該当日の <code>month_schedule.php</code>（残数表示モード）へ即座に遷移。「➕ この枠で予約」からは新規予約モーダルを自動起動。</li>
+                        <li><strong>実用的な上限（300件）制御:</strong> 既存予約数ではなく、算出された「空き枠検索結果の件数」が300件を超えた場合に絞り込み案内を表示。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 予約済患者検索 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🔎 予約済患者検索</span>
+                        <span class="screen-file">search_patient.php / patient_search.php</span>
+                    </div>
+                    <span class="badge badge-neutral">横断履歴照会</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">過去から未来までの全期間の予約データから、特定患者の受診履歴や今後の予約日程を検索・調査する画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>複合条件検索:</strong> カルテNO、患者氏名、患者カナでの部分一致／完全一致検索。</li>
+                        <li><strong>全受診履歴の時系列表示:</strong> 過去の検査履歴、担当医、検査種別、特記事項の確認。</li>
+                        <li><strong>未来予約の確認とカレンダー連携:</strong> 先々の予約が入っているかを確認し、該当日カレンダーへジャンプ。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        5. 帳票・印刷系
+        ============================================================ -->
+        <section class="spec-section" id="cat-print">
+            <h2 class="category-title">5. 帳票・印刷系</h2>
+
+            <!-- 当日予約一覧表 印刷画面 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🖨️ 当日予約一覧表 印刷</span>
+                        <span class="screen-file">print_schedule_daily.php</span>
+                    </div>
+                    <span class="badge badge-neutral">A4横 デイリー帳票</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">内視鏡室やナースステーションで掲示・共有するための当日予約スケジュール一覧印刷画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>A4横向き印刷最適化:</strong> ヘッダー・フッターやページ区切りが美しく収まるクリーンレイアウト。</li>
+                        <li><strong>整列順の制御:</strong> 時間枠順、前処置室順での一覧整列。</li>
+                        <li><strong>患者詳細情報印字:</strong> カルテNO、患者名、生年月日、検査種別、担当医、下剤、部屋、備考の網羅。</li>
+                        <li><strong>種別絞り込み印刷:</strong> GIFのみ、TCFのみ等の印刷対象フィルタリング。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 検査シート印刷 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📋 検査問診・確認シート 印刷</span>
+                        <span class="screen-file">print_endoscopy_sheet.php</span>
+                    </div>
+                    <span class="badge badge-neutral">カルテ添付用シート</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">検査当日にカルテへ添付し、患者確認・バイタル記録・生検ポリペク記録を行うための個別シート印刷です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>患者属性の自動印字:</strong> 氏名、カルテNO、生年月日、年齢、検査種別、担当医の自動差し込み。</li>
+                        <li><strong>処置・安全管理チェック欄:</strong> アレルギー確認、同意書確認、生検個数、回収瓶チェック欄の印字。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 患者控え伝票 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🧾 患者控え伝票 印刷</span>
+                        <span class="screen-file">print_patient_slip.php</span>
+                    </div>
+                    <span class="badge badge-neutral">患者配布用伝票</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">予約確定時に患者へ手渡す受診案内・予約控えの印刷画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>予約案内印字:</strong> 予約日時、来院指定時間、来院窓口の明記。</li>
+                        <li><strong>事前準備の案内:</strong> 前日の食事制限、服薬の指示（休薬薬等）の注意事項印字。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        6. フォローアップ（F/U）管理系
+        ============================================================ -->
+        <section class="spec-section" id="cat-fu">
+            <h2 class="category-title">6. フォローアップ（F/U）管理系 <span class="badge badge-neutral" style="margin-left: 10px; font-size: 11px; vertical-align: middle;">🧊 開発凍結中（実運用利用なし）</span></h2>
+
+            <div class="screen-card" style="opacity: 0.85; border-left: 4px solid #94a3b8;">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📋 フォローアップ管理ポータル ＆ シート発行</span>
+                        <span class="screen-file">followup/index.php / followup/edit.php</span>
+                    </div>
+                    <span class="badge badge-neutral">🧊 開発凍結（利用予定なし）</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc" style="color: #64748b;">検査終了後に次回推奨受診時期（1〜3年後等）を管理し、案内シートを発行・未受診者を追跡するサブシステム構想です。<br>
+                    <strong>※実運用における利用予定がないため、現在は開発および機能拡張を凍結しています。</strong></p>
+                    <div class="feature-title">📌 主な機能一覧（凍結時点の構想）</div>
+                    <ul class="feature-list" style="color: #64748b;">
+                        <li><strong>F/U計画登録（edit.php）:</strong> 検査結果に基づき、次回受診推奨年月、来院目的（ポリープ切除後、ピロリ後、経過観察等）を登録。</li>
+                        <li><strong>F/U案内シート発行:</strong> 患者へ手渡す次回検査案内レターの印刷出力。</li>
+                        <li><strong>月別予定者一覧（index.php / list.php）:</strong> 今月受診予定となっている患者のリストアップと受診状況の追跡。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        7. 集計・実績統計系
+        ============================================================ -->
+        <section class="spec-section" id="cat-stats">
+            <h2 class="category-title">7. 集計・実績統計系</h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📈 検査数集計・実績統計</span>
+                        <span class="screen-file">stats.php</span>
+                    </div>
+                    <span class="badge badge-neutral">月次・年次レポート</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">診療実績の把握や業務報告書作成のために、内視鏡検査実施件数を多角的に集計する統計画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>期間指定集計:</strong> 月次、年次、任意期間での集計。</li>
+                        <li><strong>多角的クロス集計:</strong> 診療科別（胃腸科 / 肛門科）、医師別、検査区分別（上部: GIF+W / 下部: TCF+W+ポリペク / エコー / 術前F）。</li>
+                        <li><strong>CSVエクスポート:</strong> 集計表および明細データのCSVダウンロード機能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        8. マスタ管理・保守系
+        ============================================================ -->
+        <section class="spec-section" id="cat-master">
+            <h2 class="category-title">8. マスタ管理・保守系</h2>
+
+            <!-- 検査枠マスタ -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">⚙️ 検査枠マスターメンテナンス</span>
+                        <span class="screen-file">slot_master_maintenance.php</span>
+                    </div>
+                    <span class="badge badge-warning">運用根幹マスタ</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">診療体制・予約枠の基本ルール（時間枠定義・医師出勤パターン・日別例外）を一元管理する最重要保守画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>時間枠定義（m2_waku）:</strong> 時間枠名称、表示順、標準グループ（GIF/TCF/エコー）の追加・編集。</li>
+                        <li><strong>医師別曜日別枠パターン（m2_doctor_patterns）:</strong> 医師ごとに各曜日（月〜土）の担当枠数・定員をパターン化。</li>
+                        <li><strong>日別例外・出勤上書き（t_attendance_exceptions）:</strong> 学会・休暇・代診に伴う特定日の定員上書き・臨時枠追加・出勤除外。</li>
+                        <li><strong>日別定員キャパシティ管理（t_daily_capacity）:</strong> 各日の総受入上限枠数の設定。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 汎用マスタ -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🔧 汎用マスタメンテナンス</span>
+                        <span class="screen-file">master_maintenance.php</span>
+                    </div>
+                    <span class="badge badge-neutral">選択肢マスタ</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">システム内で使用される各種選択肢（医師・検査種別・来院時刻・場所等）を管理する画面です。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>医師マスタ（m_doctors）:</strong> 医師氏名、所属科、表示順、有効／無効フラグ管理。</li>
+                        <li><strong>検査種別マスタ（m_exam_types）:</strong> 検査名、区分、テーマカラー設定。</li>
+                        <li><strong>来院時刻・検査場所マスタ:</strong> 各種ドロップダウン選択肢の追加・編集。</li>
+                        <li><strong>院内休診日マスタ:</strong> 祝日振替や年末年始・夏季休診等の独自カレンダー設定。</li>
+                        <li><strong>🛠️ システム保守ツール（予約IDシーケンス修復）:</strong> 全テーブルの主キー自動採番カウンタ（シーケンス）を一括修復。</li>
+                        <li><strong>🧹 操作履歴（Audit Log）データ保守ツール:</strong> 現在の蓄積総数・1年以上前件数をリアルタイム表示し、1年経過ログを安全に一括パージ（直近1年と予約本体は完全保持）。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        9. 画面遷移フロー図
+        ============================================================ -->
+        <section class="spec-section" id="cat-flow">
+            <h2 class="category-title">9. 画面遷移フロー図</h2>
+            <div class="diagram-container">
+                <div class="flow-tree">
+                    <div class="flow-node root">
+                        <span>🏠 index.php (統合ポータル)</span>
+                    </div>
+
+                    <div class="flow-subnodes">
+                        <div class="flow-card" style="border-color: #3b82f6; background: #eff6ff;">
+                            <div class="flow-card-title"><span style="color: #1d4ed8;">📊 progress_monitor.php</span> <span class="badge badge-success">当日LIVE</span></div>
+                            <div class="flow-card-desc">
+                                <strong>当日進捗ステータスモニター (電子ホワイトボード)</strong><br>
+                                &bull; 7段階動線リアルタイム一覧監視（受付〜マイトイレ〜検査〜リカバリ〜説明〜完了）<br>
+                                &bull; 🔬 検査種別切替 (全内視鏡 / 🟢CF系 / 🔵GIF系) ＆ エコー完全除外<br>
+                                &bull; ⏩ GIF前処置スキップ (1➔3直行) ＆ 💉 セデーション連動 (なし時5➔6直行)<br>
+                                &bull; 🛡️ 組織採取カルテ声出し照合 ＆ 🧼 スコープ洗浄指示タスク<br>
+                                &bull; 👥 職種別ビュー（全体・看護師・補助看護師・受付） ＆ ↩️ 誤操作差し戻し(Undo)
+                            </div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>📊 month_matrix_v2.php</span> <span class="badge badge-primary">メイン</span></div>
+                            <div class="flow-card-desc">予約マトリクス（D&D予約移動） &harr; ✏️ modal_edit.php (予約編集)</div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>📅 month_schedule.php</span> <span class="badge badge-warning">運用</span></div>
+                            <div class="flow-card-desc">
+                                月間カレンダー・日別一覧 &harr; ✏️ modal_edit.php<br>
+                                &bull; 📝 日別メモ編集モーダル (<code>t_daily_memo</code> 連携)<br>
+                                &bull; 🚪 bulk_edit_prep_room.php (部屋・下剤)<br>
+                                &bull; 📊 daily_slot_summary.php (枠サマリ)<br>
+                                &bull; 🖨️ print_schedule_daily.php (一覧印刷)<br>
+                                &bull; ⚠️ 重複チェックモーダル &rarr; 外部カルテ連携
+                            </div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>🔍 slot_search.php</span> <span class="badge badge-success">検索</span></div>
+                            <div class="flow-card-desc">空き枠検索 &rarr; 該当日のカレンダー（month_schedule.php）へジャンプ</div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>🔎 search_patient.php</span> <span class="badge badge-neutral">照会</span></div>
+                            <div class="flow-card-desc">予約済患者検索 &rarr; 過去・未来の予約日カレンダーへジャンプ</div>
+                        </div>
+
+                        <div class="flow-card" style="opacity: 0.7;">
+                            <div class="flow-card-title"><span>📋 followup/index.php</span> <span class="badge badge-neutral">🧊 凍結</span></div>
+                            <div class="flow-card-desc">フォローアップ一覧 ＆ シート印刷（※実運用利用なし・開発凍結）</div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>📈 stats.php</span> <span class="badge badge-neutral">集計</span></div>
+                            <div class="flow-card-desc">診療科・医師・検査区分別の実績集計 ＆ CSV出力</div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>⚙️ slot_master_maintenance.php</span> <span class="badge badge-warning">マスタ</span></div>
+                            <div class="flow-card-desc">時間枠・医師出勤パターン・日別例外・定員の一元管理</div>
+                        </div>
+
+                        <div class="flow-card">
+                            <div class="flow-card-title"><span>🔧 master_maintenance.php</span> <span class="badge badge-neutral">マスタ</span></div>
+                            <div class="flow-card-desc">医師マスタ・検査種別・選択肢・休診日マスタ管理</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        10. 今後の連携・拡張計画
+        ============================================================ -->
+        <section class="spec-section" id="cat-future">
+            <h2 class="category-title">10. 今後の連携・拡張計画</h2>
+
+            <!-- DICOM MWL連携計画 -->
+            <div class="screen-card" style="border-left: 4px solid #3b82f6;">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📡 医用画像モダリティ 撮影オーダー連携 (DICOM MWL)</span>
+                        <span class="screen-file">DICOM/dicom_plan.html / Python中継サーバー</span>
+                    </div>
+                    <span class="badge badge-primary">連携計画策定済</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">自作PHP予約システムおよび院内DBの確定予約情報を基に、内視鏡プロセッサ（富士フイルム ELUXEO / LASEREO、オリンパス等）や超音波（US）装置へ <strong>DICOM Modality Worklist (MWL)</strong> を介して撮影オーダーを自動配信する計画です。</p>
+                    <div class="feature-title">📌 連携アーキテクチャ ＆ メリット</div>
+                    <ul class="feature-list">
+                        <li><strong>中継アーキテクチャ:</strong> PHP予約システムから出力される当日の検査オーダーJSON（またはAPIエンドポイント）を、常駐するPython MWLサーバー（<code>pydicom</code> / <code>pynetdicom</code>）が読み込み、モダリティからの C-FIND 要求に標準DICOMプロトコルで応答。</li>
+                        <li><strong>患者取り違えゼロ化:</strong> カルテ番号、患者氏名（漢字・カナ）、生年月日、性別がモダリティ画面に自動提示され、機器側での手入力ミスや取り違えを根絶。</li>
+                        <li><strong>検査室・AE Title別振り分け:</strong> 「内視鏡室（本館）」「内視鏡室（新）」「内視鏡室（おの）」など、実施場所マスタと各端末のAE Titleを連動させたセキュアなオーダー配信。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 総合リストアシステム＆今後の計画書案内 -->
+            <div class="screen-card" style="border-left: 4px solid #f59e0b;">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🛡️ 院内総合リストアシステム ＆ 中長期開発計画書</span>
+                        <span class="screen-file">仕様書/plan.html / 独立運用ツール</span>
+                    </div>
+                    <span class="badge badge-warning">運用設計フェーズ</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">日次自動バックアップ（PostgreSQL 18、<code>-Fc</code> カスタム形式、7世代保持）と連携する <strong>独立総合リストアツール</strong> の構築計画、および内視鏡室当日進捗モニター、医療安全アラート等の詳細計画は、別冊 <a href="plan.html" style="color: #2563eb; font-weight: bold; text-decoration: underline;">仕様書/plan.html (中長期 開発・連携拡張計画書)</a> に体系化されています。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        11. 医療安全・監査ログ・定型文DX系 (v0927新設)
+        ============================================================ -->
+        <section class="spec-section" id="cat-safety">
+            <h2 class="category-title">11. 医療安全・監査ログ・定型文DX系 <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-09-27 新設</span></h2>
+
+            <!-- 11-1 監査ログ＆Undo復元 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🕒 予約変更・誤削除の監査ログ (Audit Log) ＆ ワンクリックUndo復元システム</span>
+                        <span class="screen-file">lib/schedule_audit_helper.php / schedule_audit_modal_inc.php / api_schedule_audit.php</span>
+                    </div>
+                    <span class="badge badge-danger">誤操作・事故防止</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約情報の変更（UPDATE）や誤った削除（DELETE）の発生時に、変更前・変更後の全カラムデータおよび医療安全アラート状態をJSON形式で <code>t_schedule_audit_log</code> に自動記録します。全画面（ポータル、月間カレンダー、当日進捗モニター）の共通ヘッダーからいつでも履歴を呼び出し、直前の状態へワンクリックで復元（Undo）可能です。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>全自動監査ログ記録:</strong> <code>save_schedule.php</code>（新規/更新）、<code>delete_schedule.php</code>（削除）、各種一括処理時に、旧データと新データをアトミックに保存。操作日時、操作者名、クライアントIPアドレスを完全追跡。</li>
+                        <li><strong>直感的履歴モーダルUI:</strong> 過去20件の操作をタイムライン表示。「削除」「変更」「新規」「復元」のアクション種別をカラーバッジで直感的に区別。</li>
+                        <li><strong>「💻 この端末のみ」フィルタトグル:</strong> ブラウザの LocalStorage と連携し、ログイン端末（自端末IP・直近操作）のみの履歴を即座に絞り込み。他スタッフの操作が混在する繁忙帯でも、直前の誤操作を瞬時に発見可能。</li>
+                        <li><strong>安全なワンクリックUndo復元:</strong> 削除または変更された予約レコード（<code>t_schedule</code>）を完全復元。同時に紐付く医療安全アラートデータ（<code>t_patient_medical_alert</code>）も整合性を保った状態でトランザクション復元。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 11-2 4大医療安全アラート判定エンジン -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">💊 4大医療安全アラート判定・一括スキャン決定エンジン</span>
+                        <span class="screen-file">modal_medical_alert.php / medical_alert_modal_inc.php / lib/medical_alert_helper.php / action_medical_alert.php</span>
+                    </div>
+                    <span class="badge badge-warning">インシデント未然防止</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        大腸ポリペクトミー時の出血リスクや処置事故を未然に防ぐため、患者の「① 抗血栓薬（休薬対象）」「② アレルギー」「③ 感染症（B/C型肝炎、梅毒）」「④ 風邪症状・当日発熱」を検知・管理する医療安全エンジンです。電子カルテMALL（<code>t_patient_memo</code>）および予約備考（<code>t_schedule.remarks</code>）のキーワードをハイブリッド解析します。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>独立単体モーダル画面（modal_medical_alert.php）:</strong> 従来のインライン埋め込みから完全独立ファイルへ昇華。<code>modal_edit.php</code> と同一の Native <code>&lt;dialog&gt;</code> + <code>&lt;iframe&gt;</code> アーキテクチャを採用し、親画面との間で双方向 <code>postMessage</code> 通信（<code>medical_alert_saved</code> / <code>medical_alert_close</code>）による安全・高速な自動同期を実現。単体URL直接起動や別ウィンドウ動作にも完全対応。</li>
+                        <li><strong>超軽量ランナー（medical_alert_modal_inc.php）:</strong> 親画面用のアラートバッジCSS定義および動的ダイアログ起動スクリプトのみに特化。各親画面のテンプレート呼出コード互換性を100%維持。</li>
+                        <li><strong>根拠提示型スキャン決定UI:</strong> 「どのテキストから」「どのような文言が検出されたか」（例：「バイアスピリン」「セフェム系ショック歴」「HBs抗原(+)」「感冒様症状」）を画面上に明示。システムが勝手に強制反映するのではなく、医療従事者が判断材料を確認した上で「反映する」を確定できる納得感の高いインターフェース。</li>
+                        <li><strong>当日進捗モニター (progress_monitor.php) 連携:</strong> 画面上部の医療安全サマリーカードに「休薬確認待ち」「風邪・発熱患者」をリアルタイム集計。各患者カード内に「💊 休薬確認済」「🤒 風邪・発熱」のトグルスイッチを備え、看護師・医師が検査室入室前に即座に確認・更新可能。</li>
+                        <li><strong>予約カレンダー・マトリクス連携:</strong> 月間スケジュール・マトリクス画面において、アラート対象患者のセルに視覚的なピクトグラムバッジ（💊 抗血栓、⚠️ アレルギー、☣️ 感染症、🤒 風邪・発熱）を表示し、予約受付段階での確認漏れを防止。</li>
+                        <li><strong>確定タグ問答無用検知:</strong> 予約備考欄に <code>【抗血栓】</code> <code>【アレルギー】</code> <code>【感染症】</code> <code>【風邪症状】</code> 等の確定タグが含まれている場合、キーワード辞書のマッチングに依存せず即座にフラグをON。</li>
+                        <li><strong>MALL3電子カルテビューアー別タブ連携:</strong> スキャン決定モーダル内の患者IDバッジをクリックすると、別タブで対象患者の電子カルテビューアー（<code>karteview.php</code>）が即座に起動。判断に迷った際も、電子カルテの全文・処方歴・経過記録をワンクリックでシームレスに照会可能。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 11-3 modal_edit 意識的アラート設定＆同期 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📝 予約登録・編集モーダル (modal_edit.php) 医療安全コントロール＆備考同期</span>
+                        <span class="screen-file">modal_edit.php / save_schedule.php</span>
+                    </div>
+                    <span class="badge badge-primary">現場コントロールDX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約入力時、スタッフが状況に応じて4大アラートを意識的に手動ON/OFFできるコントロールパネルを新設。電子カルテMALLからの自動検知結果をヒント表示しつつ、予約保存時に最新の備考内容とアラート状態を整合的に同期保存します。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>意識的ON/OFFトグルボタングループ:</strong> 「💊 抗血栓薬」「⚠️ アレルギー」「☣️ 感染症」「🤒 風邪症状」の各スイッチをワンタップで切り替え。スタッフが意図して設定した場合は <code>manual_overridden = TRUE</code> となり、自動スキャンによる不意な上書きを防止。</li>
+                        <li><strong>電カル検知ヒントバッジ:</strong> 電子カルテMALL側のメモに該当情報が存在する場合、トグル下部に「💡 電カル検知あり」を明示し、スタッフの判断を支援。</li>
+                        <li><strong>保存時トランザクション同期（備考更新抜け防止）:</strong> 予約保存時（<code>save_schedule.php</code>）、更新された備考欄の最新文字列を用いて即時にアラート判定を実施。備考更新のタイムラグや判定漏れを根本排除。</li>
+                        <li><strong>非破壊スキャン・無限ループ防止設計:</strong> スキャン確定時に備考欄へ自動的にタグ文字列を追記する仕様をあえて廃止し、医師・スタッフが手動入力した備考文面そのものを尊重。再スキャン時にタグ重複や無限ループが発生しないクリーンなデータ構造を確立。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 11-4 定型文パレット＆確定タグ挿入 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📋 備考定型文入力パレット (枠可変・ドラッグ移動・インライン編集)</span>
+                        <span class="screen-file">modal_edit.php (#remarksPalette) / api_input_master.php / DB: m_input_master</span>
+                    </div>
+                    <span class="badge badge-info">入力省力化・マスタ共有</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約備考の入力を大幅に効率化するフローティング型定型文パレットです。スタッフの使い勝手を徹底追求し、ドラッグ移動の安定化、ウィンドウ枠の可変リサイズ対応、パレット上でのインライン編集・削除機能、および医療安全確定タグのワンクリック挿入を統合しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>完全ドラッグ＆ドロップ移動:</strong> ヘッダー部分を掴んで画面内の見やすい位置へスムーズに移動可能。マウスカーソル追従と画面外へのはみ出し防止を実装。</li>
+                        <li><strong>ウィンドウ枠可変 (CSS Resize):</strong> 右下のサイズ変更ハンドルにより、入力画面のサイズや端末解像度に合わせてパレットの幅・高さを自由に調節可能。</li>
+                        <li><strong>医療安全確定タグのワンクリック挿入:</strong> パレット上部に「💊【抗血栓】」「⚠️【アレルギー】」「☣️【感染症】」「🤒【風邪症状】」の専用ボタンを配備。クリックすると備考欄のカーソル位置へ即座にタグが挿入され、アラートスキャンと連携。</li>
+                        <li><strong>定型文のインライン追加・編集・削除:</strong> 各定型文の横に「✏️ 編集」「🗑️ 削除」ボタンを新設。修正内容は <code>api_input_master.php</code> を通じて PostgreSQL の <code>m_input_master</code> に即時非同期保存され、院内の全端末間でリアルタイムに共有。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        12. 医師通知 ＆ 直近空き枠速報（予約アシスト）系 (v0927新設)
+        ============================================================ -->
+        <section class="spec-section" id="cat-urgent">
+            <h2 class="category-title">12. 医師通知 ＆ 直近空き枠速報（予約アシスト）系 <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-09-27 新設</span></h2>
+
+            <!-- 12-1 医師向け予約変更通知機能 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🔔 医師向け予約変更通知機能（ホワイトボード連動・フロート表示）</span>
+                        <span class="screen-file">progress_monitor.php / action_doctor_notification.php / DB: t_doctor_notification_read, t_doctor_notification_status</span>
+                    </div>
+                    <span class="badge badge-primary">医師Live情報共有</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約の新規追加・日時変更・移動・削除（キャンセル）が発生した際、医師が診察や処置の合間にホワイトボード上で即座に認知し、ワンクリックで消込み（確認済みに）できるリアルタイム通知システムです。ログインレス運用でも端末ごとに担当医師を維持できます。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>担当医の識別・記憶（ログインレス対応）:</strong> ホワイトボード（<code>progress_monitor.php</code>）で「👨‍⚕️ 医師ビュー」選択時、担当医師（誠吾・哲也・義智・慶太郎）を選択。<code>localStorage</code> に自動保存され、次回アクセス時も自動復元。ヘッダーやガイダンスバーからワンタップで即座に切り替え可能。</li>
+                        <li><strong>フローティング通知パネル（フロート表示）:</strong> 医師ビュー選択時、画面右下に「🔔 予約変更通知 (〇〇先生)」フロートボタンが出現。未読通知が存在する場合は脈動アニメーション（パルス）で知らせ、クリックで通知カード一覧がスムーズに展開。</li>
+                        <li><strong>個別消込 ＆ 一括消込（クリア）機能:</strong> 各通知カードの「✔ 消込」で個別消込が可能。上部の「🧹 すべて消込」ボタンを押すと、表示中の全通知を1発で確認済みに反転。</li>
+                        <li><strong>全医師ビュー連動消込 ＆ 担当医変更セーフティ（推奨案A）:</strong>
+                            <ul>
+                                <li><strong>個別消込の連動除外:</strong> 担当医師が消し込んだ通知は、全医師ビューでも即座に連動除外され、全医師ビューで通知が復活して永遠に残り続ける（ゾンビ化する）問題を完全に防止。</li>
+                                <li><strong>担当医変更時の双方向通知:</strong> 担当医変更（例: 誠吾➔哲也）時は、外れた旧担当医（誠吾）と引き受けた新担当医（哲也）の双方に「🔄 担当変更」として通知。</li>
+                                <li><strong>医療安全と連動消込の両立:</strong> 旧担当医（誠吾）が消し込んでも、新担当医（哲也）が確認・消込するまで哲也先生の画面には未読として残り続けます。主たる受任責任者である新担当医が消し込んだ時点で、全医師ビューからも連動して消去されます。</li>
+                                <li><strong>全体一括消込:</strong> 全医師ビューでの一括消込は全登録医師＋ALLのカーソルを一括更新し、現場管理者がワンタップで全体をクリーンアップ可能。</li>
+                            </ul>
+                        </li>
+                        <li><strong>DB肥大化防止のカーソル方式 ＆ 30日自動パージ:</strong> 一括消込は医師ごとに最新の <code>last_cleared_log_id</code> を1行更新するカーソル方式を採用。さらに30日以上前の消込み履歴や過去検査日の通知は自動パージされ、テーブルサイズは常に数十〜数百行（数十KB）で完全に頭打ちになる安全設計。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 12-2 直近空き枠速報 ＆ スマート予約アシスト -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">⚡ 直近空き枠速報 ＆ 全科横断スマート予約アシスト（多職種共有）</span>
+                        <span class="screen-file">action_slot_assistant.php / urgent_slot_modal_inc.php / month_schedule.php / progress_monitor.php</span>
+                    </div>
+                    <span class="badge badge-success">患者充当率向上・窓口DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        通常1か月待ちが当たり前となっている大腸内視鏡検査（CF/TCF/W/ポリペク）について、本日〜30日後までの貴重な空き枠や直前キャンセル枠を全科横断・全医師横断で集約し、医師・外来看護師・受付事務・内視鏡室の多職種で共有・即時予約できるスマート予約アシスト基盤です。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>全科・全医師横断のリアルタイム空き集計:</strong> 本日〜30日後までの日毎に、肛門科（PROCT）および胃腸科（GASTRO）の出勤例外・日別上書き・曜日パターンの3層ルールから大腸枠定員を算出。予約一覧（大腸検査群）と高速突合し、空き枠（<code>free > 0</code>）をミリ秒レベルで集計。</li>
+                        <li><strong>⚡ 直前キャンセル枠の自動検知 ＆ 最優先表示:</strong> 過去7日以内の監査ログ（<code>t_schedule_audit_log</code>）と突合。キャンセルや移動が発生した枠に「⚡ キャンセル空き（〇分前 / 昨日）」バッジを自動付与し、リスト最上位へハイライト表示。</li>
+                        <li><strong>医師指名対応カラーコード ＆ ワンタップ絞り込み:</strong> 患者の「〇〇先生に診てほしい」という希望に応え、医師別カラーコード（誠吾: 🟢 翠 / 哲也: 🔵 藍 / 義智: 🟣 紫 / 慶太郎: 🟠 琥珀）とワンタップ絞り込みタブを完備。</li>
+                        <li><strong>完全自動消滅（二重予約防止）:</strong> 予約が登録されて空き枠数が <code>0</code> になった瞬間、クエリから自動除外されて全画面から即座に消滅。古い情報による二重予約やトラブルをシステム的に100%防止。</li>
+                        <li><strong>科を跨ぐワンクリック即予約（カレンダー・モーダル連動）:</strong> 各カードの「➕ この枠で予約」をクリックすると、該当科・該当日の月間カレンダーへ自動切り替えし、新規予約モーダルを自動起動（<code>month_schedule.php?dept=...&open_new=1</code> 連動）。</li>
+                        <li><strong>多職種常設配置:</strong> 月間カレンダー（<code>month_schedule.php</code>）の上部クイックバー＆ヘッダーナビ、当日ホワイトボード（<code>progress_monitor.php</code>）の同期バーに常設。診察室の医師、外来ナース、受付、内視鏡室の誰もが即座にアクセス可能。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 12-3 予約削除時のA+Bハイブリッド判定 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🗑️ 予約削除時のA+Bハイブリッド判定（誤登録除外 ＆ 削除理由選択）</span>
+                        <span class="screen-file">action_schedule.php / modal_edit.php / action_slot_assistant.php</span>
+                    </div>
+                    <span class="badge badge-warning">通知精度向上・オオカミ少年化防止</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約削除が発生した際、単なる打ち間違いや即時訂正が「⚡キャンセル発生！」と誤認通知されるのを防ぐため、時間差自動判定（10分ルール）とスタッフの理由選択（モーダル）を融合した高精度ハイブリッド判定エンジンです。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>A. 10分ルール誤登録即時取消（自動判定）:</strong> 予約作成から10分以内の削除は「誤登録の即時取消・打ち直し」と自動判定。スタッフに理由モーダルを表示せず即時削除し、キャンセル速報バッジも非付与。入力ミスの訂正で現場の手間を増やさず、オオカミ少年化を100%防止。</li>
+                        <li><strong>B. 削除理由選択モーダル（10分超経過時）:</strong> 作成から10分以上経過した確定予約の削除時は「🗑️ 予約削除理由選択モーダル」を強制表示。「👤 患者都合キャンセル」「📅 別日程へ変更」「❌ 誤登録・間違い」からスタッフが選択。</li>
+                        <li><strong>監査ログへの理由永続化:</strong> 選択された削除理由を <code>t_schedule_audit_log.diff_summary</code> および <code>new_data.cancel_reason</code> に確実に記録。</li>
+                        <li><strong>速報抽出エンジンの完全選別:</strong> 直近空き枠速報（<code>action_slot_assistant.php</code>）は、10分以内削除および誤登録（<code>mistake</code>）を完全に除外し、「患者都合キャンセル」「日程変更」のみを「⚡ キャンセル空き」として抽出。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 12-4 無変更保存スキップ ＆ 医療安全アラート連動Undo ＆ 操作履歴未復元フォーカス -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🛡️ 無変更保存スキップ ＆ 医療安全アラート連動Undo ＆ 操作履歴未復元フォーカス</span>
+                        <span class="screen-file">action_schedule.php / lib/audit_helper.php / lib/medical_alert_helper.php / audit_modal_inc.php</span>
+                    </div>
+                    <span class="badge badge-success">通知精度向上・誤操作救済DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約確認時の手癖保存による監査履歴・医師通知の汚染を100%防止し、統合された医療安全アラートフラグ（抗血栓薬・アレルギー・感染症・風邪発熱）の変更を監査ログに可視化。さらにUndo（ワンクリック復元）時にアラート状態も当時のフラグへ完全巻き戻し、日々の操作履歴画面には「今Undoできる有効な操作」のみをスマートに表示する高信頼性アーキテクチャです。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>完全一致差分ゼロ検知 ＆ 保存スキップ（手癖保存の無毒化）:</strong> 予約更新（<code>update</code>）時に、予約本体全項目およびアラート4フラグを更新前データと厳密に比較。差分が全くない場合は、DB更新・監査ログ記録・医師通知をすべてスキップし、<code>no_change: true</code> で正常終了。スタッフの日常的な手癖保存で不要なUndoログや医師通知が飛び交う問題を完全解消。</li>
+                        <li><strong>医療安全アラートフラグの差分サマリー連動:</strong> 予約本体を変更せずアラートフラグのみを変更した場合でも、監査ログに「<code>💊抗血栓薬: ON</code>」「<code>⚠️局麻注意: OFF</code>」等の差分サマリーを正確に記録。医師通知や監査ログで一目瞭然。</li>
+                        <li><strong>Undo（復元）時のアラート完全巻き戻し:</strong> <code>undoScheduleAuditLog()</code> の実行時、<code>old_data</code> に保存された当時のアラート状態（<code>medical_alerts</code>）を読み出し、専用関数 <code>restoreMedicalAlertFromAudit()</code> により <code>t_patient_medical_alert</code> を当時のフラグ状態へ確実に復元。</li>
+                        <li><strong>操作履歴モーダルの未復元フォーカス化:</strong> 操作履歴モーダル（<code>audit_modal_inc.php</code>）では、復元済み（<code>is_undone = TRUE</code>）およびUndoログ自体（<code>action_type = 'undo'</code>）をクエリ段階で完全除外。常に「今Undoできる操作」のみが表示され、上部バッジ件数も完全一致。迷わず1クリックで誤操作を取り消せます。</li>
+                        <li><strong>1年自動ローテーション ＆ マスタ画面保守ツール:</strong> 1年以上経過した古いログを安全にパージする <code>purgeOldAuditLogs($pdo, 365)</code> を実装。汎用マスタ画面（<code>master_maintenance.php</code>）からの手動一括パージに加え、API呼び出し時の低頻度自動実行により、テーブル肥大化を永久に防止。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 12-5 予約編集モーダル：担当医師「👥 全員」トグル機能 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">👥 予約編集モーダル：担当医師「👥 全員」トグル切替機能（代診・他科医師割当）</span>
+                        <span class="screen-file">modal_edit.php / get_present_doctors.php</span>
+                    </div>
+                    <span class="badge badge-success">現場例外柔軟性向上</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約編集画面（<code>modal_edit.php</code>）において、日常運用では誤選択を防止するために「当日の検査枠提供がある医師のみ」をプルダウンにリスト化しつつ、急な代診や他科医師の応援・休診日の臨時検査などの例外にもスムーズに対応できるよう、ワンクリックで全登録医師リストに切り替えられるトグルスイッチです。
+                    </p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>担当医師プルダウン直結のトグルボタン（<code>[👥 全員]</code>）:</strong> 医師選択プルダウンのすぐ右横に省スペース（28px高さ）でトグルボタンを新設。</li>
+                        <li><strong>デフォルト「当日枠あり医師のみ」による誤選択防止:</strong> 通常時は該当科の当日枠提供医師のみを表示し、不要な選択ミスをシステム的に防止。</li>
+                        <li><strong>ワンクリック全医師展開（0ms即時切替）:</strong> ボタンをクリックすると即座に <code>[👥 枠あり]</code>（青色ハイライト）に反転し、他科・非出勤を含む全アクティブ医師（誠吾・哲也・義智・慶太郎等）をプルダウンに一括展開。</li>
+                        <li><strong>API拡張とクライアント側スマートキャッシュ:</strong> <code>get_present_doctors.php</code> が <code>present_doctors</code> と同時に科横断の <code>all_doctors</code> を返却。初回取得時に両方をキャッシュするため、ボタン押下時に再通信（ローディング遅延）が一切発生しない快適な操作性を実現。</li>
+                        <li><strong>非破壊的な選択値維持ガード:</strong> リスト切替時に現在選択中の医師が消滅しないよう、常に選択値をメモリ保持し、万一マスタ外や未定の場合でも安全に選択状態を維持。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        13. Modern Web 最適化 ＆ 高速化モジュール分離系
+        ============================================================ -->
+        <section class="spec-section" id="cat-modern">
+            <h2 class="category-title">13. Modern Web 最適化 ＆ 高速化モジュール分離系 <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-09-28 新設 / 2026-09-29 正規統合</span></h2>
+
+            <!-- 13-1 month_schedule.php モジュール分離と正規化 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🚀 月間カレンダー Modern Web 最適化版（正規アセット統合版）</span>
+                        <span class="screen-file">month_schedule.php / assets/css/month_schedule.css / assets/js/month_schedule.js</span>
+                    </div>
+                    <span class="badge badge-primary">次世代Web標準化</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        従来の <code>month_schedule.php</code>（約160KB、3,000行超）をWeb標準技術に基づいて全面リファクタリングし、CSSおよびJavaScriptを外部ファイルへ完全に独立分離した次世代ダッシュボードです。2026-09-29 に検証用サフィックス「2」を解消し、正規名称（<code>month_schedule.js</code> / <code>month_schedule.css</code>）へ完全統合・一本化を完了しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 構造仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>CSS / JS の外部モジュール完全統合と正規化:</strong>
+                            <ul>
+                                <li><code>month_schedule.php</code>: サーバサイドDB集計・HTML骨格に特化（約33%のコードスリム化を維持）。</li>
+                                <li><code>assets/css/month_schedule.css</code>: モダンデザインシステム、スクロールバー、グリッド、内包コマンドパレットスタイルを独立集約。</li>
+                                <li><code>assets/js/month_schedule.js</code>: カレンダー折りたたみ、上下入替、Native Dialog、Popover Toast、空き枠速報、重複チェック、および<strong>インページ予約モーダルランナー</strong>を1本のスクリプトに完全統合。</li>
+                                <li><strong>キャッシュバスター機構:</strong> <code>?v=&lt;?= time() ?&gt;</code> を付与し、ブラウザの古いキャッシュによる誤動作を恒久防止。</li>
+                            </ul>
+                        </li>
+                        <li><strong>Modern Web ガイダンス技術の完全準拠:</strong>
+                            <ul>
+                                <li><strong>Native Dialog API:</strong> 手製の重層モーダルオーバレイを廃止し、HTML5標準の <code>&lt;dialog&gt;</code> と <code>showModal()</code> による軽快・安全なモーダル描画を採用。</li>
+                                <li><strong>Popover API Toast:</strong> 画面操作をブロックする従来の同期型 <code>alert()</code> を撤廃し、非侵入型トースト通知（<code>popover="manual"</code>）に刷新。</li>
+                                <li><strong>CSS Scrollbar 標準化:</strong> <code>scrollbar-color</code> および <code>scrollbar-width: thin</code> によるモダンなスクロール外観。</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        14. UI/UX全面刷新 ＆ 本物インページモーダルランナー系
+        ============================================================ -->
+        <section class="spec-section" id="cat-ux20260929">
+            <h2 class="category-title">14. UI/UX全面刷新 ＆ 本物インページモーダルランナー系 <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-09-29 新設</span></h2>
+
+            <!-- 14-1 ツールバーUI全面刷新 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🎨 主要画面ツールバーUI刷新（カプセル型トグル ＆ ツライチ統一）</span>
+                        <span class="screen-file">month_schedule.php / schedule_note.php / month_matrix_v2.php</span>
+                    </div>
+                    <span class="badge badge-primary">UI/UX刷新</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        月間カレンダー、デイリーノート、予約マトリクスの3画面で不揃いだったチェックボックスを廃止し、モダンなトグルボタンへ全面刷新。各検査枠のテーマカラー連動と高さ完全統一を実現しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>「枠:」ラベル付きカプセルボタングループ:</strong> <code>[枠: [GIF] [エコー] [TCF]]</code> に集約。エコー枠は水色（<code>#0284c7</code>）に完全同期。</li>
+                        <li><strong>「空き枠表示」独立トグルボタン化:</strong> チェックボックスを廃止し、直感的な <code>[⬜ 空き枠表示]</code> トグルボタンへ昇格。</li>
+                        <li><strong>不要絵文字（🎯）撤去 ＆ 高さツライチ統一:</strong> <code>month_schedule.php</code> / <code>schedule_note.php</code> は高さ 32px、<code>month_matrix_v2.php</code> は高さ 24px にピクセル単位で統一。</li>
+                        <li><strong>カレンダーコマンドパレットの内包化:</strong> カレンダー用フィルターをカレンダー枠内に完全内包。カレンダー折りたたみ時の非表示連動および上下入替時の追従移動を完全サポート。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 14-2 本物インページモーダルランナー -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🖥️ 予約登録・編集（modal_edit.php）本物インページモーダルランナー</span>
+                        <span class="screen-file">assets/js/month_schedule.js / modal_edit.php</span>
+                    </div>
+                    <span class="badge badge-success">アーキテクチャ革新</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        別ウィンドウでポップアップしていた <code>modal_edit.php</code> を、親画面のコードを一切肥大化させることなく、画面内インページモーダル（<code>&lt;dialog&gt;</code> ＋ <code>&lt;iframe&gt;</code>）として起動する革新的ランナーです。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>Dynamic Dialog Injection:</strong> 呼び出し元画面に重いHTMLを持たせず、JSが実行時に <code>&lt;dialog&gt;</code> と <code>&lt;iframe&gt;</code> を動的生成・すりガラス暗転描画。</li>
+                        <li><strong>双方向 postMessage 通信:</strong> 予約の保存・削除・キャンセル完了時、<code>modal_edit.php</code> から親画面へメッセージを送信し、モーダル自動クローズと親画面自動リロードを瞬時に実行。</li>
+                        <li><strong>複数画面への自動水平展開:</strong> <code>month_schedule.php</code>、<code>month_matrix_v2.php</code>、<code>schedule_note.php</code> のいずれからも同一の洗練されたモーダル操作性を享受可能。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 14-3 直近空き枠速報フローティング化 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📢 直近空き枠速報 画面右下フローティング化（Glassmorphism）</span>
+                        <span class="screen-file">month_schedule.php / urgent_slot_modal_inc.php</span>
+                    </div>
+                    <span class="badge badge-primary">フローティングUI</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        ヘッダー固定ボタンから、当日ホワイトボードの医師通知欄スタイルを踏襲した画面右下の常時フローティングパネルへ進化。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>ダーク系半透明グラスモフィズム:</strong> 背景が自然に透けるすりガラス外観（<code>backdrop-filter: blur(8px)</code>）。</li>
+                        <li><strong>自由なドラッグ移動 ＆ 24時間永続保持:</strong> ヘッダー部をドラッグして画面内の自由な位置へ移動可能。座標と開閉状態を <code>localStorage</code> に保持。</li>
+                        <li><strong>コンパクトピル最小化:</strong> ✕ボタンで右下の小さなピル（<code>📢 空き枠速報</code>）へ最小化可能。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 14-4 schedule_note.php キーボード移動 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📖 デイリーノート表示（schedule_note.php）キーボード日付送り＆UI最適化</span>
+                        <span class="screen-file">schedule_note.php</span>
+                    </div>
+                    <span class="badge badge-primary">高速操作</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        紙ベースのノート感覚で全幅一覧できる超高速モードに、診療中の素早い日付送りを実現するキーボードショートカットを追加。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>キーボード操作:</strong> [←][→]で前日/翌日、[↑][↓]で前週/翌週、[Shift+←][Shift+→]で休診日スキップ、[T]/[Home]で今日ジャンプ。</li>
+                        <li><strong>誤爆防止ガード:</strong> フォーム入力中やモーダル表示中はキーイベントを完全無効化。</li>
+                        <li><strong>視認性向上:</strong> 大型日付ピッカー、および担当医師・検査種別列の左揃え微調整。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        15. 医療安全アラート完全独立ファイル化 ＆ オンライン資格確認（薬剤情報）連携強化
+        ============================================================ -->
+        <section class="spec-section" id="cat-medical-alert-onshi">
+            <h2 class="category-title">15. 医療安全アラート完全独立ファイル化 ＆ オン資連携強化 <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-10-01 新設</span></h2>
+
+            <!-- 15-1 独立モーダル移行 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🛡️ 医療安全アラート判定の独立単体化 ＆ modal_edit 同等アーキテクチャ移行</span>
+                        <span class="screen-file">modal_medical_alert.php / medical_alert_modal_inc.php / action_medical_alert.php</span>
+                    </div>
+                    <span class="badge badge-success">アーキテクチャ完全刷新</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        従来各親画面にインクルードされていた700行超のインラインHTML/JSを撤去し、予約編集（<code>modal_edit.php</code>）と同等の Native <code>&lt;dialog&gt;</code> + <code>&lt;iframe&gt;</code> + <code>postMessage</code> 連携アーキテクチャへと完全分離。親画面とのDOM競合ゼロ、単体URLアクセス・独立検証を実現しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>超軽量ランナー（<code>medical_alert_modal_inc.php</code>）:</strong> 各親画面のコードを変更することなく、後方互換性を保ったまま即座に iframe モーダルへ昇華。</li>
+                        <li><strong>双方向 postMessage 連携:</strong> モーダル保存完了（<code>medical_alert_saved</code>）および閉じる（<code>medical_alert_close</code>）を親画面のグローバルリスナーが受信し、安全にダイアログ消去とカレンダー同期リロードを実行。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 15-2 オン資API連携と全7項目化 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🌐 オンライン資格確認（薬剤情報API）連携 ＆ リスク判定体系の拡張（全7項目・2グループ編成）</span>
+                        <span class="screen-file">lib/medical_alert_helper.php / action_medical_alert.php / modal_medical_alert.php</span>
+                    </div>
+                    <span class="badge badge-primary">院外他院処方検知DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        オンライン資格確認システム（<code>api_onshi_yakuzai.php</code>）と直接連携し、他院処方歴を <code>curl_multi</code> 並行バッチ（約80ms）で高速照会。内視鏡検査における休薬漏れや全身管理事故を未然に防ぎます。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>全7項目の2グループ編成:</strong>
+                            <br>・【Group 1: 🌐 オン資・薬剤リスク】💊抗血栓薬（<code>has_antithrombotic</code>）、💉糖尿病薬（<code>has_diabetes</code>/新設）、🧠向精神薬・睡眠薬（<code>has_psychotropic</code>/新設）、💊NSAIDs消炎鎮痛（<code>has_nsaids</code>/新設）
+                            <br>・【Group 2: 📋 カルテ・予約注意】⚠️局麻アレルギー（<code>has_allergy</code>）、🔴感染症（<code>has_infection</code>）、😷風邪発熱（<code>has_cold_fever</code>）
+                        </li>
+                        <li><strong>処方期間セレクタ（直近6ヶ月 ⮂ 全期間）:</strong> デフォルト6ヶ月から、長期間の投薬歴を確認できる全期間（<code>months=0</code>）への切替・再スキャンに対応。</li>
+                        <li><strong>検出根拠の可視化 ＆ カルテ直通:</strong> <code>[🌐 オン資処方]</code> バッジ、処方日、薬剤名、処方元医療機関名を表示し、ワンクリックで開ける <code>[📋 オン資処方一覧 ↗]</code> リンクを配置。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 15-3 modal_edit.php 任意照会機能 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">✏️ 予約個別編集画面（modal_edit.php）：「🌐 オン資照会」＆「🛡️ 詳細判定」機能新設</span>
+                        <span class="screen-file">modal_edit.php / action_schedule.php / lib/audit_helper.php</span>
+                    </div>
+                    <span class="badge badge-success">現場スタッフ最適化</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        予約個別編集画面において、患者番号入力時の強制自動通信による操作テンポ低下を防止しつつ、スタッフのニーズに応じて「インライン即時照会」と「リッチモーダル詳細判定」の2通りから自由に選択できるデュアル導線を確立しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>任意照会ボタン（<code>[🌐 オン資照会]</code>）:</strong> 画面を動かさずにその場でオン資APIを非同期照会し、該当リスク薬があればチェックボックスを推奨ON＆根拠ヒント・処方一覧リンク表示。</li>
+                        <li><strong>詳細判定ボタン（<code>[🛡️ 詳細判定]</code>）:</strong> 当該患者の <code>modal_medical_alert.php?patient_id=...</code> を子モーダルで開き、全処方歴・他院調剤薬局名・カルテメモ根拠をリッチに精査可能。保存時に親画面のチェックボックスへ自動同期。</li>
+                        <li><strong>監査ログ ＆ Undo 完全連動:</strong> 新設3項目の差分を <code>[💉糖尿病薬: OFF→ON]</code> のように日本語で記録。予約復元（Undo）時にも当時のフラグ状態へ確実に巻き戻します。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期
+        ============================================================ -->
+        <section class="spec-section" id="cat-ward-admission">
+            <h2 class="category-title">16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期 <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-10-04 ver1004新設</span></h2>
+
+            <!-- 16-1 予約個別編集 病棟連動即時制御 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🏥 予約個別編集（modal_edit.php）：病棟管理システム連動パネル ＆ リアルタイム即時制御</span>
+                        <span class="screen-file">modal_edit.php</span>
+                    </div>
+                    <span class="badge badge-success">現場リアルタイムDX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        大腸内視鏡（TCF/W）および大腸ポリープ切除術（ポリペク）実施時に不可欠な病棟入院手配の連携漏れを撲滅するため、予約登録前の検査種別入力・変更と完全連動する「病棟管理システム連動用」パネルを新設しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 動作仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>初登録前（保存前）リアルタイム即時判定:</strong> 既存予約の編集時だけでなく、新規予約の入力中・登録前であっても、検査種別やカルテ記載の変更をリアルタイムに検知して即座にパネルを表示／非表示化。</li>
+                        <li><strong>「TCF」「TCW」選択時:</strong> 病棟連動パネル（<code>#panelWardIntegration</code>）を即座に表示（<code>display: flex</code>）。必要に応じてスタッフが入院手配チェックを投入可能。</li>
+                        <li><strong>「ポリペク」選択・入力時:</strong> 病棟連動パネルを即座に表示した上で、<strong>「入院予定」チェックボックスを自動的に ON</strong>（入院加療が標準のため）。スタッフの手間を省きつつ手配忘れを防止。</li>
+                        <li><strong>上記以外の検査（GIF、エコー等）選択時:</strong> パネルを即座に非表示（<code>display: none</code>）化し、内部の入院予定チェックボックスを自動的に OFF にリセット。誤登録を構造的に防止。</li>
+                        <li><strong>Quillリッチエディタ連動:</strong> プルダウン選択のみならず、検査種別エディタ内での文字入力・テンプレート挿入（<code>text-change</code> イベント）にも完全追従。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 16-2 API完全バインド整合と監査ログ -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">⚙️ 予約保存API（action_schedule.php）：SQLパラメータ完全バインド整合 ＆ 監査ログ連動</span>
+                        <span class="screen-file">action_schedule.php</span>
+                    </div>
+                    <span class="badge badge-primary">バックエンド整合性</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        新規予約登録（INSERT）および既存予約更新（UPDATE）において、<code>is_admission</code> カラムの受け渡しパラメータとSQLプレースホルダーを完全一致させ、プリペアドステートメントエラー（<code>SQLSTATE[08P01]</code>）を根本解消しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 動作仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>INSERT文 18パラメータ完全一致:</strong> 準備されたSQL文の18プレースホルダーに対し、実行配列 <code>$params</code> へ <code>:is_admission</code>（boolean）を確実に供給。</li>
+                        <li><strong>UPDATE文 差分検知 ＆ 監査ログ連動:</strong> 既存予約の更新時、<code>is_admission</code> の変更（例: <code>[入院予定: OFF→ON]</code>）を差分検知し、医療安全・操作監査ログに記録。</li>
+                        <li><strong>APIレスポンス同期:</strong> 保存・更新成功時のJSONレスポンスに最新の <code>is_admission</code> 値を含め、呼び出し元フロントエンドと状態を完全同期。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 16-3 データベース完全同期と旧テーブル整理 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🗄️ データベース構造刷新 ＆ 本番環境（192.168.1.16）完全マイグレーション</span>
+                        <span class="screen-file">PostgreSQL 18.3 (開発・本番同等構成) / tools/migration_20261004_production.sql</span>
+                    </div>
+                    <span class="badge badge-success">DB完全同期・最適化</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        開発ローカルDBと本番サーバー（<code>192.168.1.16:5432/endoscope</code>）のスキーマおよびインデックスを精密照合し、新カラム追加とレガシー旧4テーブルの安全な撤去を実施。両環境の構成差分ゼロを達成しました。
+                    </p>
+                    <div class="feature-title">📌 主な変更点 ＆ マイグレーション仕様</div>
+                    <ul class="feature-list">
+                        <li><strong><code>t_endoscopy_schedule.is_admission</code> カラム追加:</strong> データ型 <code>boolean NOT NULL DEFAULT false</code>、および検索高速化インデックス <code>idx_endo_is_admission</code> を新設。</li>
+                        <li><strong>レガシー旧4テーブルの安全撤去:</strong> 9月28日の <code>m2_*</code> 刷新以降使用されていなかった旧テーブル（<code>m_doctor</code>, <code>m_doctor_attendance</code>, <code>m_doctor_slot_pattern</code>, <code>m_waku_master</code>）について、既存データをJSONバックアップ（<code>tools/backup_legacy_tables_20261004.json</code>）に退避した上で安全に <code>DROP TABLE</code> を完了。</li>
+                        <li><strong>全21テーブル差分ゼロ検証:</strong> カラム定義、データ型、NULL制約、インデックス定義の完全一致を自動検証スクリプトにて保証。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 16-4 システムバージョンver1004 & help.php -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📖 総合操作マニュアル正式配備（help.php）＆ システムバージョン ver1004 昇格</span>
+                        <span class="screen-file">help.php / index.php</span>
+                    </div>
+                    <span class="badge badge-primary">正式リリース運用</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        静的HTML（<code>help.html</code>）を本番動的システム（<code>help.php</code>）へ正式昇格。予約個別編集画面の病棟管理システム連動コントロールを含めた最新UIモックアップと操作ガイドを網羅し、システムバージョンを <strong>ver1004</strong> へアップデートしました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>ポータル・ヘッダー完全連動:</strong> <code>index.php</code> のバージョンバッジを <code>ver1004</code> に更新し、ヘルプボタンのリンク先を <code>help.php</code> に統合。</li>
+                        <li><strong>病棟管理連動コントロール解説の追加:</strong> 入院予定チェックボックスの自動ON/OFF挙動、病棟スタッフとの連携留意点を詳細マニュアル化。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+</main>
+
+    <!-- ── フッター ── -->
+    <footer class="spec-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 仕様書</div>
+        <div>ファイル名: <code>仕様書/specdoc.html</code></div>
+    </footer>
+
+</div>
+
+</body>
+</html>

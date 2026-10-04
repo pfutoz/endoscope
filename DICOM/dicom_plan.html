@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>医用画像モダリティ 撮影オーダー連携 開発計画（全館統合版）</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 5px;
+        }
+        h1 { font-size: 24px; }
+        h2 { font-size: 20px; margin-top: 30px; }
+        h3 { font-size: 16px; border-bottom: 1px dashed #ccc; }
+        .card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        code, pre {
+            background-color: #f4f4f4;
+            font-family: Consolas, Monaco, monospace;
+        }
+        code {
+            padding: 2px 4px;
+            border-radius: 4px;
+            color: #d63384;
+        }
+        pre {
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #ccc;
+        }
+        .highlight {
+            background-color: #e7f3fe;
+            border-left: 4px solid #2196F3;
+            padding: 10px 15px;
+            margin: 15px 0;
+        }
+        .success-box {
+            background-color: #e6f4ea;
+            border-left: 4px solid #34a853;
+            padding: 10px 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>医用画像モダリティ 撮影オーダー連携 開発計画（全館統合版）</h1>
+
+    <div class="card">
+        <h2>1. 概要とプロジェクトの目的</h2>
+        <p>自作PHP予約システムおよび院内データベースから得られる医療情報を基に、各撮影・検査機器へDICOM Modality Worklist (MWL) を介して撮影オーダーを自動配信する仕組みを構築します。</p>
+        <div class="success-box">
+            <strong>目指す効果：</strong>
+            <ul>
+                <li>検査時の患者番号の取り違え防止</li>
+                <li>患者情報のプロセッサ等への手入力削減</li>
+                <li>オーダー入力ミスの削減</li>
+            </ul>
+        </div>
+        <div class="highlight">
+            <strong>基本方針：</strong> プロセッサ等の各機器は直接JSONを読めないため、Python（<code>pydicom</code> / <code>pynetdicom</code>）を用いた軽量な共通DICOM MWLサーバーを中継役（ブリッジ）として常駐させます。
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>2. 対象機器・モダリティの拡張</h2>
+        <p>内視鏡だけでなく、標準規格（DICOM MWL）に対応したすべての医用画像モダリティへ展開可能です。</p>
+        <table>
+            <tr>
+                <th>モダリティ種類</th>
+                <th>対象メーカー・機種例</th>
+                <th>DICOM Modality</th>
+            </tr>
+            <tr>
+                <td><strong>内視鏡</strong></td>
+                <td>富士フイルム (ELUXEO / LASEREO) <br>オリンパス (290シリーズ等)</td>
+                <td><code>ES</code> (Endoscopy)</td>
+            </tr>
+            <tr>
+                <td><strong>超音波 (US)</strong></td>
+                <td>各社エコー装置</td>
+                <td><code>US</code> (Ultrasound)</td>
+            </tr>
+            <tr>
+                <td><strong>X線・レントゲン (CR/DR)</strong></td>
+                <td>各社X線撮影装置</td>
+                <td><code>CR</code> または <code>DX</code></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>3. 全体システムアーキテクチャ</h2>
+        <pre>
+[ 院内電子カルテ / データベース ]
+            │ (情報取得)
+            ▼
+[ 自作PHPシステム ] ──(JSON出力)──> [ Python MWL中継サーバー ] ──(DICOM通信)──> [ 各種モダリティ機器 ]
+                                    (常駐 / C-FIND応答)                         ・内視鏡 (富士/オリンパス)
+                                                                                ・超音波 (US)
+                                                                                ・X線 (CR/DX)
+        </pre>
+    </div>
+
+    <div class="card">
+        <h2>4. 実装・開発ステップ</h2>
+        <h3>ステップ①：Pythonの環境構築</h3>
+        <ul>
+            <li>Python公式インストーラーを実行（<code>Add python.exe to PATH</code> にチェック）</li>
+            <li>必要なライブラリのインストール：<br>
+                <code>pip install pydicom pynetdicom</code>
+            </li>
+        </ul>
+
+        <h3>ステップ②：PHP側のJSONデータ出力</h3>
+        <p>PHPシステム側で、モダリティ種別や検査室ごとの割り振りを反映した統合JSONファイル（例: <code>orders.json</code>）を生成・更新する。</p>
+<pre>[
+  {
+    "patient_id": "12345",
+    "patient_name_kanji": "山本^太",
+    "birth_date": "19670428",
+    "sex": "M",
+    "accession_number": "ACC2026091901",
+    "exam_date": "20260919",
+    "modality": "ES"
+  }
+]</pre>
+
+        <h3>ステップ③：Python MWLサーバー実装 (`mwl_server.py`)</h3>
+<pre>import json
+import os
+from pydicom.dataset import Dataset
+from pynetdicom import AE, evt
+from pynetdicom.sop_class import ModalityWorklistInformationFind
+
+JSON_FILE_PATH = "C:/inetpub/wwwroot/htdocs/data/orders.json"
+
+def load_orders():
+    if not os.path.exists(JSON_FILE_PATH):
+        return []
+    try:
+        with open(JSON_FILE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def handle_find(event):
+    req = event.identifier
+    orders = load_orders()
+    
+    for order in orders:
+        ds = Dataset()
+        ds.PatientID = str(order.get("patient_id", ""))
+        ds.PatientName = str(order.get("patient_name_kanji", ""))
+        ds.PatientBirthDate = str(order.get("birth_date", ""))
+        ds.PatientSex = str(order.get("sex", "O"))
+        ds.AccessionNumber = str(order.get("accession_number", ""))
+        
+        ds.ScheduledProcedureStepSequence = []
+        sps = Dataset()
+        sps.ScheduledProcedureStepStartDate = str(order.get("exam_date", ""))
+        sps.Modality = str(order.get("modality", "ES"))
+        ds.ScheduledProcedureStepSequence.append(sps)
+
+        ds.SpecificCharacterSetRepertoire = 'ISO_IR 100'
+        yield (0xFF00, ds)
+
+def run_server():
+    ae = AE(ae_title=b'MODALITY_MWL_SRV')
+    ae.add_supported_context(ModalityWorklistInformationFind)
+    port = 11112
+    print(f"共通 DICOM MWL サーバー起動中... ポート: {port}")
+    handlers = [(evt.EVT_C_FIND, handle_find)]
+    ae.start_server(('0.0.0.0', port), evt_handlers=handlers, block=True)
+
+if __name__ == "__main__":
+    run_server()</pre>
+
+        <h3>ステップ④：各撮影機器側のネットワーク設定</h3>
+        <p>内視鏡（富士フイルム・オリンパス）、超音波、X線装置のそれぞれのDICOM設定画面にて、以下を設定する。</p>
+        <ul>
+            <li>MWLサーバーのIPアドレス（PythonサーバーのIP）</li>
+            <li>ポート番号：<code>11112</code></li>
+            <li>AE Title：<code>MODALITY_MWL_SRV</code></li>
+        </ul>
+    </div>
+
+</body>
+</html>

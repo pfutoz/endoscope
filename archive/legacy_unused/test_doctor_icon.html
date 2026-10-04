@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医師アイコン コンパクト比較テスト</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 30px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            font-size: 16px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-top: 25px;
+        }
+        h2:first-of-type { margin-top: 0; }
+        .sample-box {
+            border: 1px solid #b4c6e7;
+            border-radius: 4px;
+            padding: 6px 8px;
+            margin-bottom: 8px;
+            display: inline-block;
+            min-width: 180px;
+            font-size: 10px;
+            line-height: 1.4;
+            background: #fafafa;
+        }
+        .sample-box .row1 { font-size: 10px; }
+        .sample-box .row2 { font-size: 11px; font-weight: bold; }
+        .sample-box .row3 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+        }
+        .sample-box .birth { color: #64748b; }
+        .sample-box .exam-badge {
+            padding: 1px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            background-color: #10b981;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* === 各バリエーション === */
+        .v1 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: bold;
+            font-size: 9px;
+            padding: 0px 4px;
+            border-radius: 2px;
+            min-width: 16px;
+            text-align: center;
+            line-height: 1.4;
+            margin-right: 3px;
+        }
+        .v2 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: bold;
+            font-size: 8px;
+            padding: 0px 3px;
+            border-radius: 2px;
+            min-width: 14px;
+            text-align: center;
+            line-height: 1.4;
+            margin-right: 2px;
+        }
+        .v3 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: bold;
+            font-size: 7px;
+            padding: 0px 3px;
+            border-radius: 2px;
+            min-width: 12px;
+            text-align: center;
+            line-height: 1.3;
+            margin-right: 2px;
+        }
+        .v4 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: bold;
+            font-size: 9px;
+            padding: 0px 4px;
+            border-radius: 3px;
+            min-width: 18px;
+            text-align: center;
+            line-height: 1.3;
+            margin-right: 3px;
+        }
+        .v5 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: bold;
+            font-size: 8px;
+            padding: 0px 3px;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+            line-height: 1.4;
+            margin-right: 3px;
+        }
+        .v6 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #fff;
+            font-weight: 800;
+            font-size: 8px;
+            padding: 0px 2px;
+            border-radius: 2px;
+            min-width: 12px;
+            text-align: center;
+            line-height: 1.3;
+            margin-right: 2px;
+            letter-spacing: -0.5px;
+        }
+        /* 現在のスタイル（参考） */
+        .v0 .doctor-icon {
+            display: inline-block;
+            background: #1a1a2e;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 10px;
+            padding: 0px 5px;
+            border-radius: 3px;
+            min-width: 18px;
+            text-align: center;
+            line-height: 1.5;
+            margin-right: 4px;
+        }
+
+        .note {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .current-label {
+            background: #fef08a;
+            padding: 1px 8px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+            color: #713f12;
+        }
+        .compare-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .compare-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            text-align: center;
+            min-width: 100px;
+        }
+        .compare-item .label {
+            font-size: 9px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🧪 医師アイコン コンパクト比較テスト</h1>
+    <p style="font-size:13px; color:#475569;">各バリエーションの「誠」アイコンを比較してください。</p>
+
+    <!-- ============================================================ -->
+    <!-- 現在のスタイル（参考） -->
+    <!-- ============================================================ -->
+    <h2>📌 現在のスタイル（修正前）</h2>
+    <div class="sample-box v0">
+        <div class="row1">ID：999999  99</div>
+        <div class="row2">名前 太郎</div>
+        <div class="row3">
+            <span class="birth">S23.5.22</span>
+            <span>
+                <span class="doctor-icon">誠</span>
+                <span class="exam-badge">TCF</span>
+            </span>
+        </div>
+    </div>
+    <div class="note">🔵 font-size:10px / padding:0px 5px / min-width:18px / border-radius:3px</div>
+
+    <!-- ============================================================ -->
+    <!-- バリエーション -->
+    <!-- ============================================================ -->
+    <h2>📐 コンパクトバリエーション</h2>
+
+    <div class="compare-grid">
+
+        <!-- V1 -->
+        <div class="compare-item">
+            <div class="sample-box v1">
+                <div class="row1">ID：999999  99</div>
+                <div class="row2">名前 太郎</div>
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">V1: 9px / 4px / 16px / 角2</div>
+        </div>
+
+        <!-- V2 -->
+        <div class="compare-item">
+            <div class="sample-box v2">
+                <div class="row1">ID：999999  99</div>
+                <div class="row2">名前 太郎</div>
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">V2: 8px / 3px / 14px / 角2</div>
+        </div>
+
+        <!-- V3 -->
+        <div class="compare-item">
+            <div class="sample-box v3">
+                <div class="row1">ID：999999  99</div>
+                <div class="row2">名前 太郎</div>
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">V3: 7px / 3px / 12px / 角2</div>
+        </div>
+
+        <!-- V4 -->
+        <div class="compare-item">
+            <div class="sample-box v4">
+                <div class="row1">ID：999999  99</div>
+                <div class="row2">名前 太郎</div>
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">V4: 9px / 4px / 18px / 角3（丸み強）</div>
+        </div>
+
+        <!-- V5 -->
+        <div class="compare-item">
+            <div class="sample-box v5">
+                <div class="row1">ID：999999  99</div>
+                <div class="row2">名前 太郎</div>
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">V5: 8px / 3px / 16px / 角10（丸）</div>
+        </div>
+
+        <!-- V6 -->
+        <div class="compare-item">
+            <div class="sample-box v6">
+                <div class="row1">ID：999999  99</div>
+                <div class="row2">名前 太郎</div>
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">V6: 8px / 2px / 12px / 角2 / 太字強</div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 参考：他の文字例 -->
+    <!-- ============================================================ -->
+    <h2>📝 参考（文字による見え方の違い）</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px;">
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; text-align:center;">
+            <div class="sample-box v2">
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">誠</span>
+                        <span class="exam-badge">GIF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">誠 + GIF</div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; text-align:center;">
+            <div class="sample-box v2">
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">哲</span>
+                        <span class="exam-badge">エコー</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">哲 + エコー</div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; text-align:center;">
+            <div class="sample-box v2">
+                <div class="row3">
+                    <span class="birth">S23.5.22</span>
+                    <span>
+                        <span class="doctor-icon">義</span>
+                        <span class="exam-badge">TCF</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">義 + TCF</div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; text-align:center;">
+            <div class="sample-box v2">
+                <div class="row3">
+                    <span class="birth">R6.8.5</span>
+                    <span>
+                        <span class="doctor-icon">？</span>
+                        <span class="exam-badge">ポリペク</span>
+                    </span>
+                </div>
+            </div>
+            <div class="label">？ + ポリペク</div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 凡例 -->
+    <!-- ============================================================ -->
+    <h2>📋 スタイル比較表</h2>
+    <table style="width:100%; border-collapse:collapse; font-size:11px; margin-top:8px;">
+        <thead>
+            <tr style="background:#f1f5f9;">
+                <th style="border:1px solid #e2e8f0; padding:6px 8px; text-align:left;">バージョン</th>
+                <th style="border:1px solid #e2e8f0; padding:6px 8px; text-align:center;">font-size</th>
+                <th style="border:1px solid #e2e8f0; padding:6px 8px; text-align:center;">padding</th>
+                <th style="border:1px solid #e2e8f0; padding:6px 8px; text-align:center;">min-width</th>
+                <th style="border:1px solid #e2e8f0; padding:6px 8px; text-align:center;">border-radius</th>
+                <th style="border:1px solid #e2e8f0; padding:6px 8px; text-align:center;">特徴</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td style="border:1px solid #e2e8f0; padding:4px 8px;">現在</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">10px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">0 5px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">18px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">3px</td><td style="border:1px solid #e2e8f0; padding:4px 8px;">標準</td></tr>
+            <tr style="background:#f8fafc;"><td style="border:1px solid #e2e8f0; padding:4px 8px;">V1</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">9px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">0 4px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">16px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">2px</td><td style="border:1px solid #e2e8f0; padding:4px 8px;">やや小</td></tr>
+            <tr><td style="border:1px solid #e2e8f0; padding:4px 8px;">V2</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">8px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">0 3px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">14px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">2px</td><td style="border:1px solid #e2e8f0; padding:4px 8px;">コンパクト</td></tr>
+            <tr style="background:#f8fafc;"><td style="border:1px solid #e2e8f0; padding:4px 8px;">V3</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">7px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">0 3px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">12px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">2px</td><td style="border:1px solid #e2e8f0; padding:4px 8px;">最小</td></tr>
+            <tr><td style="border:1px solid #e2e8f0; padding:4px 8px;">V4</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">9px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">0 4px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">18px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">3px</td><td style="border:1px solid #e2e8f0; padding:4px 8px;">丸み強</td></tr>
+            <tr style="background:#f8fafc;"><td style="border:1px solid #e2e8f0; padding:4px 8px;">V5</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">8px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">0 3px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">16px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center;">10px</td><td style="border:1px solid #e2e8f0; padding:4px 8px;">丸型</td></tr>
+            <tr><td style="border:1px solid #e2e8f0; padding:4px 8px; font-weight:bold;">V6</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center; font-weight:bold;">8px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center; font-weight:bold;">0 2px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center; font-weight:bold;">12px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; text-align:center; font-weight:bold;">2px</td><td style="border:1px solid #e2e8f0; padding:4px 8px; font-weight:bold;">最コンパクト＋太字強</td></tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top:20px; padding:12px 16px; background:#f0fdf4; border:1px solid #86efac; border-radius:6px;">
+        <strong>💡 おすすめ：</strong>
+        V2（8px / 3px / 14px / 角2）または V6（8px / 2px / 12px / 角2 / 太字強）がバランス良さそうです。
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医療法人小野会 院内システム総合デプロイマネージャー</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --primary-border: #bfdbfe;
+            --teal: #0f766e;
+            --teal-light: #f0fdfa;
+            --teal-border: #99f6e4;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --border: #cbd5e1;
+            
+            --success: #15803d;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --warning: #b45309;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --danger: #b91c1c;
+            --danger-bg: #fef2f2;
+            --danger-border: #fecaca;
+            --purple: #7e22ce;
+            --purple-bg: #f3e8ff;
+            --purple-border: #e9d5ff;
+
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans JP', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            line-height: 1.6;
+            font-size: 13.5px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── トップバー ── */
+        .top-navbar {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0f766e 100%);
+            color: #ffffff;
+            padding: 12px 28px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            font-size: 26px;
+            background: rgba(255,255,255,0.15);
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+        }
+
+        .brand-text h1 {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            margin: 0;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: #cbd5e1;
+            margin: 0;
+        }
+
+        .server-status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+        .status-dot.offline {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        /* ── メインコンテナ ── */
+        .main-container {
+            max-width: 1380px;
+            margin: 20px auto;
+            padding: 0 20px;
+            width: 100%;
+            flex: 1;
+        }
+
+        /* ── システム選択カードエリア ── */
+        .section-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 14.5px;
+            font-weight: 800;
+            color: var(--slate-900);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .system-pill-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .sys-btn {
+            background: #f8fafc;
+            border: 1.5px solid var(--slate-200);
+            border-radius: var(--radius-sm);
+            padding: 7px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--slate-700);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sys-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+            transform: translateY(-1px);
+        }
+
+        .sys-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(30, 64, 175, 0.3);
+        }
+
+        .sys-btn .badge-count {
+            background: rgba(0,0,0,0.1);
+            color: inherit;
+            font-size: 10.5px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-weight: normal;
+        }
+
+        /* ── タブナビゲーション ── */
+        .tab-nav {
+            display: flex;
+            gap: 6px;
+            border-bottom: 2px solid var(--slate-200);
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--slate-500);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.15s ease;
+        }
+
+        .tab-btn:hover { color: var(--slate-800); }
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* ── サマリカード ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--slate-600);
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .stat-box.modified { border-left: 4px solid var(--primary); }
+        .stat-box.modified .stat-value { color: var(--primary); }
+        .stat-box.new { border-left: 4px solid var(--success); }
+        .stat-box.new .stat-value { color: var(--success); }
+        .stat-box.same { border-left: 4px solid var(--slate-400); }
+        .stat-box.same .stat-value { color: var(--slate-500); }
+
+        /* ── アクションツールバー ── */
+        .action-toolbar {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .btn-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #ffffff;
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669 0%, #0f766e 100%);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(15, 118, 110, 0.3);
+        }
+        .btn-success:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: #ffffff;
+            border-color: var(--border);
+            color: var(--slate-700);
+        }
+        .btn-outline:hover { background: #f8fafc; border-color: var(--slate-400); }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #ffffff;
+        }
+        .btn-danger:hover { background: #991b1b; }
+
+        /* ── 差分テーブル ── */
+        .table-wrap {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: #ffffff;
+            overflow-x: auto;
+            max-height: 520px;
+            overflow-y: auto;
+        }
+
+        .diff-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        .diff-table th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            color: var(--slate-700);
+            font-weight: 700;
+            padding: 8px 12px;
+            border-bottom: 2px solid var(--slate-200);
+            z-index: 5;
+        }
+
+        .diff-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid var(--slate-100);
+            vertical-align: middle;
+        }
+
+        .diff-table tbody tr:hover { background: #f8fafc; }
+
+        .status-pill {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .status-pill.MODIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .status-pill.NEW { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+
+        .file-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--slate-800);
+            word-break: break-all;
+        }
+
+        .time-text {
+            font-size: 11px;
+            color: var(--slate-500);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── 実行ログターミナル ── */
+        .terminal-box {
+            background: #0f172a;
+            color: #38bdf8;
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            height: 160px;
+            overflow-y: auto;
+            margin-top: 14px;
+            line-height: 1.5;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+        }
+
+        .terminal-box .log-success { color: #4ade80; }
+        .terminal-box .log-warn { color: #facc15; }
+        .terminal-box .log-err { color: #f87171; font-weight: bold; }
+        .terminal-box .log-info { color: #cbd5e1; }
+
+        /* ── モーダル ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: #ffffff;
+            border-radius: var(--radius-lg);
+            width: 580px;
+            max-width: calc(100vw - 32px);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 15px; font-weight: 800; color: var(--slate-900); }
+
+        .modal-body {
+            padding: 18px 20px;
+            font-size: 13px;
+            color: var(--slate-700);
+        }
+
+        .modal-content-lg {
+            width: 820px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-body-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .diag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .diag-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .diag-card-title {
+            font-size: 11.5px;
+            color: var(--slate-500);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .diag-card-value {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: var(--slate-900);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .diag-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .diag-badge.ok { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .diag-badge.ng { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .diag-badge.warn { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+
+        .prereq-box {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+
+        .prereq-box.warn {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .step-number-badge {
+            background: var(--primary);
+            color: #fff;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 6px;
+        }
+
+        .code-pill {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11.5px;
+            color: #0f172a;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- トップバー -->
+    <header class="top-navbar">
+        <div class="brand-wrap">
+            <div class="brand-icon">🚀</div>
+            <div class="brand-text">
+                <h1>院内システム総合デプロイマネージャー</h1>
+                <p>Onokai System Deploy &amp; Rollback Manager (Local Safe Mode)</p>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <a href="仕様書/" target="_blank" class="btn btn-outline" style="background:rgba(255,255,255,0.15); color:#ffffff; border-color:rgba(255,255,255,0.3); font-size:12px; padding:6px 14px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                📖 システム仕様書
+            </a>
+            <button type="button" class="btn btn-outline" onclick="openDiagnosticsModal()" style="background:rgba(255,255,255,0.15); color:#ffffff; border-color:rgba(255,255,255,0.3); font-size:12px; padding:6px 14px; font-weight:700;">
+                📋 前提条件 ＆ 環境診断
+            </button>
+            <div class="server-status-pill" id="serverStatusPill" onclick="openDiagnosticsModal()" style="cursor:pointer;" title="クリックして詳細な接続診断を表示">
+                <span class="status-dot" id="serverStatusDot"></span>
+                <span id="serverStatusText">本番サーバー (192.168.1.16) 接続確認中...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+
+        <!-- トラブル救援アラートバナー (通信エラーや未接続時に自動表示) -->
+        <div id="troubleAlertBanner" style="display:none; margin-bottom:16px;"></div>
+
+        <!-- 1. システム選択カード -->
+        <div class="section-card">
+            <div class="card-header-bar">
+                <div class="card-title">
+                    <span>📂</span>
+                    <span>デプロイ対象システムの選択 (c:\Apache24\htdocs)</span>
+                </div>
+                <button type="button" class="btn btn-outline" onclick="loadSystems()">🔄 システム一覧更新</button>
+            </div>
+            <div class="system-pill-grid" id="systemPillGrid">
+                <span style="color:#64748b; font-size:12px;">システム一覧を読み込み中...</span>
+            </div>
+        </div>
+
+        <!-- 2. メインワークスペース -->
+        <div class="section-card">
+            <div class="tab-nav">
+                <button type="button" class="tab-btn active" id="tabBtnDiff" onclick="switchTab('diff')">📦 差分スキャン ＆ デプロイ実行</button>
+                <button type="button" class="tab-btn" id="tabBtnBackup" onclick="switchTab('backup')">🕒 過去バックアップ ＆ ロールバック</button>
+            </div>
+
+            <!-- タブ1: 差分スキャン ＆ デプロイ -->
+            <div id="tabContentDiff">
+                <!-- サマリバッジ -->
+                <div class="stats-grid">
+                    <div class="stat-box modified">
+                        <span class="stat-label">📝 更新ファイル (MODIFIED)</span>
+                        <span class="stat-value" id="statModified">0</span>
+                    </div>
+                    <div class="stat-box new">
+                        <span class="stat-label">✨ 新規ファイル (NEW)</span>
+                        <span class="stat-value" id="statNew">0</span>
+                    </div>
+                    <div class="stat-box same">
+                        <span class="stat-label">✓ 一致ファイル (SAME)</span>
+                        <span class="stat-value" id="statSame">0</span>
+                    </div>
+                </div>
+
+                <!-- ツールバー -->
+                <div class="action-toolbar">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline" onclick="rescanDiff()">🔄 差分を再スキャン</button>
+                        <button type="button" class="btn btn-outline" onclick="selectAll(true)">全選択</button>
+                        <button type="button" class="btn btn-outline" onclick="selectAll(false)">全解除</button>
+                        <span style="font-size:12px; color:#64748b; margin-left:8px;" id="selectedCountText">選択中: 0 件</span>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-success" id="btnExecuteDeploy" onclick="openDeployConfirmModal()" style="font-size:13px; padding:8px 18px;">
+                            <span>📦</span> 本番サーバーへ安全デプロイ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 差分テーブル -->
+                <div class="table-wrap">
+                    <table class="diff-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px; text-align:center;"><input type="checkbox" id="chkHeaderAll" onchange="toggleHeaderAll(this)"></th>
+                                <th style="width:90px; text-align:center;">状態</th>
+                                <th>ファイル相対パス</th>
+                                <th style="width:160px;">ローカル更新日時</th>
+                                <th style="width:160px;">本番更新日時</th>
+                                <th style="width:90px; text-align:right;">容量</th>
+                            </tr>
+                        </thead>
+                        <tbody id="diffTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding:40px; color:#64748b;">
+                                    上のシステム一覧からフォルダを選択してください
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- リアルタイムログターミナル -->
+                <div class="terminal-box" id="terminalBox">
+                    <div class="log-info">[システム準備完了] システムを選択すると自動で差分スキャンが開始されます。</div>
+                </div>
+            </div>
+
+            <!-- タブ2: バックアップ ＆ ロールバック -->
+            <div id="tabContentBackup" style="display:none;">
+                <p style="font-size:12.5px; color:#64748b; margin-bottom:12px;">
+                    本番配布時に全自動生成されたバックアップZIP一覧です。万が一の不具合時は「復元」ボタンを押すだけで本番環境を即時ロールバックできます。
+                </p>
+                <div class="table-wrap">
+                    <table class="diff-table">
+                        <thead>
+                            <tr>
+                                <th>バックアップZIPファイル名 (保存先: c:\deploy_backups\[system])</th>
+                                <th style="width:180px;">作成日時</th>
+                                <th style="width:100px; text-align:right;">容量</th>
+                                <th style="width:140px; text-align:center;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backupTableBody">
+                            <tr>
+                                <td colspan="4" style="text-align:center; padding:40px; color:#64748b;">バックアップ履歴がありません</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 環境診断 ＆ 前提条件モーダル -->
+    <div class="modal-overlay" id="envDiagnosticsModal">
+        <div class="modal-content modal-content-lg">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:20px;">📋</span>
+                    <div>
+                        <h3 style="margin:0; font-size:15.5px;">システム前提条件 ＆ 接続環境診断</h3>
+                        <p style="margin:0; font-size:11px; color:#64748b;">Onokai Deploy Manager Prerequisites &amp; Environment Diagnostics</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline" onclick="closeDiagnosticsModal()" style="padding:2px 8px;">✕</button>
+            </div>
+
+            <!-- タブナビゲーション -->
+            <div style="background:#f8fafc; border-bottom:1px solid var(--border); padding:8px 20px 0; display:flex; gap:8px;">
+                <button type="button" class="tab-btn active" id="diagTabBtnStatus" onclick="switchDiagTab('status')">🔍 接続・環境自己診断</button>
+                <button type="button" class="tab-btn" id="diagTabBtnPrereq" onclick="switchDiagTab('prereq')">📌 必須の前提条件 (T:ドライブ等)</button>
+                <button type="button" class="tab-btn" id="diagTabBtnTrouble" onclick="switchDiagTab('trouble')">🛠️ トラブルシューティング ＆ OS再設定手順</button>
+            </div>
+
+            <!-- モーダルボディ（スクロールエリア） -->
+            <div class="modal-body-scroll">
+                
+                <!-- タブ1: 接続・環境自己診断 -->
+                <div id="diagContentStatus">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span style="font-size:12.5px; color:#475569; font-weight:700;">リアルタイム環境チェック結果</span>
+                        <button type="button" class="btn btn-outline" onclick="runDiagnostics()" style="font-size:11.5px; padding:4px 10px;">
+                            🔄 最新状態を再診断
+                        </button>
+                    </div>
+
+                    <div class="diag-grid" id="diagGridContainer">
+                        <div class="diag-card">
+                            <div class="diag-card-title">
+                                <span>ローカル支援サーバー (Node.js)</span>
+                                <span class="diag-badge warn" id="diagNodeBadge">確認中...</span>
+                            </div>
+                            <div class="diag-card-value" id="diagNodeValue">ポート 5050 接続確認中...</div>
+                        </div>
+
+                        <div class="diag-card">
+                            <div class="diag-card-title">
+                                <span>本番サーバー (T:ドライブ)</span>
+                                <span class="diag-badge warn" id="diagProdDriveBadge">確認中...</span>
+                            </div>
+                            <div class="diag-card-value" id="diagProdDriveValue">T:/ (本番Apache24/htdocs)</div>
+                        </div>
+
+                        <div class="diag-card">
+                            <div class="diag-card-title">
+                                <span>本番UNC共有 (代替経路)</span>
+                                <span class="diag-badge warn" id="diagProdUncBadge">確認中...</span>
+                            </div>
+                            <div class="diag-card-value" id="diagProdUncValue">\\192.168.1.16\c$\...</div>
+                        </div>
+
+                        <div class="diag-card">
+                            <div class="diag-card-title">
+                                <span>実行ユーザー権限</span>
+                                <span class="diag-badge ok" id="diagWhoamiBadge">一般ユーザー</span>
+                            </div>
+                            <div class="diag-card-value" id="diagWhoamiValue">確認中...</div>
+                        </div>
+
+                        <div class="diag-card">
+                            <div class="diag-card-title">
+                                <span>ローカル開発ディレクトリ</span>
+                                <span class="diag-badge warn" id="diagLocalHtdocsBadge">確認中...</span>
+                            </div>
+                            <div class="diag-card-value" id="diagLocalHtdocsValue">c:/Apache24/htdocs/</div>
+                        </div>
+
+                        <div class="diag-card">
+                            <div class="diag-card-title">
+                                <span>バックアップ保存ルート</span>
+                                <span class="diag-badge warn" id="diagBackupRootBadge">確認中...</span>
+                            </div>
+                            <div class="diag-card-value" id="diagBackupRootValue">c:/deploy_backups/</div>
+                        </div>
+                    </div>
+
+                    <div id="diagSummaryBox" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 16px; font-size:12.5px; color:#166534;">
+                        接続診断を行っています...
+                    </div>
+                </div>
+
+                <!-- タブ2: 必須の前提条件 -->
+                <div id="diagContentPrereq" style="display:none;">
+                    <div class="prereq-box">
+                        <div style="font-size:13.5px; font-weight:800; color:#1e40af; margin-bottom:6px; display:flex; align-items:center;">
+                            <span class="step-number-badge">1</span>
+                            本番サーバーのhtdocsが「T:ドライブ」として常時共有マウントされていること
+                        </div>
+                        <p style="font-size:12.5px; color:#334155; line-height:1.6; margin-bottom:8px;">
+                            本システムは、差分スキャン・事前バックアップ・ファイル配布を行う際、本番環境のファイルを <span class="code-pill">T:\&lt;system&gt;</span> として直接比較・コピーします。
+                        </p>
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; font-size:12px;">
+                            <div><strong>本番サーバーIP:</strong> <span class="code-pill">192.168.1.16</span></div>
+                            <div style="margin-top:4px;"><strong>本番共有パス:</strong> <span class="code-pill">\\192.168.1.16\c$\Apache24\htdocs</span> または <span class="code-pill">\\192.168.1.16\htdocs</span></div>
+                            <div style="margin-top:4px;"><strong>割り当てドライブ文字:</strong> <strong style="color:#1e40af;">T:</strong></div>
+                            <div style="margin-top:4px; color:#b45309;">
+                                ※Windowsエクスプローラーの「ネットワークドライブの割り当て」で、<strong>「サインイン時に再接続する」</strong> に必ずチェックを入れて資格情報を保存してください。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="prereq-box">
+                        <div style="font-size:13.5px; font-weight:800; color:#1e40af; margin-bottom:6px; display:flex; align-items:center;">
+                            <span class="step-number-badge">2</span>
+                            なぜ Apache (PHP) ではなく Node.js 支援サーバー (ポート5050) が必要なのか？
+                        </div>
+                        <p style="font-size:12.5px; color:#334155; line-height:1.6; margin-bottom:6px;">
+                            ローカルの Apache は Windows の <strong><span class="code-pill">NT AUTHORITY\SYSTEM</span>（システム特殊アカウント）</strong> でサービス稼働しています。
+                        </p>
+                        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:10px 12px; font-size:12px; color:#991b1b; line-height:1.5;">
+                            <strong>⚠️ SYSTEMアカウントの制約:</strong><br>
+                            Windowsのセキュリティ仕様により、SYSTEMアカウントはネットワーク共有（T:ドライブや UNCパス <span class="code-pill">\\192.168.1.16</span>）へのアクセス権限が拒否（ブロック）されます。
+                        </div>
+                        <p style="font-size:12.5px; color:#334155; line-height:1.6; margin-top:8px;">
+                            そのため、Windowsにログインしている <strong>一般ユーザー（Owner）権限</strong> で動作する専用の Node.js 支援サーバー（ポート5050）を常駐させ、本番サーバーとの安全な通信・比較・デプロイを実現しています。
+                        </p>
+                    </div>
+
+                    <div class="prereq-box">
+                        <div style="font-size:13.5px; font-weight:800; color:#1e40af; margin-bottom:6px; display:flex; align-items:center;">
+                            <span class="step-number-badge">3</span>
+                            全自動の事前バックアップ退避仕様
+                        </div>
+                        <p style="font-size:12.5px; color:#334155; line-height:1.6;">
+                            本番配布が実行されると、上書き対象となる本番既存ファイルはコピー前に自動的に <span class="code-pill">c:\deploy_backups\&lt;system&gt;\</span> 配下へ日時付きZIP（例: <code>endoscope_backup_20261002_120000.zip</code>）として丸ごと保存されます。<br>
+                            万が一の不具合時は、画面の「🕒 過去バックアップ ＆ ロールバック」タブからワンクリックで元の状態へ即座に復元可能です。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- タブ3: トラブルシューティング ＆ OS再インストール手順 -->
+                <div id="diagContentTrouble" style="display:none;">
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+                        <h4 style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:4px;">💻 PC交換・OS再インストール時の復旧手順（完全3ステップ）</h4>
+                        <ol style="margin-left:20px; font-size:12px; color:#1e3a8a; line-height:1.7;">
+                            <li><strong>Node.js のインストール:</strong> Node.js 公式サイト（nodejs.org）から LTS 版をインストールします（外部パッケージの追加インストールは一切不要です）。</li>
+                            <li><strong>T:ドライブの割り当て:</strong> エクスプローラーの「PC」右クリック ➔「ネットワークドライブの割り当て」で、ドライブを <code>T:</code>、フォルダーを <code>\\192.168.1.16\c$\Apache24\htdocs</code>（または <code>\\192.168.1.16\htdocs</code>）に設定し、「サインイン時に再接続する」にチェックを入れて完了します。</li>
+                            <li><strong>自動常駐の登録:</strong> フォルダ内の <span class="code-pill">register_startup.bat</span> をダブルクリックして実行します。これでWindows起動時に自動でサーバーが常駐します。</li>
+                        </ol>
+                    </div>
+
+                    <div style="margin-bottom:14px;">
+                        <h4 style="font-size:13px; font-weight:800; color:#0f172a; margin-bottom:6px;">❓ よくある症状と対処法</h4>
+                        
+                        <details style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin-bottom:8px;" open>
+                            <summary style="font-weight:700; color:#1e293b; cursor:pointer;">
+                                症状1: 「システム一覧の取得に失敗しました: Failed to fetch」と表示される
+                            </summary>
+                            <div style="margin-top:8px; font-size:12px; color:#475569; line-height:1.6;">
+                                <strong>原因:</strong> Node.js 支援サーバー（ポート5050）が起動していません。<br>
+                                <strong>対処法:</strong> <code>c:\Apache24\htdocs\deploy_manager\start_deploy_manager.bat</code> をダブルクリックして起動するか、<code>register_startup.bat</code> を実行してWindows起動時自動常駐を設定してください。
+                            </div>
+                        </details>
+
+                        <details style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin-bottom:8px;" open>
+                            <summary style="font-weight:700; color:#1e293b; cursor:pointer;">
+                                症状2: 「⚠️ 本番サーバー (192.168.1.16) 未接続」と表示される
+                            </summary>
+                            <div style="margin-top:8px; font-size:12px; color:#475569; line-height:1.6;">
+                                <strong>原因:</strong> 本番サーバー（192.168.1.16）の電源が落ちているか、ネットワーク接続が切断されているか、または T: ドライブのマウントが外れています。<br>
+                                <strong>対処法:</strong> エクスプローラーを開き、「T:」ドライブをダブルクリックして開けるか確認してください。パスワードを求められた場合は入力して「資格情報を記憶する」にチェックを入れてください。
+                            </div>
+                        </details>
+
+                        <details style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px;">
+                            <summary style="font-weight:700; color:#1e293b; cursor:pointer;">
+                                付属する管理バッチファイルの使い方
+                            </summary>
+                            <div style="margin-top:8px; font-size:12px; color:#475569; line-height:1.6;">
+                                <ul style="margin-left:18px;">
+                                    <li><code>start_deploy_manager.bat</code> : サーバーを起動しブラウザを開く通常起動スクリプト</li>
+                                    <li><code>register_startup.bat</code> : Windowsスタートアップに登録し、PC起動時に自動常駐させるスクリプト</li>
+                                    <li><code>unregister_startup.bat</code> : 自動常駐を解除するスクリプト</li>
+                                    <li><code>diagnostics.bat</code> : コマンドプロンプト上で各接続要件を一発診断するスクリプト</li>
+                                </ul>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeDiagnosticsModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- デプロイ確認モーダル -->
+    <div class="modal-overlay" id="deployConfirmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🛡️ 本番サーバーへの安全配布の確認</h3>
+                <button type="button" class="btn btn-outline" onclick="closeDeployModal()" style="padding:2px 8px;">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:12px; font-weight:bold; color:#0f172a;">
+                    選択された <span id="modalFileCount" style="color:#2563eb; font-size:16px;">0</span> 件のファイルを本番サーバー（192.168.1.16）へ配布します。
+                </p>
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:12px; margin-bottom:12px;">
+                    <div style="color:#15803d; font-weight:bold; font-size:12px; display:flex; align-items:center; gap:6px;">
+                        <span>✓</span> 全自動事前ZIPバックアップが実行されます
+                    </div>
+                    <div style="font-size:11.5px; color:#166534; margin-top:4px;">
+                        本番サーバーの既存ファイルは上書き前に自動的に <code>c:\deploy_backups\[system]\</code> へZIPアーカイブ保存されます。万が一の際はいつでもワンクリックで復元可能です。
+                    </div>
+                </div>
+                <p style="font-size:12px; color:#64748b;">
+                    ※配布対象システム: <strong id="modalSystemName" style="color:#0f172a;">-</strong>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeDeployModal()">キャンセル</button>
+                <button type="button" class="btn btn-success" id="btnConfirmDeployAction" onclick="executeDeployNow()">
+                    <span>🚀</span> バックアップを取得して本番配布を実行
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = (window.location.port === '5050') ? '' : 'http://localhost:5050';
+        let currentSystem = 'endoscope';
+        let currentDiffs = [];
+
+        // ログ出力ヘルパー
+        function log(msg, type = 'info') {
+            const box = document.getElementById('terminalBox');
+            if (!box) return;
+            const d = new Date();
+            const time = d.toTimeString().split(' ')[0];
+            const div = document.createElement('div');
+            div.className = `log-${type}`;
+            div.textContent = `[${time}] ${msg}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // 初期ロード
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSystems();
+        });
+
+        // タブ切り替え
+        function switchTab(tab) {
+            document.getElementById('tabBtnDiff').classList.toggle('active', tab === 'diff');
+            document.getElementById('tabBtnBackup').classList.toggle('active', tab === 'backup');
+            document.getElementById('tabContentDiff').style.display = (tab === 'diff') ? 'block' : 'none';
+            document.getElementById('tabContentBackup').style.display = (tab === 'backup') ? 'block' : 'none';
+
+            if (tab === 'backup') {
+                loadBackups();
+            }
+        }
+
+        // システム一覧取得
+        async function loadSystems() {
+            const dot = document.getElementById('serverStatusDot');
+            const stText = document.getElementById('serverStatusText');
+            const grid = document.getElementById('systemPillGrid');
+            const alertBanner = document.getElementById('troubleAlertBanner');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/systems`);
+                const data = await res.json();
+                
+                if (data.prodOnline) {
+                    dot.className = 'status-dot';
+                    stText.textContent = '本番サーバー (192.168.1.16 / T:) 正常接続中';
+                    alertBanner.style.display = 'none';
+                } else {
+                    dot.className = 'status-dot offline';
+                    stText.textContent = '⚠️ 本番サーバー (192.168.1.16) 未接続';
+                    showProdOfflineBanner();
+                }
+
+                grid.innerHTML = '';
+                (data.systems || []).forEach(sys => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = `sys-btn ${sys.name === currentSystem ? 'active' : ''}`;
+                    btn.innerHTML = `<span>${sys.name}</span>`;
+                    btn.onclick = () => selectSystem(sys.name);
+                    grid.appendChild(btn);
+                });
+
+                // 初期選択システムのスキャン
+                if (currentSystem) {
+                    selectSystem(currentSystem);
+                }
+            } catch (err) {
+                dot.className = 'status-dot offline';
+                stText.textContent = '⚠️ ローカル支援サーバー未接続 (ポート5050)';
+                grid.innerHTML = `<span style="color:#dc2626; font-size:12px; font-weight:bold;">⚠️ ローカル支援サーバー（Node.js: ポート5050）が未起動です。start_deploy_manager.bat を実行してください。</span>`;
+                showServerOfflineBanner(err.message);
+                log('システム一覧の取得に失敗しました: ' + err.message, 'err');
+            }
+        }
+
+        // トラブル救援バナー表示 (Nodeサーバー未起動)
+        function showServerOfflineBanner(errMsg) {
+            const banner = document.getElementById('troubleAlertBanner');
+            banner.style.display = 'block';
+            banner.innerHTML = `
+                <div style="background:#fef2f2; border:1.5px solid #f87171; border-radius:10px; padding:16px 20px; box-shadow:0 4px 6px -1px rgba(220,38,38,0.1);">
+                    <div style="display:flex; align-items:flex-start; gap:14px;">
+                        <div style="font-size:26px; line-height:1;">⚠️</div>
+                        <div style="flex:1;">
+                            <h4 style="color:#991b1b; font-size:14.5px; font-weight:800; margin-bottom:4px;">
+                                ローカル支援サーバー（Node.js: ポート5050）に接続できません
+                            </h4>
+                            <p style="color:#7f1d1d; font-size:12.5px; line-height:1.6; margin-bottom:10px;">
+                                本ツールの安全デプロイ・バックアップ用バックエンド（Node.js）が停止しているため、システム一覧の取得や差分スキャンが実行できません。<br>
+                                （エラー詳細: <code class="code-pill">${escapeHtml(errMsg)}</code>）
+                            </p>
+                            <div style="background:#ffffff; border:1px solid #fecaca; border-radius:6px; padding:10px 14px; margin-bottom:12px; font-size:12px; color:#450a0a;">
+                                <strong>🛠️ すぐに復旧する方法:</strong>
+                                <ol style="margin-left:20px; margin-top:4px; line-height:1.7;">
+                                    <li>フォルダ内の <strong class="code-pill">start_deploy_manager.bat</strong> をダブルクリックして起動してください。</li>
+                                    <li>PC起動時に常に自動常駐させたい場合は、<strong class="code-pill">register_startup.bat</strong> を実行してください。</li>
+                                    <li>OS再インストール直後の場合は、Node.js (LTS版) のインストールが必要です。</li>
+                                </ol>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" class="btn btn-primary" onclick="loadSystems()" style="font-size:12px; padding:6px 14px;">
+                                    🔄 接続を再試行する
+                                </button>
+                                <button type="button" class="btn btn-outline" onclick="openDiagnosticsModal('trouble')" style="background:#fff; font-size:12px; padding:6px 14px;">
+                                    📋 詳しい前提条件・トラブルシューティングを見る
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // トラブル救援バナー表示 (本番サーバー未接続)
+        function showProdOfflineBanner() {
+            const banner = document.getElementById('troubleAlertBanner');
+            banner.style.display = 'block';
+            banner.innerHTML = `
+                <div style="background:#fffbeb; border:1.5px solid #f59e0b; border-radius:10px; padding:16px 20px; box-shadow:0 4px 6px -1px rgba(245,158,11,0.1);">
+                    <div style="display:flex; align-items:flex-start; gap:14px;">
+                        <div style="font-size:26px; line-height:1;">⚠️</div>
+                        <div style="flex:1;">
+                            <h4 style="color:#92400e; font-size:14.5px; font-weight:800; margin-bottom:4px;">
+                                本番サーバー（192.168.1.16 / T:ドライブ）にアクセスできません
+                            </h4>
+                            <p style="color:#78350f; font-size:12.5px; line-height:1.6; margin-bottom:10px;">
+                                本番サーバーのhtdocsが <strong>T:ドライブ</strong>（またはUNC共有）として接続されていないか、本番PCの電源が切れている可能性があります。<br>
+                                本番サーバーが稼働していること、およびエクスプローラーで「T:」ドライブが開けることをご確認ください。
+                            </p>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" class="btn btn-outline" onclick="openDiagnosticsModal('prereq')" style="background:#fff; font-size:12px; padding:6px 14px;">
+                                    📋 T:ドライブの共有前提条件・設定手順を見る
+                                </button>
+                                <button type="button" class="btn btn-outline" onclick="loadSystems()" style="background:#fff; font-size:12px; padding:6px 14px;">
+                                    🔄 再チェック
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 環境診断モーダル制御
+        function openDiagnosticsModal(tab = 'status') {
+            document.getElementById('envDiagnosticsModal').classList.add('active');
+            switchDiagTab(tab);
+            if (tab === 'status') {
+                runDiagnostics();
+            }
+        }
+
+        function closeDiagnosticsModal() {
+            document.getElementById('envDiagnosticsModal').classList.remove('active');
+        }
+
+        function switchDiagTab(tab) {
+            document.getElementById('diagTabBtnStatus').classList.toggle('active', tab === 'status');
+            document.getElementById('diagTabBtnPrereq').classList.toggle('active', tab === 'prereq');
+            document.getElementById('diagTabBtnTrouble').classList.toggle('active', tab === 'trouble');
+
+            document.getElementById('diagContentStatus').style.display = (tab === 'status') ? 'block' : 'none';
+            document.getElementById('diagContentPrereq').style.display = (tab === 'prereq') ? 'block' : 'none';
+            document.getElementById('diagContentTrouble').style.display = (tab === 'trouble') ? 'block' : 'none';
+        }
+
+        // 環境診断実行
+        async function runDiagnostics() {
+            const nodeBadge = document.getElementById('diagNodeBadge');
+            const nodeVal = document.getElementById('diagNodeValue');
+            const prodDriveBadge = document.getElementById('diagProdDriveBadge');
+            const prodDriveVal = document.getElementById('diagProdDriveValue');
+            const prodUncBadge = document.getElementById('diagProdUncBadge');
+            const prodUncVal = document.getElementById('diagProdUncValue');
+            const whoamiBadge = document.getElementById('diagWhoamiBadge');
+            const whoamiVal = document.getElementById('diagWhoamiValue');
+            const localHtdocsBadge = document.getElementById('diagLocalHtdocsBadge');
+            const localHtdocsVal = document.getElementById('diagLocalHtdocsValue');
+            const backupRootBadge = document.getElementById('diagBackupRootBadge');
+            const backupRootVal = document.getElementById('diagBackupRootValue');
+            const summaryBox = document.getElementById('diagSummaryBox');
+
+            nodeBadge.className = 'diag-badge warn';
+            nodeBadge.textContent = '確認中...';
+            summaryBox.style.background = '#f8fafc';
+            summaryBox.style.color = '#64748b';
+            summaryBox.style.borderColor = '#cbd5e1';
+            summaryBox.textContent = '診断中... 接続先: ' + (API_BASE || 'ローカル直通');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/diagnostics`);
+                const data = await res.json();
+
+                // 1. Node.js
+                nodeBadge.className = 'diag-badge ok';
+                nodeBadge.textContent = '● 正常稼働中';
+                nodeVal.textContent = `ポート 5050 (${data.nodeVersion}) / 稼働 ${data.serverUptimeSec} 秒`;
+
+                // 2. Whoami
+                whoamiBadge.className = 'diag-badge ok';
+                whoamiBadge.textContent = '一般ユーザー';
+                whoamiVal.textContent = `${data.whoami} (ネットワークアクセス可)`;
+
+                // 3. 本番 T: ドライブ
+                if (data.prodDriveOk) {
+                    prodDriveBadge.className = 'diag-badge ok';
+                    prodDriveBadge.textContent = '● 正常マウント';
+                    prodDriveVal.textContent = 'T:/ (本番Apache24/htdocs 認識OK)';
+                } else {
+                    prodDriveBadge.className = 'diag-badge ng';
+                    prodDriveBadge.textContent = '✕ 未接続';
+                    prodDriveVal.textContent = 'T:/ が見つかりません (未マウント)';
+                }
+
+                // 4. 本番 UNC
+                if (data.prodUncOk) {
+                    prodUncBadge.className = 'diag-badge ok';
+                    prodUncBadge.textContent = '● 疎通OK';
+                    prodUncVal.textContent = data.prodUnc;
+                } else {
+                    prodUncBadge.className = 'diag-badge warn';
+                    prodUncBadge.textContent = '未疎通';
+                    prodUncVal.textContent = data.prodUnc;
+                }
+
+                // 5. ローカル htdocs
+                if (data.localHtdocsOk) {
+                    localHtdocsBadge.className = 'diag-badge ok';
+                    localHtdocsBadge.textContent = '● 存在確認OK';
+                    localHtdocsVal.textContent = data.localHtdocs;
+                } else {
+                    localHtdocsBadge.className = 'diag-badge ng';
+                    localHtdocsBadge.textContent = '✕ 不在';
+                    localHtdocsVal.textContent = data.localHtdocs;
+                }
+
+                // 6. バックアップ保存先
+                backupRootBadge.className = 'diag-badge ok';
+                backupRootBadge.textContent = data.backupRootOk ? '● 存在OK' : 'デプロイ時自動作成';
+                backupRootVal.textContent = data.backupRoot;
+
+                // 総合判定
+                if (data.prodDriveOk && data.localHtdocsOk) {
+                    summaryBox.style.background = '#f0fdf4';
+                    summaryBox.style.color = '#166534';
+                    summaryBox.style.borderColor = '#bbf7d0';
+                    summaryBox.innerHTML = `<strong>🎉 すべての前提条件がクリアされています。</strong><br>現在、本番サーバーへの安全配布および自動ZIPバックアップが正常に利用可能です。`;
+                } else {
+                    summaryBox.style.background = '#fffbeb';
+                    summaryBox.style.color = '#92400e';
+                    summaryBox.style.borderColor = '#fde68a';
+                    summaryBox.innerHTML = `<strong>⚠️ 一部の前提条件が満たされていません。</strong><br>本番サーバーの「T:」ドライブがマウントされているかご確認ください。「📌 必須の前提条件」タブに設定手順を記載しています。`;
+                }
+
+            } catch (err) {
+                // Node.js サーバー自体が落ちている場合
+                nodeBadge.className = 'diag-badge ng';
+                nodeBadge.textContent = '✕ 停止中';
+                nodeVal.textContent = 'ポート 5050 に接続できません';
+
+                prodDriveBadge.className = 'diag-badge warn';
+                prodDriveBadge.textContent = '判定不能';
+                prodUncBadge.className = 'diag-badge warn';
+                prodUncBadge.textContent = '判定不能';
+
+                summaryBox.style.background = '#fef2f2';
+                summaryBox.style.color = '#991b1b';
+                summaryBox.style.borderColor = '#fecaca';
+                summaryBox.innerHTML = `<strong>❌ ローカル支援サーバー（Node.js: ポート5050）が停止しています。</strong><br>フォルダ内の <code>start_deploy_manager.bat</code> をダブルクリックして起動してください。<br>（エラー: ${escapeHtml(err.message)}）`;
+            }
+        }
+
+        // システム選択
+        function selectSystem(sysName) {
+            currentSystem = sysName;
+            document.querySelectorAll('.sys-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.trim() === sysName);
+            });
+            log(`対象システムを [${sysName}] に切り替えました。差分スキャンを開始します...`, 'info');
+            rescanDiff();
+        }
+
+        // 差分再スキャン
+        async function rescanDiff() {
+            if (!currentSystem) return;
+            const tbody = document.getElementById('diffTableBody');
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">スキャン中...</td></tr>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/diff?system=${encodeURIComponent(currentSystem)}`);
+                const data = await res.json();
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#dc2626;">スキャン失敗: ${data.message}</td></tr>`;
+                    log(`スキャン失敗: ${data.message}`, 'err');
+                    return;
+                }
+
+                document.getElementById('statModified').textContent = data.stats.modified;
+                document.getElementById('statNew').textContent = data.stats.new;
+                document.getElementById('statSame').textContent = data.stats.same;
+
+                currentDiffs = data.diffs || [];
+                renderDiffTable(currentDiffs);
+                log(`[${currentSystem}] スキャン完了: 変更 ${data.stats.modified} 件, 新規 ${data.stats.new} 件, 一致 ${data.stats.same} 件 (全 ${data.totalLocalFiles} ファイル)`, 'success');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#dc2626;">通信エラー: ${err.message}</td></tr>`;
+                log('差分スキャン通信エラー: ' + err.message, 'err');
+            }
+        }
+
+        // 差分テーブル描画
+        function renderDiffTable(diffs) {
+            const tbody = document.getElementById('diffTableBody');
+            if (diffs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#15803d; font-weight:bold;">🎉 すべてのファイルが本番サーバーと完全一致しています（差分なし）</td></tr>`;
+                updateSelectedCount();
+                return;
+            }
+
+            let html = '';
+            diffs.forEach((d, idx) => {
+                const sizeFmt = (d.localSize / 1024).toFixed(1) + ' KB';
+                html += `
+                    <tr>
+                        <td style="text-align:center;">
+                            <input type="checkbox" class="file-chk" value="${escapeHtml(d.path)}" checked onchange="updateSelectedCount()">
+                        </td>
+                        <td style="text-align:center;">
+                            <span class="status-pill ${d.status}">${d.status}</span>
+                        </td>
+                        <td><span class="file-path">${escapeHtml(d.path)}</span></td>
+                        <td><span class="time-text">${d.localMtime || '-'}</span></td>
+                        <td><span class="time-text">${d.prodMtime || '<span style="color:#15803d;">(新規)</span>'}</span></td>
+                        <td style="text-align:right; font-family:monospace;">${sizeFmt}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            updateSelectedCount();
+        }
+
+        // 選択制御
+        function selectAll(checked) {
+            document.querySelectorAll('.file-chk').forEach(c => c.checked = checked);
+            document.getElementById('chkHeaderAll').checked = checked;
+            updateSelectedCount();
+        }
+
+        function toggleHeaderAll(header) {
+            selectAll(header.checked);
+        }
+
+        function updateSelectedCount() {
+            const selected = document.querySelectorAll('.file-chk:checked');
+            document.getElementById('selectedCountText').textContent = `選択中: ${selected.length} / ${currentDiffs.length} 件`;
+            const btn = document.getElementById('btnExecuteDeploy');
+            btn.disabled = (selected.length === 0);
+            btn.style.opacity = (selected.length === 0) ? '0.5' : '1';
+        }
+
+        // デプロイモーダル開閉
+        function openDeployConfirmModal() {
+            const selected = Array.from(document.querySelectorAll('.file-chk:checked')).map(c => c.value);
+            if (selected.length === 0) {
+                alert('配布対象ファイルが選択されていません');
+                return;
+            }
+
+            document.getElementById('modalFileCount').textContent = selected.length;
+            document.getElementById('modalSystemName').textContent = currentSystem;
+            document.getElementById('deployConfirmModal').classList.add('active');
+        }
+
+        function closeDeployModal() {
+            document.getElementById('deployConfirmModal').classList.remove('active');
+        }
+
+        // デプロイ実行
+        async function executeDeployNow() {
+            const selected = Array.from(document.querySelectorAll('.file-chk:checked')).map(c => c.value);
+            if (selected.length === 0) return;
+
+            const btnConfirm = document.getElementById('btnConfirmDeployAction');
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = '⏳ デプロイ処理中...';
+
+            log(`[${currentSystem}] 本番デプロイを開始します... (対象: ${selected.length} 件)`, 'warn');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/deploy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ system: currentSystem, files: selected })
+                });
+
+                const data = await res.json();
+                closeDeployModal();
+
+                if (data.success) {
+                    log(`🎉 ${data.message}`, 'success');
+                    if (data.backupFilename) {
+                        log(`📦 本番バックアップ保存完了: c:\\deploy_backups\\${currentSystem}\\${data.backupFilename} (${data.backedUpCount} ファイル退避)`, 'success');
+                    }
+                    alert(`✅ 本番サーバーへのデプロイが完了しました！\n\n・配布ファイル: ${data.copiedCount} 件\n・バックアップZIP: ${data.backupFilename || 'なし'}`);
+                    rescanDiff();
+                } else {
+                    log(`❌ デプロイ失敗: ${data.message}`, 'err');
+                    alert(`デプロイ失敗: ${data.message}`);
+                }
+            } catch (err) {
+                closeDeployModal();
+                log('デプロイ通信エラー: ' + err.message, 'err');
+                alert('通信エラー: ' + err.message);
+            } finally {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = '<span>🚀</span> バックアップを取得して本番配布を実行';
+            }
+        }
+
+        // バックアップ履歴取得
+        async function loadBackups() {
+            const tbody = document.getElementById('backupTableBody');
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:#64748b;">バックアップ履歴を読み込み中...</td></tr>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/backups?system=${encodeURIComponent(currentSystem)}`);
+                const data = await res.json();
+                if (!data.success || !data.backups || data.backups.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:40px; color:#64748b;">バックアップZIPはまだありません</td></tr>`;
+                    return;
+                }
+
+                let html = '';
+                data.backups.forEach(b => {
+                    html += `
+                        <tr>
+                            <td><strong style="color:#1e40af; font-family:monospace;">${escapeHtml(b.filename)}</strong></td>
+                            <td><span class="time-text">${b.mtime}</span></td>
+                            <td style="text-align:right; font-family:monospace;">${b.sizeFormatted}</td>
+                            <td style="text-align:center;">
+                                <button type="button" class="btn btn-danger" style="font-size:11px; padding:3px 10px;" onclick="rollbackToBackup('${escapeHtml(b.filename)}')">
+                                    <span>⏪</span> この時点へ復元
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:#dc2626;">履歴取得失敗: ${err.message}</td></tr>`;
+            }
+        }
+
+        // ロールバック実行
+        async function rollbackToBackup(zipFilename) {
+            const ok = confirm(`⚠️ 警告: 本当に本番サーバーの「${currentSystem}」をこのバックアップ（${zipFilename}）の状態にロールバック（復元上書き）しますか？\n\n※現在の本番ファイルがZIPの内容で上書きされます。`);
+            if (!ok) return;
+
+            log(`[${currentSystem}] ロールバック処理を開始します: ${zipFilename}...`, 'warn');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/rollback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ system: currentSystem, zipFilename: zipFilename })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    log(`✅ ${data.message}`, 'success');
+                    alert(`✅ ロールバック完了:\n${data.message}`);
+                    rescanDiff();
+                    switchTab('diff');
+                } else {
+                    log(`❌ ロールバック失敗: ${data.message}`, 'err');
+                    alert(`ロールバック失敗: ${data.message}`);
+                }
+            } catch (err) {
+                log('ロールバック通信エラー: ' + err.message, 'err');
+                alert('通信エラー: ' + err.message);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    </script>
+</body>
+</html>

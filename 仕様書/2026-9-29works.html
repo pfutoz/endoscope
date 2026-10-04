@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-09-29)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --purple: #8b5cf6;
+            --purple-light: #f5f3ff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(59, 130, 246, 0.25);
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #ffffff;
+        }
+
+        nav.toc-nav {
+            background: #f1f5f9;
+            padding: 18px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-size: 12.5px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 8px 16px;
+        }
+
+        .toc-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-link:hover {
+            text-decoration: underline;
+            color: var(--primary-dark);
+        }
+
+        main.report-main {
+            padding: 36px;
+        }
+
+        section.report-section {
+            margin-bottom: 44px;
+        }
+
+        section.report-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3.subsection-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p, ul, ol {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 4px;
+        }
+
+        .lead-text {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-main);
+            background: #f8fafc;
+            padding: 14px 18px;
+            border-left: 4px solid var(--primary);
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 18px;
+        }
+
+        .alert-box {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-size: 13px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .alert-info { background: var(--primary-light); border: 1px solid #bfdbfe; color: #1e40af; }
+        .alert-success { background: var(--success-light); border: 1px solid #a7f3d0; color: #065f46; }
+        .alert-warning { background: var(--warning-light); border: 1px solid #fde68a; color: #92400e; }
+        .alert-danger { background: var(--danger-light); border: 1px solid #fecaca; color: #991b1b; }
+
+        .spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin: 16px 0;
+            background: #ffffff;
+        }
+
+        .spec-table th, .spec-table td {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        .spec-table th {
+            background: #f1f5f9;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .spec-table tr:hover {
+            background-color: #f8fafc;
+        }
+
+        pre.code-block {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin: 14px 0;
+            border: 1px solid #1e293b;
+        }
+
+        code.inline-code {
+            font-family: var(--font-mono);
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-primary { background: #dbeafe; color: #1e40af; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger  { background: #fee2e2; color: #991b1b; }
+
+        .feature-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .feature-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+
+        .feature-card h4 {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">🎨 UI/UX全面刷新 ＆ 本物インページモーダル化 ＆ アセット正規化統合</span>
+            <span class="header-title-badge" style="background:rgba(16,185,129,0.25); color:#a7f3d0; border-color:rgba(167,243,208,0.3);">✅ 本番・Local 全検証完了</span>
+        </div>
+        <h1>内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="header-meta">
+            <span>作業日: <strong>2026年9月29日 (火)</strong></span>
+            <span>対象環境: <strong>Local (Apache 2.4 / PHP 8.5.9 / PostgreSQL 18.3) ＆ 本番 (192.168.1.16)</strong></span>
+            <span>対象主要画面: <strong>month_schedule.php / month_matrix_v2.php / schedule_note.php / modal_edit.php</strong></span>
+            <span>担当: <strong>Antigravity AI Pair Programmer</strong></span>
+        </div>
+    </header>
+
+    <nav class="toc-nav">
+        <div class="toc-title">INDEX / 目次</div>
+        <div class="toc-grid">
+            <a href="#sec1" class="toc-link">1. 本日の改修背景と達成ゴール</a>
+            <a href="#sec2" class="toc-link">2. ツールバーUI全面刷新（トグルボタン化・ツライチ統一）</a>
+            <a href="#sec3" class="toc-link">3. schedule_note.php のキーボード移動＆UI最適化</a>
+            <a href="#sec4" class="toc-link">4. カレンダーコマンドパレット整理と枠内内包化</a>
+            <a href="#sec5" class="toc-link">5. 直近空き枠速報の右下フローティング化（Glassmorphism）</a>
+            <a href="#sec6" class="toc-link">6. modal_edit.php の本物インページモーダルダイアログ化</a>
+            <a href="#sec7" class="toc-link">7. アセット統合とファイル名正規化（month_schedule.js/css）</a>
+            <a href="#sec8" class="toc-link">8. DB監査ログ（t_master_audit_log）の安全マイグレーション</a>
+            <a href="#sec9" class="toc-link">9. 変更ファイル一覧と構成</a>
+            <a href="#sec10" class="toc-link">10. 総合テスト・動作検証結果</a>
+        </div>
+    </nav>
+
+    <main class="report-main">
+        <!-- 1. 改修背景と達成ゴール -->
+        <section id="sec1" class="report-section">
+            <h2 class="section-title">1. 本日の改修背景と達成ゴール</h2>
+            <div class="lead-text">
+                前日（2026-09-28）に達成した「巨大PHPからのCSS/JSモジュール外部分離」をベースに、本日（2026-09-29）は<strong>「画面操作性の極致（UI/UX刷新）」</strong>および<strong>「予約登録・編集画面（modal_edit.php）の真のインページモーダル化」</strong>を達成しました。<br>
+                チェックボックスの廃止とカプセル型トグルボタンへの刷新、直近空き枠速報のフローティングドラッグ化、キーボードショートカット日付移動、そして別ウィンドウ起動だった予約編集画面の画面内完全モーダル化とアセットの正規統合（<code>month_schedule.js</code> / <code>month_schedule.css</code>）を実施しました。
+            </div>
+
+            <div class="feature-card-grid">
+                <div class="feature-card">
+                    <h4>🎯 達成ゴール 1: ツールバー操作性の統一</h4>
+                    <p>月間カレンダー、予約マトリクス、デイリーノートの3画面でバラバラだったトグルやチェックボックスを、高さ完全ツライチ（32px/24px）のカプセル型トグルボタンに統一。エコーの水色テーマ同期や不要アイコン（🎯）の撤去を完了。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🖥️ 達成ゴール 2: 本物モーダル化 (Native Dialog)</h4>
+                    <p>従来「別ウィンドウ」でポップアップしていた <code>modal_edit.php</code> を、親画面のDOMを汚染せず <code>&lt;dialog&gt;</code> ＋ <code>&lt;iframe&gt;</code> で画面内に美しく暗転表示。保存時の双方向 <code>postMessage</code> 自動リフレッシュも完備。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📦 達成ゴール 3: アセットの正規名称統合</h4>
+                    <p>検証用ファイル名サフィックス「2」が残っていた <code>month_schedule2.js/css</code> および新設した <code>modal_edit_runner.js</code> を、正規名称 <code>assets/js/month_schedule.js</code> と <code>assets/css/month_schedule.css</code> に完全統合・一本化。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. ツールバーUI全面刷新 -->
+        <section id="sec2" class="report-section">
+            <h2 class="section-title">2. ツールバーUI全面刷新（トグルボタン化・ツライチ統一）</h2>
+            <p>
+                従来、月間カレンダー（<code>month_schedule.php</code>）、予約マトリクス（<code>month_matrix_v2.php</code>）、デイリーノート（<code>schedule_note.php</code>）の各画面では、検査枠の絞り込みや空き枠表示にブラウザ標準のチェックボックスが混在し、ボタンの高さが不揃いで視覚的ノイズとなっていました。
+            </p>
+
+            <h3 class="subsection-title">💡 主な改善点</h3>
+            <ul>
+                <li><strong>チェックボックスの完全撤廃:</strong> ネイティブの <code>&lt;input type="checkbox"&gt;</code> を廃止し、クリックで <code>.active</code> クラスが切り替わるモダンなカプセル型トグルボタンへ刷新。</li>
+                <li><strong>「枠:」ラベル付きカプセルへの集約:</strong> <code>[枠: [GIF] [エコー] [TCF]]</code> のように、枠絞り込みグループであることが一目でわかる構造化カプセルを採用。</li>
+                <li><strong>テーマカラー完全連動:</strong> エコー枠のアクティブ色をエコー専用テーマ（水色 <code>#0284c7</code>）に同期。GIF（青）、TCF（深青）と直感的に区別可能。予約マトリクスでは文字あふれを防ぐため「US」表記に短縮。</li>
+                <li><strong>「空き枠表示」の独立トグルボタン化:</strong> チェックボックスから、状態がひと目でわかるトグルボタン（<code>[⬜ 空き枠表示]</code>）へ刷新。</li>
+                <li><strong>不要絵文字（🎯）の撤去:</strong> 視覚的ノイズとなっていた🎯アイコンを排除し、医療現場にふさわしい落ち着いたトーンに統一。</li>
+                <li><strong>ボタン高さの完全ツライチ化:</strong>
+                    <ul>
+                        <li><code>month_schedule.php</code> ＆ <code>schedule_note.php</code>: <strong>高さ 32px</strong> に完全統一。</li>
+                        <li><code>month_matrix_v2.php</code>: 高密度グリッドに合わせて <strong>高さ 24px</strong> に完全統一。</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <pre class="code-block"><code>/* カプセル型ボタングループと高さツライチCSS */
+.capsule-group {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 2px 4px;
+    gap: 2px;
+    height: 32px; /* 完全ツライチ */
+}
+.btn-toggle-slot.active[data-slot="ECHO"] {
+    background: #0284c7 !important; /* エコー専用水色 */
+    color: #ffffff !important;
+}</code></pre>
+        </section>
+
+        <!-- 3. schedule_note.php のキーボード移動＆UI最適化 -->
+        <section id="sec3" class="report-section">
+            <h2 class="section-title">3. schedule_note.php のキーボード移動＆UI最適化</h2>
+            <p>
+                紙ベースのノート感覚で全幅一覧できる超高速モード <code>schedule_note.php</code> において、診療現場での素早い日付送り・確認を可能にするキーボードショートカット機能を新規実装しました。
+            </p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">キー操作</th>
+                        <th style="width: 35%;">動作</th>
+                        <th style="width: 40%;">誤爆防止・フェイルセーフ仕様</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd>←</kbd> / <kbd>→</kbd></td>
+                        <td>前日 / 翌日 へ移動</td>
+                        <td rowspan="4">
+                            <code>input</code>, <code>textarea</code>, <code>select</code>, <code>contentEditable</code> 等の入力フォーム操作中、および <code>dialog[open]</code> やモーダル表示中は<strong>自動的にキーイベントを無効化</strong>。電子カルテ入力や検索時の誤遷移を100%防止。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><kbd>↑</kbd> / <kbd>↓</kbd></td>
+                        <td>前週（-7日） / 翌週（+7日） へ移動</td>
+                    </tr>
+                    <tr>
+                        <td><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd></td>
+                        <td>休診日（小野会休日ルール）をスキップし、<strong>前診療日 / 次診療日</strong> へ移動</td>
+                    </tr>
+                    <tr>
+                        <td><kbd>T</kbd> / <kbd>Home</kbd></td>
+                        <td><strong>今日</strong> へ即座にジャンプ（本日表示時はトースト通知）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="subsection-title">💡 追加のUI最適化</h3>
+            <ul>
+                <li><strong>日付ピッカー（date-picker-input）の大型化:</strong> フォント15px、太字、淡色背景、青枠線強調により、クリック領域を拡大し誤タップを防止。</li>
+                <li><strong>担当医師＆検査種別列の左揃え化:</strong> ユーザーフィードバックに基づき、7列目の「担当医師 ＆ 検査種別」を中央揃えから左揃え（<code>gap: 3px; justify-content: left;</code>）に調整し、視線移動の負荷を軽減。</li>
+            </ul>
+        </section>
+
+        <!-- 4. カレンダーコマンドパレット整理 -->
+        <section id="sec4" class="report-section">
+            <h2 class="section-title">4. カレンダーコマンドパレット整理と枠内内包化</h2>
+            <p>
+                <code>month_schedule.php</code> において、カレンダー部（上段または下段）に対するフィルター操作（医師絞込・種別・残数/合計表示切替）を行うコマンドパレットがカレンダー枠外に独立していたため、カレンダーを非表示（折りたたみ）にした際や上下入替を行った際に位置の不整合が発生していました。
+            </p>
+
+            <div class="alert-box alert-success">
+                <div>✅</div>
+                <div>
+                    <strong>完全内包化と追従移動の達成:</strong><br>
+                    コマンドパレット（<code>.filters-compact</code>）をカレンダー枠（<code>#calendarWrapper</code>）の内部ヘッダーとして配置。<br>
+                    これにより、<strong>カレンダーを折りたたんだ時はパレットも連動して非表示</strong>となり、<strong>上下入替（上下反転）を行った際もカレンダー本体と一緒にスムーズに下段または上段へ移動</strong>します。
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 直近空き枠速報の右下フローティング化 -->
+        <section id="sec5" class="report-section">
+            <h2 class="section-title">5. 直近空き枠速報の右下フローティング化（Glassmorphism）</h2>
+            <p>
+                月間カレンダー画面のヘッダー部に固定されていた「直近空き枠速報（⚡）」を、当日ステータスモニターの医師通知欄スタイルを踏襲した<strong>画面右下の常時フローティングパネル</strong>へ進化させました。
+            </p>
+
+            <div class="feature-card-grid">
+                <div class="feature-card">
+                    <h4>🪟 ダーク系半透明グラスモフィズム</h4>
+                    <p>背景がわずかに透ける <code>backdrop-filter: blur(8px)</code> と <code>rgba(15, 23, 42, 0.88)</code> を採用。予約表の視認性を邪魔せず、リッチでプレミアムなデザインを実現。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>✋ 自由なドラッグ移動 ＆ 24時間保持</h4>
+                    <p>ヘッダーバーを掴んで画面内の自由な位置へドラッグ移動可能。移動先の座標（<code>left</code>, <code>top</code>）および開閉状態は <code>localStorage</code> に24時間永続保持。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>✕ コンパクトピル最小化</h4>
+                    <p>右上の✕ボタンを押すと、画面右下に小さなピルバッジ（<code>📢 空き枠速報</code>）として最小化。再度クリックすることでワンタッチでフルパネルに復帰。</p>
+                </div>
+            </div>
+
+            <p>
+                また、ユーザーフィードバックに基づき、画面全体の強制リフレッシュタイマーは完全排除し、ヘッダー側の旧ボタン（<code>#btnNavUrgentSlot</code>）も撤去してフローティング側へ一本化しました。
+            </p>
+        </section>
+
+        <!-- 6. modal_edit.php の本物インページモーダル化 -->
+        <section id="sec6" class="report-section">
+            <h2 class="section-title">6. modal_edit.php の本物インページモーダルダイアログ化</h2>
+            <p>
+                従来、予約登録・編集画面（<code>modal_edit.php</code>）は <code>window.open()</code> による別ウィンドウポップアップで開かれており、親画面との重なりやウィンドウ迷子、フォーカス管理が現場スタッフの課題となっていました。
+            </p>
+
+            <h3 class="subsection-title">🏗️ 設計上の制約と画期的な解決アプローチ</h3>
+            <div class="lead-text">
+                <strong>制約事項:</strong> 「呼び出し元画面（<code>month_schedule.php</code> 等）に <code>modal_edit.php</code> の巨大なコード（HTML/CSS/JS）を組み込んでしまう事は絶対に避けたい（ファイル肥大化・IDEフリーズ再発防止）。」
+            </div>
+
+            <div class="alert-box alert-info">
+                <div>💡</div>
+                <div>
+                    <strong>解決アプローチ（Dynamic In-page Dialog Runner）:</strong><br>
+                    呼び出し元に重いHTMLを書くのではなく、外部スクリプトが呼び出し元のDOMへ <strong>HTML5標準の <code>&lt;dialog&gt;</code> と <code>&lt;iframe&gt;</code> を必要時に動的注入</strong>するランナーアーキテクチャを採用。<br>
+                    親画面はスクリプトを1行読み込むだけで、一切のコード肥大化なしに本物のインページモーダル表示を実現しました。
+                </div>
+            </div>
+
+            <h3 class="subsection-title">🔄 双方向 postMessage 通信による安全な保存・自動リロード</h3>
+            <p>
+                <code>modal_edit.php</code> 側で予約を保存（または削除・キャンセル）した際、子ウィンドウ判定（<code>window.opener</code>）とインページ判定（<code>window.parent</code>）を自動判別：
+            </p>
+            <pre class="code-block"><code>// modal_edit.php 側の閉じる処理
+function closeModalWindow(needReload) {
+    // 1. 本物インページモーダルダイアログ（iframe）からの場合
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+            type: needReload ? 'modal_edit_saved' : 'modal_edit_close'
+        }, '*');
+        return;
+    }
+    // 2. 従来の別ウィンドウからの場合（フォールバック）
+    if (window.opener && !window.opener.closed) {
+        if (needReload) {
+            window.opener.sessionStorage.setItem('need_reload', '1');
+            window.opener.location.reload();
+        }
+    }
+    window.close();
+}</code></pre>
+        </section>
+
+        <!-- 7. アセット統合とファイル名正規化 -->
+        <section id="sec7" class="report-section">
+            <h2 class="section-title">7. アセット統合とファイル名正規化（month_schedule.js/css）</h2>
+            <p>
+                2026-09-28のモジュール分離検証時に付与されていたサフィックス「2」（<code>month_schedule2.js</code>, <code>month_schedule2.css</code>）および新設した <code>modal_edit_runner.js</code> を、正規名称 <strong><code>assets/js/month_schedule.js</code></strong> と <strong><code>assets/css/month_schedule.css</code></strong> に一本化しました。
+            </p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">旧アセット</th>
+                        <th style="width: 30%;">新・統合正規アセット</th>
+                        <th style="width: 40%;">統合メリット</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <code>assets/js/month_schedule2.js</code><br>
+                            <code>assets/js/modal_edit_runner.js</code>
+                        </td>
+                        <td>
+                            <strong><code>assets/js/month_schedule.js</code></strong><br>
+                            <span class="badge-status badge-success">完全一本化</span>
+                        </td>
+                        <td>
+                            カレンダー操作、フィルター、メモ、重複チェック、そして<strong>本物モーダルダイアログランナー</strong>が単一ファイルで完結。親画面でのスクリプト読み込みタグが1行に集約。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>assets/css/month_schedule2.css</code></td>
+                        <td>
+                            <strong><code>assets/css/month_schedule.css</code></strong><br>
+                            <span class="badge-status badge-success">正規ファイル化</span>
+                        </td>
+                        <td>
+                            コマンドパレット内包スタイル、カレンダーグリッド、スクロールバー、レスポンシブ設計を正規版として集約。
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert-box alert-warning">
+                <div>🛡️</div>
+                <div>
+                    <strong>後方互換性の担保:</strong><br>
+                    万が一古いブラウザキャッシュや他画面から旧ファイル名（<code>month_schedule2.js/css</code>, <code>modal_edit_runner.js</code>）が参照された場合でもエラーが発生しないよう、旧ファイルにも最新の統合コードを完全同期配置しています。
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. DB監査ログの安全マイグレーション -->
+        <section id="sec8" class="report-section">
+            <h2 class="section-title">8. DB監査ログ（t_master_audit_log）の安全マイグレーション</h2>
+            <p>
+                マスタ更新履歴テーブル <code>t_master_audit_log</code> において、プログラムコード側で参照されているカラム（<code>user_agent</code>, <code>action_category</code>）がDB定義上で未追加となっていた不整合を解消しました。
+            </p>
+            <ul>
+                <li><strong>Local環境:</strong> カラム追加マイグレーションスクリプトを実行し、正常にカラムを適用。</li>
+                <li><strong>本番環境（192.168.1.16）:</strong> <code>migrate_prod_safe.php</code> により、既存データやテーブルロックに影響を与えず <code>IF NOT EXISTS</code> 方式で安全にカラムを追加。</li>
+                <li><strong>動作検証:</strong> マスタ更新操作（部屋割・マスタ変更等）に伴う監査ログの自動書き込みがエラーなく完了することを確認済み。</li>
+            </ul>
+        </section>
+
+        <!-- 9. 変更ファイル一覧と構成 -->
+        <section id="sec9" class="report-section">
+            <h2 class="section-title">9. 変更ファイル一覧と構成</h2>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width: 32%;">ファイルパス</th>
+                        <th style="width: 14%;">区分</th>
+                        <th style="width: 54%;">改修内容の要約</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>assets/js/month_schedule.js</code></td>
+                        <td><span class="badge-status badge-success">新規統合</span></td>
+                        <td>カレンダーロジック、フィルター制御、日別メモ、重複チェック、およびインページ予約モーダルランナーを完全一本化。</td>
+                    </tr>
+                    <tr>
+                        <td><code>assets/css/month_schedule.css</code></td>
+                        <td><span class="badge-status badge-success">新規正規化</span></td>
+                        <td>カレンダー内包コマンドパレット、ツライチトグル、スクロールバー、グリッド配置を集約した正規スタイルシート。</td>
+                    </tr>
+                    <tr>
+                        <td><code>month_schedule.php</code></td>
+                        <td><span class="badge-status badge-primary">改修</span></td>
+                        <td>カプセル型トグルボタン化、コマンドパレット内包化、直近空き枠速報フローティング化、正規アセット（month_schedule.js/css）への切り替え。</td>
+                    </tr>
+                    <tr>
+                        <td><code>schedule_note.php</code></td>
+                        <td><span class="badge-status badge-primary">改修</span></td>
+                        <td>トグルボタン化、キーボードショートカット日付移動（←/→/↑/↓/Shift/T）、大型日付ピッカー、医師種別左揃え、正規アセット連携。</td>
+                    </tr>
+                    <tr>
+                        <td><code>month_matrix_v2.php</code></td>
+                        <td><span class="badge-status badge-primary">改修</span></td>
+                        <td>枠別トグルボタン化、タイマー移設＆プログレスバー化、高さ24pxツライチ化、インページモーダルランナー（month_schedule.js）連携。</td>
+                    </tr>
+                    <tr>
+                        <td><code>modal_edit.php</code></td>
+                        <td><span class="badge-status badge-primary">改修</span></td>
+                        <td>インページモーダル時の <code>window.parent.postMessage</code> 通信対応（保存・キャンセル時の親画面自動クローズ＆リロード）。</td>
+                    </tr>
+                    <tr>
+                        <td><code>urgent_slot_modal_inc.php</code></td>
+                        <td><span class="badge-status badge-primary">改修</span></td>
+                        <td>フローティング速報パネル用のドラッグ移動イベント、localStorage24時間位置・開閉保持ロジックを実装。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 10. 総合テスト・動作検証結果 -->
+        <section id="sec10" class="report-section">
+            <h2 class="section-title">10. 総合テスト・動作検証結果</h2>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">テスト項目</th>
+                        <th style="width: 50%;">検証内容と手順</th>
+                        <th style="width: 15%;">検証結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PHP構文チェック</td>
+                        <td><code>php -l</code> により、改修した全主要PHPファイル（month_schedule.php, schedule_note.php, month_matrix_v2.php, modal_edit.php 等）のリント検証。</td>
+                        <td><span class="badge-status badge-success">OK (エラー0)</span></td>
+                    </tr>
+                    <tr>
+                        <td>JS構文チェック</td>
+                        <td><code>node -c assets/js/month_schedule.js</code> による構文検証。</td>
+                        <td><span class="badge-status badge-success">OK (エラー0)</span></td>
+                    </tr>
+                    <tr>
+                        <td>アセット配信チェック</td>
+                        <td>HTTP経由で各ページを取得し、旧ファイル参照がゼロで正規 <code>month_schedule.js/css</code> が配信されていることを確認。</td>
+                        <td><span class="badge-status badge-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>本物モーダル動作</td>
+                        <td>予約枠クリックで画面内にすりガラス暗転ダイアログが起動。保存時に postMessage でダイアログが閉じ、親画面が即時リロードされることを確認。</td>
+                        <td><span class="badge-status badge-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>フローティング速報</td>
+                        <td>画面右下に半透明表示され、ドラッグ移動・最小化・再読み込み時の位置復元が正常に機能することを確認。</td>
+                        <td><span class="badge-status badge-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>キーボード移動</td>
+                        <td><code>schedule_note.php</code> において、[←][→][Shift+←][Shift+→][T] による日付移動、フォームフォーカス時のガードが正常に機能することを確認。</td>
+                        <td><span class="badge-status badge-success">OK</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer class="report-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 開発・改修プロジェクト</div>
+        <div>報告書ファイル: <code>仕様書/2026-9-29works.html</code> (2026-09-29 作成)</div>
+    </footer>
+</div>
+
+</body>
+</html>

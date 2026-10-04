@@ -1,0 +1,661 @@
+{
+    "document": {
+      "title": "内視鏡システム 開発ナレッジベース（完全統合版）",
+      "version": "3.0",
+      "created": "2026-08-27",
+      "updated": "2026-08-31",
+      "last_merge": "ナレッジベース + 作業進捗（2026-08-28）+ ファイル履歴（2026-08-31）を統合",
+      "chat_summary": "約300往復のチャットを集約"
+    },
+  
+    "system": {
+      "name": "内視鏡予約管理システム",
+      "install_path": "C:\\APACHE24\\HTDOCS\\ENDOSCOPE\\",
+      "rdbms": {
+        "type": "PostgreSQL",
+        "version": "18.3",
+        "database": "endoscope"
+      },
+      "external_integration": {
+        "name": "MALL電子カルテ",
+        "type": "SQL Server",
+        "connection": "192.168.1.77\\his00"
+      },
+      "php": {
+        "version": "8.5.5 または 8.5.9",
+        "framework": "なし（素PHP）"
+      },
+      "web_server": {
+        "type": "Apache",
+        "version": "2.4"
+      }
+    },
+  
+    "directory_structure": {
+      "root": "C:\\APACHE24\\HTDOCS\\ENDOSCOPE\\",
+      "directories": [
+        {"name": "followup", "description": "フォローアップ管理", "file_count": 6},
+        {"name": "lib", "description": "共通ライブラリ", "file_count": 6},
+        {"name": "いらない？", "description": "旧ファイル・テストファイル（整理対象）"},
+        {"name": "テーブル定義", "description": "ドキュメント"},
+        {"name": "img", "description": "画像ファイル"}
+      ],
+      "main_files": [
+        {"file": "index.php", "function": "ダッシュボードメニュー"},
+        {"file": "month_matrix_v2.php", "function": "予約マトリクス（縦型・メイン）"},
+        {"file": "month_schedule.php", "function": "月間カレンダービュー"},
+        {"file": "slot_search.php", "function": "空き枠検索"},
+        {"file": "slot_master_maintenance.php", "function": "検査枠マスタ一括管理"},
+        {"file": "master_maintenance.php", "function": "汎用マスタ管理"},
+        {"file": "stats.php", "function": "検査数集計"},
+        {"file": "search_patient.php", "function": "予約済患者検索"},
+        {"file": "modal_edit.php", "function": "予約登録・編集モーダル"}
+      ],
+      "api_files": {
+        "action_*.php": "各種API（保存・マスタ更新）",
+        "get_*.php": "各種API（取得）",
+        "sync_*.php": "同期系API",
+        "print_*.php": "印刷系"
+      }
+    },
+  
+    "database": {
+      "tables": [
+        {
+          "name": "m2_doctor",
+          "description": "医師マスタ",
+          "columns": [
+            {"name": "id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+            {"name": "doctor_name", "type": "VARCHAR(50)", "constraint": "NOT NULL UNIQUE"},
+            {"name": "department_code", "type": "VARCHAR(10)", "constraint": "NOT NULL", "values": ["PROCT", "GASTRO"]},
+            {"name": "display_order", "type": "INTEGER", "default": 0},
+            {"name": "is_active", "type": "BOOLEAN", "default": true},
+            {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+          ]
+        },
+        {
+          "name": "m2_doctor_slot_pattern",
+          "description": "医師別枠数パターン・横持ち",
+          "columns": [
+            {"name": "id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+            {"name": "doctor_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+            {"name": "department_code", "type": "VARCHAR(10)", "constraint": "NOT NULL"},
+            {"name": "pattern_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+            {"name": "day_of_week", "type": "INTEGER", "constraint": "NOT NULL", "description": "0=日〜6=土"},
+            {"name": "group_code", "type": "VARCHAR(20)", "constraint": "NOT NULL", "values": ["GIF", "ECHO", "TCF"]},
+            {"name": "max_slots", "type": "INTEGER", "default": 0},
+            {"name": "gif_slots", "type": "INTEGER", "default": 0},
+            {"name": "echo_slots", "type": "INTEGER", "default": 0},
+            {"name": "tcf_slots", "type": "INTEGER", "default": 0},
+            {"name": "is_active", "type": "BOOLEAN", "default": true},
+            {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+          ],
+          "unique_constraint": "(doctor_name, department_code, pattern_name, day_of_week, group_code)",
+          "important": "getDoctorStatus()はmax_slotsではなくgif_slots/echo_slots/tcf_slotsを見る必要あり"
+        },
+        {
+          "name": "m2_waku",
+          "description": "時間枠定義",
+          "columns": [
+            {"name": "id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+            {"name": "department_code", "type": "VARCHAR(10)", "constraint": "NOT NULL"},
+            {"name": "waku_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+            {"name": "waku_code", "type": "VARCHAR(30)"},
+            {"name": "group_code", "type": "VARCHAR(20)", "constraint": "NOT NULL", "values": ["GIF", "ECHO", "TCF"]},
+            {"name": "display_order", "type": "INTEGER", "default": 0},
+            {"name": "is_active", "type": "BOOLEAN", "default": true},
+            {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+          ],
+          "unique_constraint": "(department_code, waku_name)"
+        },
+        {
+          "name": "m2_doctor_attendance",
+          "description": "医師出勤例外（優先度1）",
+          "columns": [
+            {"name": "attendance_id", "type": "SERIAL", "constraint": "PRIMARY KEY"}
+          ],
+          "note": "シーケンス修復対象テーブル"
+        },
+        {
+          "name": "m2_doctor_daily_capacity_v2",
+          "description": "医師日別上書き（優先度2）",
+          "columns": [
+            {"name": "capacity_id", "type": "SERIAL", "constraint": "PRIMARY KEY"}
+          ],
+          "note": "シーケンス修復対象テーブル"
+        },
+        {
+          "name": "m_input_master",
+          "description": "汎用選択肢マスタ（category='exam_location' 等）",
+          "columns": [
+            {"name": "master_id", "type": "SERIAL", "constraint": "PRIMARY KEY"}
+          ],
+          "note": "シーケンス修復対象テーブル。modal_edit.php で動的取得"
+        },
+        {
+          "name": "t_endoscopy_schedule",
+          "description": "予約テーブル",
+          "columns": [
+            {"name": "schedule_id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+            {"name": "exam_date", "type": "DATE", "constraint": "NOT NULL"},
+            {"name": "waku_no", "type": "INTEGER", "constraint": "NOT NULL"},
+            {"name": "doctor_name", "type": "VARCHAR(50)", "constraint": "NOT NULL"},
+            {"name": "scheduled_time", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+            {"name": "exam_type", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+            {"name": "exam_location", "type": "VARCHAR(30)", "constraint": "NOT NULL"},
+            {"name": "patient_id", "type": "VARCHAR(20)"},
+            {"name": "patient_name", "type": "VARCHAR(100)"},
+            {"name": "birthday", "type": "DATE"},
+            {"name": "patient_kana", "type": "VARCHAR(100)"},
+            {"name": "arrival_time", "type": "VARCHAR(20)"},
+            {"name": "remarks", "type": "TEXT"},
+            {"name": "is_canceled", "type": "BOOLEAN", "default": false},
+            {"name": "department_code", "type": "VARCHAR(10)", "default": "PROCT", "constraint": "NOT NULL"},
+            {"name": "booking_status", "type": "VARCHAR(20)", "default": "normal", "constraint": "NOT NULL"},
+            {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+          ],
+          "note": "シーケンス修復対象テーブル"
+        },
+        {
+          "name": "t_followup",
+          "description": "フォローアップメイン",
+          "columns": [
+            {"name": "followup_id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+            {"name": "patient_id", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+            {"name": "patient_name", "type": "VARCHAR(100)", "constraint": "NOT NULL"},
+            {"name": "patient_kana", "type": "VARCHAR(100)"},
+            {"name": "birthday", "type": "DATE"},
+            {"name": "department_code", "type": "VARCHAR(10)", "default": "GASTRO", "constraint": "NOT NULL"},
+            {"name": "doctor_name", "type": "VARCHAR(50)"},
+            {"name": "exam_types", "type": "JSON"},
+            {"name": "exam_types_display", "type": "VARCHAR(100)"},
+            {"name": "next_visit_date", "type": "DATE", "constraint": "NOT NULL"},
+            {"name": "next_visit_display", "type": "VARCHAR(100)"},
+            {"name": "next_visit_date_type", "type": "VARCHAR(20)", "default": "exact"},
+            {"name": "visit_purpose", "type": "VARCHAR(30)", "constraint": "NOT NULL"},
+            {"name": "visit_method", "type": "VARCHAR(30)", "constraint": "NOT NULL"},
+            {"name": "visit_time", "type": "VARCHAR(10)"},
+            {"name": "notes", "type": "TEXT"},
+            {"name": "issued_date", "type": "DATE", "default": "CURRENT_DATE"},
+            {"name": "is_printed", "type": "BOOLEAN", "default": false},
+            {"name": "printed_at", "type": "TIMESTAMP"},
+            {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+          ],
+          "status": "✅ 確認済み（2026-08-28）"
+        },
+        {
+          "name": "t_followup_items",
+          "description": "F/U検査詳細",
+          "columns": [
+            {"name": "item_id", "type": "SERIAL", "constraint": "PRIMARY KEY"},
+            {"name": "followup_id", "type": "INTEGER", "constraint": "NOT NULL REFERENCES t_followup(followup_id) ON DELETE CASCADE"},
+            {"name": "exam_type", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+            {"name": "fu_interval", "type": "VARCHAR(20)", "constraint": "NOT NULL"},
+            {"name": "fu_reason", "type": "TEXT"},
+            {"name": "fu_date", "type": "DATE"},
+            {"name": "status", "type": "VARCHAR(20)", "default": "planned"},
+            {"name": "completed_date", "type": "DATE"},
+            {"name": "display_order", "type": "INTEGER", "default": 0},
+            {"name": "created_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"}
+          ],
+          "status": "✅ 確認済み（2026-08-28）"
+        },
+        {
+          "name": "t_mall_memo",
+          "description": "電子カルテ同期メモ",
+          "columns": [
+            {"name": "patient_id", "type": "VARCHAR(20)", "constraint": "PRIMARY KEY"},
+            {"name": "patient_name", "type": "VARCHAR(100)", "constraint": "NOT NULL"},
+            {"name": "birth_date", "type": "DATE"},
+            {"name": "gender", "type": "VARCHAR(10)"},
+            {"name": "memo_today", "type": "TEXT"},
+            {"name": "memo_karte", "type": "TEXT"},
+            {"name": "memo_contact", "type": "TEXT"},
+            {"name": "memo_patient", "type": "TEXT"},
+            {"name": "synced_at", "type": "TIMESTAMP", "default": "CURRENT_TIMESTAMP"},
+            {"name": "created_at", "type": "TIMESTAMPTZ", "default": "CURRENT_TIMESTAMP"},
+            {"name": "updated_at", "type": "TIMESTAMPTZ", "default": "CURRENT_TIMESTAMP"}
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "from": "t_followup",
+          "to": "t_followup_items",
+          "type": "1対N",
+          "constraint": "ON DELETE CASCADE"
+        }
+      ],
+      "slot_priority": [
+        {"priority": 1, "name": "出勤例外", "table": "m2_doctor_attendance"},
+        {"priority": 2, "name": "日別上書き", "table": "m2_doctor_daily_capacity_v2"},
+        {"priority": 3, "name": "曜日パターン", "table": "m2_doctor_slot_pattern"},
+        {"priority": 4, "name": "デフォルト", "value": "0枠（出勤なし）"}
+      ],
+      "sequence_repair_targets": [
+        {"table": "t_endoscopy_schedule", "column": "schedule_id"},
+        {"table": "m_input_master", "column": "master_id"},
+        {"table": "m2_waku", "column": "waku_id"},
+        {"table": "m2_doctor_slot_pattern", "column": "pattern_id"},
+        {"table": "m2_doctor_attendance", "column": "attendance_id"},
+        {"table": "m2_doctor_daily_capacity_v2", "column": "capacity_id"}
+      ]
+    },
+  
+    "functions": {
+      "menu": {
+        "row1": {
+          "name": "予約操作",
+          "items": [
+            {"label": "📊 予約マトリクス (縦型V2)", "file": "month_matrix_v2.php"},
+            {"label": "📅 月間カレンダービュー", "file": "month_schedule.php"},
+            {"label": "🔍 空き枠検索", "file": "slot_search.php"}
+          ]
+        },
+        "row2": {
+          "name": "検索・集計",
+          "items": [
+            {"label": "🔎 予約済患者検索", "file": "search_patient.php"},
+            {"label": "📋 フォローアップ管理", "file": "followup/index.php"},
+            {"label": "📊 検査数集計", "file": "stats.php"}
+          ]
+        },
+        "row3": {
+          "name": "マスタ管理",
+          "items": [
+            {"label": "⚙️ 検査枠マスターメンテナンス", "file": "slot_master_maintenance.php"},
+            {"label": "🔧 汎用マスタメンテナンス", "file": "master_maintenance.php"},
+            {"label": "📋 予約マトリクス (横型)", "file": "month_matrix.php", "status": "開発中・グレーアウト"}
+          ]
+        }
+      },
+      "slot_search": {
+        "period": "必須（デフォルト：今日〜2ヶ月後の月末）",
+        "month_shortcuts": "今月から過去に遡る12ヶ月分（西暦付き・複数選択可）",
+        "department": "1つだけ選択（AND）",
+        "doctor": "複数選択可（OR）",
+        "weekdays": "複数選択可（OR）",
+        "label_click": "各グループの全ON/OFF",
+        "result_display": "日付/曜日/医師/検査種別/残数/最大",
+        "row_click": "month_schedule.php（残数モード）へ遷移",
+        "limit": "300件（COUNTで事前チェック）",
+        "debug_mode": "debug_config.json + ?debug=1"
+      },
+      "stats": {
+        "target": "過去データ + 未来データ（両方）",
+        "default_period": "当月1日〜今日",
+        "month_shortcuts": "今月から過去に遡る12ヶ月分（西暦付き・複数選択可）",
+        "categories": ["上部（GIF+W）", "下部（TCF+W+ポリペク）", "エコー", "術前F"],
+        "note": "実績データは予定データに基づきます。正確な数字はMALL3で集計してください。",
+        "csv_export": "対応"
+      },
+      "followup": {
+        "files": [
+          {"file": "index.php", "function": "一覧表示（検索・ステータス表示）"},
+          {"file": "edit.php", "function": "登録・編集（患者検索連携・F/U項目管理）"},
+          {"file": "print.php", "function": "印刷シート（A4縦・診療科別電話番号）"},
+          {"file": "action.php", "function": "保存API（INSERT/UPDATE/DELETE・トランザクション）"},
+          {"file": "api_history.php", "function": "患者ID指定の履歴取得"},
+          {"file": "api_get.php", "function": "個別取得（ID/下5桁検索）"}
+        ]
+      }
+    },
+  
+    "libraries": {
+      "slot_helper.php": {
+        "description": "枠数計算の核心",
+        "main_function": "getDoctorStatus()",
+        "parameters": ["pdo", "doctor_name", "department_code", "date_str", "debug_sql"],
+        "return": {"present": "bool", "slots": {"GIF": "integer", "ECHO": "integer", "TCF": "integer"}},
+        "priority": [
+          "1. 出勤例外（m2_doctor_attendance）",
+          "2. 日別上書き（m2_doctor_daily_capacity_v2）",
+          "3. 曜日パターン（m2_doctor_slot_pattern）横持ち対応"
+        ]
+      },
+      "date_helper.php": {
+        "functions": [
+          {"name": "calculateAge()", "description": "年齢計算（「歳」なし・数値のみ）"},
+          {"name": "convertToShortWareki()", "description": "生年月日→短縮元号（S23.5.22形式）"},
+          {"name": "convertToWareki()", "description": "生年月日→和暦（昭和23年5月22日形式）"},
+          {"name": "getDoctorIcon()", "description": "担当医→1文字アイコン（誠吾→誠）"}
+        ],
+        "status": "✅ null対策済み（2026-08-28）"
+      },
+      "patient_helper.php": {
+        "functions": [
+          {"name": "renderPatientBox()", "description": "患者BOX描画（詳細/簡略モード）"},
+          {"name": "getExamBadgeHTML()", "description": "検査種別バッジ（GIF/エコー/TCF）"}
+        ]
+      }
+    },
+  
+    "search_logic": {
+      "vertical": {
+        "conditions": ["診療科", "期間"],
+        "operator": "AND",
+        "department": "1つだけ選択",
+        "period": "範囲指定"
+      },
+      "horizontal": {
+        "conditions": ["医師", "検査種別", "曜日"],
+        "operator": "OR",
+        "selection": "複数選択可"
+      }
+    },
+  
+    "month_button_spec": {
+      "sort_order": "今月から過去に遡る",
+      "display_format": "西暦付き（例：2026/8, 2026/7）",
+      "selection": "複数選択可（トグル）",
+      "period_link": "選択時は期間入力をDisable + クリア",
+      "deselect": "デフォルト期間を再セット",
+      "applicable_pages": ["slot_search.php", "stats.php"]
+    },
+  
+    "debug_mode": {
+      "config_file": "debug_config.json",
+      "json_example": {"debug_mode": true},
+      "override": "?debug=1",
+      "display": "SQLや内部処理を画面表示"
+    },
+  
+    "unresolved_issues": {
+      "file_cleanup": [
+        {"file": "common_functions.php", "status": "lib/に統合済み", "action": "action_schedule.php依存確認後削除"},
+        {"file": "matrix_functions.php", "status": "lib/matrix_helper.phpに統合済み", "action": "削除推奨"},
+        {"file": "waku_maintenance.php", "status": "slot_master_maintenance.phpに統合済み", "action": "削除推奨"},
+        {"file": "month_matrix.php", "status": "V2が本番", "action": "削除推奨"},
+        {"file": "いらない？/", "status": "旧ファイル退避場所", "action": "バックアップ後に整理"}
+      ],
+      "performance_concerns": [
+        {"location": "month_matrix_v2.php 3ヶ月表示", "issue": "多数のSQLクエリ（要キャッシュ検討）"},
+        {"location": "slot_search.php 日付生成ループ", "issue": "期間広いとメモリ使用量増加"},
+        {"location": "getDoctorStatus() 頻繁な呼び出し", "issue": "医師数×日付分のクエリ"}
+      ]
+    },
+  
+    "php85_compatibility": {
+      "version": "8.5.5 / 8.5.9",
+      "check_points": [
+        {"no": 1, "item": "mysql_* → PDOへの移行", "status": "✅ 問題なし（既にPDO利用）"},
+        {"no": 2, "item": "count()に非カウント可能値", "status": "⚠️ 要確認（foreach前にis_array()チェック）"},
+        {"no": 3, "item": "nullを文字列関数に渡す（trim, strlen, mb_*）", "status": "⚠️ 要確認（date_helper.phpは対策済み）"},
+        {"no": 4, "item": "未定義変数に$array[] = 追加", "status": "⚠️ 要確認"},
+        {"no": 5, "item": "++演算子でnullに対して使用", "status": "⚠️ 要確認"},
+        {"no": 6, "item": "date()に不正なタイムスタンプ", "status": "⚠️ 要確認（date_helper.phpは対策済み）"},
+        {"no": 7, "item": "json_decode()の第2引数", "status": "⚠️ 要確認（明示的にtrue指定推奨）"},
+        {"no": 8, "item": "session_start()前に出力", "status": "⚠️ 要確認"}
+      ],
+      "high_risk_files": [
+        {"file": "lib/date_helper.php", "status": "✅ 対策済み"},
+        {"file": "lib/patient_helper.php", "concern": "trim()にnullが渡る可能性", "status": "⚠️ 要確認"},
+        {"file": "slot_search.php", "concern": "foreach前に配列チェック不足", "status": "⚠️ 要確認"},
+        {"file": "stats.php", "concern": "count()に非配列が渡る可能性", "status": "⚠️ 要確認"},
+        {"file": "followup/action.php", "concern": "json_decode()戻り値チェック", "status": "⚠️ 要確認"}
+      ],
+      "overall_status": "🟡 部分対応済み（要継続確認）"
+    },
+  
+    "progress": {
+      "date": "2026-08-31",
+      "tasks_completed": [
+        {
+          "task": "t_followup / t_followup_items テーブル実装確認",
+          "status": "✅ 完了",
+          "details": "両テーブルの存在を確認。リレーション（ON DELETE CASCADE）も正常",
+          "files_modified": []
+        },
+        {
+          "task": "lib/date_helper.php の PHP 8.5.x 互換性対応",
+          "status": "✅ 完了",
+          "details": "date() / strtotime() への null 渡し対策を実装",
+          "files_modified": ["lib/date_helper.php"]
+        },
+        {
+          "task": "month_schedule.php 迷子予約警告表示機能",
+          "status": "✅ 完了",
+          "details": "枠名未定義または scheduled_time が MISMATCH の予約データを最上部に赤色ハイライト警告表示",
+          "files_modified": ["month_schedule.php"],
+          "completed_date": "2026-08-28 02:20:00"
+        },
+        {
+          "task": "month_schedule.php UI操作性改善",
+          "status": "✅ 完了",
+          "details": "空き枠ボタン非活性化、選択セルの2重枠強調、出勤例外日の青丸バッジ表示",
+          "files_modified": ["month_schedule.php"],
+          "completed_date": "2026-08-31"
+        },
+        {
+          "task": "modal_edit.php 新規予約初期値適正化",
+          "status": "✅ 完了",
+          "details": "医師・場所プルダウンを未選択状態に変更、場所マスタを動的取得（フォールバック：指定なし）",
+          "files_modified": ["modal_edit.php"],
+          "completed_date": "2026-08-31"
+        },
+        {
+          "task": "master_maintenance.php 全テーブルシーケンス修復機能拡張",
+          "status": "✅ 完了",
+          "details": "予約テーブルのみ→全テーブル（6テーブル）一括修復に拡張",
+          "files_modified": ["master_maintenance.php"],
+          "completed_date": "2026-08-31"
+        },
+        {
+          "task": "action_master.php シーケンス一括修復（fix_sequence）実装",
+          "status": "✅ 完了",
+          "details": "pg_get_serial_sequence() 使用し、6テーブルのシーケンスを MAX+1 に安全同期",
+          "files_modified": ["action_master.php"],
+          "completed_date": "2026-08-31"
+        }
+      ],
+      "issues_found": [
+        {
+          "issue": "slot_search.php の検証にテストデータが不足",
+          "severity": "medium",
+          "resolution": "テストデータ投入後に再検証（保留中）"
+        }
+      ],
+      "next_steps": [
+        "slot_search.php のテストデータ投入",
+        "slot_search.php の検索ロジック検証（getDoctorStatus() の動作確認）",
+        "stats.php の集計サマリ表示確認（月モード時の挙動）",
+        "残りのPHP 8.5.x 互換性対応（patient_helper.php, slot_search.php, stats.php）"
+      ]
+    },
+  
+    "action_priority": {
+      "high": [
+        {"no": 1, "task": "slot_search.php の検索ロジック検証", "note": "getDoctorStatus()を使った空き判定が正しく動作するか確認", "status": "🔴 未着手（データ不足で保留）"},
+        {"no": 2, "task": "stats.php の集計サマリ表示確認", "note": "月モード時は「期間:」が非表示になっているか", "status": "🟡 未着手"},
+        {"no": 3, "task": "残りのPHP 8.5.x 互換性対応", "note": "patient_helper.php, slot_search.php, stats.php を確認", "status": "🟡 進行中"}
+      ],
+      "medium": [
+        {"no": 4, "task": "common_functions.php の依存確認", "note": "action_schedule.phpが依存中。削除前に要確認", "status": "⏳ 未着手"},
+        {"no": 5, "task": "旧ファイル整理", "note": "いらない？/ディレクトリのバックアップ後に削除", "status": "⏳ 未着手"}
+      ],
+      "future": [
+        {"no": 6, "task": "操作ログ機能", "note": "誰が・いつ・何を変更したか", "status": "⏳ 未着手"},
+        {"no": 7, "task": "stats.phpへのグラフ追加", "note": "Chart.js", "status": "⏳ 未着手"},
+        {"no": 8, "task": "マトリクス印刷機能", "note": "month_matrix_v2.phpに印刷ボタン", "status": "⏳ 未着手"}
+      ]
+    },
+  
+    "upload_recommendations": {
+      "required": [
+        "slot_search.php",
+        "stats.php",
+        "lib/slot_helper.php",
+        "index.php"
+      ],
+      "helpful": [
+        "month_matrix_v2.php",
+        "month_schedule.php",
+        "action_schedule.php",
+        "calendar_helper_onokai.php",
+        "followup/edit.php"
+      ],
+      "optional": [
+        "テーブル定義書.xlsx",
+        "debug_config.json"
+      ]
+    },
+  
+    "key_principles": {
+      "design": [
+        "ヨコ方向はOR条件（医師・検査・曜日は複数選択可）",
+        "タテ方向はAND条件（診療科・期間は1つ選択/範囲指定）",
+        "枠数は横持ち（GIF/エコー/TCFを1行に集約）",
+        "月ボタンは過去重視（今月から過去に遡る）",
+        "デバッグモードはJSONで制御（debug_config.json）"
+      ],
+      "implementation": [
+        "getDoctorStatus() は max_slots ではなく gif_slots/echo_slots/tcf_slots を見ること",
+        "月モード時は期間入力をクリアし、サマリ表示も「月:」に切り替える",
+        "集計処理では過去データも含める（$date_str >= $today を入れない）",
+        "300件超えはCOUNTで事前チェック（検索前に件数確認）"
+      ],
+      "troubleshooting": [
+        "search_executed が FALSE → search=1 が付いていない（search_clickedパラメータ名に注意）",
+        "weekdays が空 → デフォルト値（'0,1,2,3,4,5,6'）をセット",
+        "検索結果0件 → getDoctorStatus() の優先順位を確認（出勤例外→日別上書き→曜日パターン）"
+      ]
+    },
+  
+    "files_history": {
+      "month_schedule.php": [
+        {
+          "date": "2026-08-28 02:20:00",
+          "summary": "迷子・枠名未定義予約の最上位警告表示機能追加",
+          "details": [
+            "枠名未定義または scheduled_time が MISMATCH の予約データを予約一覧の最上部に赤色ハイライトで警告表示するよう改修"
+          ]
+        },
+        {
+          "date": "2026-08-31",
+          "summary": "UI操作性および視覚的フィードバックの改善",
+          "details": [
+            "表示モード切り替え部分の「🈳 空き枠」ボタンを非活性化（disabled / グレーアウト）し誤操作を防止",
+            "カレンダーの日付セル選択時、セル内部の色や文字配置を維持したまま外枠のみを2重線（outline: 3px double #1d4ed8）で強調表示",
+            "当日に出勤例外（m2_doctor_attendance / m2_doctor_daily_capacity_v2）が設定されている日の日付数字を青色丸囲みバッジ（.date-num-badge.has-exception）で強調表示",
+            "場所マスタ取得処理の誤組み込みをロールバック"
+          ]
+        }
+      ],
+      "modal_edit.php": [
+        {
+          "date": "2026-08-31",
+          "summary": "新規予約時の初期値適正化およびマスタ連携強化",
+          "details": [
+            "新規登録時（schedule_id === 0）の担当医師・実施場所の初期表示を「指定なし（未選択）」に設定",
+            "担当医師プルダウンの先頭に「-- 指定なし（未定） --」を常時配置し、検査日変更時に get_present_doctors.php から当日の出勤医師を動的取得するよう改修",
+            "実施場所プルダウンを汎用マスタ（m_input_master, category='exam_location'）から動的取得するよう変更（データ未存在時のフォールバックは ['指定なし'] のみ）",
+            "検査種別変更時に実施場所を勝手に上書きしないよう保持制御を追加"
+          ]
+        }
+      ],
+      "master_maintenance.php": [
+        {
+          "date": "2026-07-15 22:55:00",
+          "summary": "マスタ総合メンテナンス画面および単一テーブルシーケンス修復パネルの初期実装",
+          "details": [
+            "汎用選択肢マスタ（m_input_master）のカテゴリ別一覧・編集・追加機能を実装",
+            "予約テーブル専用のシーケンス修復ボタンを設置"
+          ]
+        },
+        {
+          "date": "2026-08-31",
+          "summary": "全テーブル一括シーケンス修復機能への拡張",
+          "details": [
+            "システム保守ツールパネルの対象を「予約テーブルのみ」から「全テーブルのIDシーケンス一括修復」にUI文言・フォーム送信パラメータを拡張"
+          ]
+        }
+      ],
+      "action_master.php": [
+        {
+          "date": "2026-08-31",
+          "summary": "全テーブル対象のシーケンス一括修復処理（fix_sequence）実装",
+          "details": [
+            "PostgreSQLの pg_get_serial_sequence() を使用し、対象テーブルの自動採番シーケンスを MAX値+1 に安全同期する一括処理を実装",
+            "対象テーブル: t_endoscopy_schedule (schedule_id), m_input_master (master_id), m2_waku (waku_id), m2_doctor_slot_pattern (pattern_id), m2_doctor_attendance (attendance_id), m2_doctor_daily_capacity_v2 (capacity_id)"
+          ]
+        }
+      ]
+    },
+  
+    "timeline": [
+      {
+        "date": "2026-07-15",
+        "file": "master_maintenance.php",
+        "title": "マスタ総合メンテナンス画面・予約ID修復の初期構築"
+      },
+      {
+        "date": "2026-08-28",
+        "file": "month_schedule.php",
+        "title": "迷子予約・枠未定義データの最上位警告表示対応"
+      },
+      {
+        "date": "2026-08-31",
+        "file": "month_schedule.php",
+        "title": "空き枠ボタン非活性化、選択セルの2重枠強調、出勤例外日の青丸バッジ表示"
+      },
+      {
+        "date": "2026-08-31",
+        "file": "master_maintenance.php / action_master.php",
+        "title": "全テーブル対象の自動採番ID（シーケンス）一括修復機能の実装"
+      },
+      {
+        "date": "2026-08-31",
+        "file": "modal_edit.php",
+        "title": "新規登録時の初期値未選択化（医師・場所）、および場所マスタ動的取得（フォールバック：指定なし）の実装"
+      }
+    ],
+  
+    "changelog": [
+      {
+        "date": "2026-08-27",
+        "version": "1.0",
+        "changes": "ナレッジベース（約300往復）をJSON形式で出力（初版）"
+      },
+      {
+        "date": "2026-08-28",
+        "version": "2.0",
+        "changes": "作業進捗（2026-08-28）をマージ・統合",
+        "details": [
+          "t_followup / t_followup_items のステータスを ✅ 確認済み に更新",
+          "php85_compatibility セクションに進捗ステータスを追加",
+          "progress セクションを新規追加（完了タスク・課題・次のステップ）",
+          "action_priority にステータスを追加",
+          "changelog セクションを追加"
+        ]
+      },
+      {
+        "date": "2026-08-31",
+        "version": "3.0",
+        "changes": "ファイル履歴（2026-08-31）をマージ・統合",
+        "details": [
+          "files_history セクションを新規追加（month_schedule.php, modal_edit.php, master_maintenance.php, action_master.php）",
+          "timeline セクションを新規追加（時系列サマリ）",
+          "database に m2_doctor_attendance, m2_doctor_daily_capacity_v2, m_input_master の詳細を追加",
+          "database に sequence_repair_targets を追加（シーケンス修復対象6テーブル）",
+          "progress.tasks_completed に2026-08-31の完了タスク（7件）を追加",
+          "document.updated を 2026-08-31 に更新",
+          "system.name を「内視鏡予約管理システム」に統一"
+        ]
+      }
+    ],
+  
+    "summary": {
+      "completed_count": 7,
+      "in_progress_count": 1,
+      "pending_count": 5,
+      "blocked_count": 1,
+      "overall_status": "🟢 順調に進行中（複数機能完了）",
+      "next_milestone": "slot_search.php のテストデータ投入と検証完了"
+    }
+  }

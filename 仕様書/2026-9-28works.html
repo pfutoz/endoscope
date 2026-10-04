@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-09-28)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --purple: #8b5cf6;
+            --purple-light: #f5f3ff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(59, 130, 246, 0.25);
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #f1f5f9;
+        }
+
+        nav.toc-nav {
+            background: #f1f5f9;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 36px;
+        }
+
+        .toc-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 8px;
+        }
+
+        .toc-link {
+            text-decoration: none;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 12.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.15s ease;
+        }
+
+        .toc-link:hover {
+            background: rgba(37, 99, 235, 0.08);
+        }
+
+        main.report-main {
+            padding: 36px;
+        }
+
+        section.report-section {
+            margin-bottom: 40px;
+        }
+
+        section.report-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3.subsection-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        .lead-text {
+            font-size: 14px;
+            color: var(--text-main);
+            font-weight: 500;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        /* テーブル */
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-bottom: 16px;
+            background: #ffffff;
+        }
+
+        table.custom-table th, table.custom-table td {
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        table.custom-table th {
+            background: #f8fafc;
+            color: var(--text-main);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        table.custom-table tr:hover {
+            background-color: #f8fafc;
+        }
+
+        /* バッジ */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .badge-success { background: var(--success-light); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-warning { background: var(--warning-light); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-danger  { background: var(--danger-light);  color: var(--danger);  border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-primary { background: var(--primary-light); color: var(--primary); border: 1px solid rgba(37, 99, 235, 0.3); }
+        .badge-purple  { background: var(--purple-light);  color: var(--purple);  border: 1px solid rgba(139, 92, 246, 0.3); }
+
+        /* コードブロック */
+        pre.code-block {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 14px 16px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            line-height: 1.5;
+            border: 1px solid #1e293b;
+        }
+
+        code.inline-code {
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* 警告・通知ボックス */
+        .callout {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .callout-info {
+            background: var(--primary-light);
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+        .callout-success {
+            background: var(--success-light);
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        .callout-warning {
+            background: var(--warning-light);
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+
+        /* カードグリッド */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .feature-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .feature-card h4 {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">🚀 Modern Web 最適化 ＆ 高速化モジュール分離</span>
+            <span class="header-title-badge" style="background:rgba(16,185,129,0.25); color:#a7f3d0; border-color:rgba(167,243,208,0.3);">✅ 動作検証完了</span>
+        </div>
+        <h1>内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="header-meta">
+            <span>作業日: <strong>2026年9月28日 (月)</strong></span>
+            <span>対象環境: <strong>Local (Apache 2.4 / PHP 8.5.9 / PostgreSQL)</strong></span>
+            <span>検証対象: <strong>month_schedule2.php (月間カレンダービュー)</strong></span>
+            <span>担当: <strong>Antigravity AI Pair Programmer</strong></span>
+        </div>
+    </header>
+
+    <nav class="toc-nav">
+        <div class="toc-title">INDEX / 目次</div>
+        <div class="toc-grid">
+            <a href="#sec1" class="toc-link">1. 改修背景と達成ゴール</a>
+            <a href="#sec2" class="toc-link">2. 巨大PHPのCSS/JS外部分離と高速化</a>
+            <a href="#sec3" class="toc-link">3. ヘッダーボタングループの改行崩れ防止</a>
+            <a href="#sec4" class="toc-link">4. ダークテーマモーダルの視認性改善</a>
+            <a href="#sec5" class="toc-link">5. 医師別予約件数バッジの安全同期</a>
+            <a href="#sec6" class="toc-link">6. 折りたたみ・上下入替バグの根本解消</a>
+            <a href="#sec7" class="toc-link">7. アラートスキャンのJSON外部化検討</a>
+            <a href="#sec8" class="toc-link">8. 変更ファイル一覧と構成</a>
+            <a href="#sec9" class="toc-link">9. 総合テスト・検証エビデンス</a>
+            <a href="#sec10" class="toc-link">10. 明日の本番環境テスト・同期計画</a>
+            <a href="#sec11" class="toc-link">11. DB不要テーブル整理・廃止検討</a>
+        </div>
+    </nav>
+
+    <main class="report-main">
+        <!-- 1. 改修背景と達成ゴール -->
+        <section id="sec1" class="report-section">
+            <h2 class="section-title">1. 改修背景と達成ゴール</h2>
+            <div class="lead-text">
+                本改修では、Modern Web 最適化版として開発を進めてきた <code class="inline-code">month_schedule2.php</code> の肥大化に伴うIDEフリーズや表示レスポンスの低下を解決するため、CSSおよびJavaScriptを完全に独立モジュールへ外出し分離しました。<br>
+                あわせて、画面表示上の課題（ボタンの改行崩れ、モーダル文字の視認性、医師別予約件数バッジの月ズレ表示）を解消し、動作不良を起こしていた「カレンダー折りたたみ」および「上下入れ替え」機能を根本から安全に復旧しました。
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📦 モジュール分離・保守性向上</h4>
+                    <p>3,039行（約160KB）のPHPからCSS（約31KB）とJS（約22KB）を独立分離し、PHPを約1,970行（約107KB）へスリム化。IDE編集のフリーズを完全回避。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📐 UI・視認性の徹底改善</h4>
+                    <p>ヘッダーボタングループの文言スリム化と余白調整により1行収まりを確保。ダーク調モーダルの文字色コントラスト比を大幅に向上。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔄 カレンダー制御・バッジ同期の復旧</h4>
+                    <p>SyntaxErrorの根絶とDOM判定の復元により、カレンダーの折りたたみ・上下入れ替えが瞬時に動作。選択日バッジの0件バグも解消。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 巨大PHPのCSS/JS外部分離と高速化 -->
+        <section id="sec2" class="report-section">
+            <h2 class="section-title">2. 巨大PHPのCSS/JS外部分離と高速化</h2>
+            <p>
+                従来の <code class="inline-code">month_schedule2.php</code> は、インラインの巨大な <code class="inline-code">&lt;style&gt;</code> タグ（約31KB）および <code class="inline-code">&lt;script&gt;</code> タグ（約22KB）を内包していたため、コード編集時にIDEのファイル監視がスタックし、フリーズやタイムアウトの原因となっていました。
+            </p>
+            <p>
+                これを解消するため、専用ディレクトリ <code class="inline-code">assets/css/</code> および <code class="inline-code">assets/js/</code> へ外部ファイルとして安全に分離しました。
+            </p>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>ファイルパス</th>
+                        <th>分離前</th>
+                        <th>分離後</th>
+                        <th>役割・メリット</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>month_schedule2.php</strong></td>
+                        <td>3,039行 (159KB)</td>
+                        <td><strong>1,970行 (107KB)</strong></td>
+                        <td>PHPサーバサイド描画とHTML骨格に特化。ファイルサイズ約33%削減。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>assets/css/month_schedule2.css</strong></td>
+                        <td>インライン内包</td>
+                        <td><strong>31.7 KB</strong></td>
+                        <td>Modern Web スクロールバー、テーブルグリッド、トースト等のスタイルを独立管理。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>assets/js/month_schedule2.js</strong></td>
+                        <td>インライン内包</td>
+                        <td><strong>22.4 KB</strong></td>
+                        <td>カレンダー制御、Native Dialog、Popover Toast、空き枠速報、重複チェック等を統合。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span>💡</span>
+                <div>
+                    <strong>キャッシュバスター機構の導入</strong><br>
+                    外部アセットの読み込み部に <code class="inline-code">&lt;link rel="stylesheet" href="assets/css/month_schedule2.css?v=&lt;?= time() ?&gt;"&gt;</code> および <code class="inline-code">&lt;script src="assets/js/month_schedule2.js?v=&lt;?= time() ?&gt;"&gt;&lt;/script&gt;</code> を付与し、ブラウザの古いキャッシュによる誤動作を完全に防止しました。
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. ヘッダーボタングループの改行崩れ防止 -->
+        <section id="sec3" class="report-section">
+            <h2 class="section-title">3. ヘッダーボタングループの改行崩れ防止（クリアランス調整）</h2>
+            <p>
+                画面幅やブラウザのフォント描画差により、トップバー右側のナビゲーションボタングループが2行に強制改行され、画面縦幅を圧迫する問題が発生していました。
+            </p>
+
+            <h3 class="subsection-title">改修内容</h3>
+            <ul style="margin-left: 20px; color: var(--text-sub); margin-bottom: 12px;">
+                <li><strong>ボタン文言の最適化</strong>:
+                    <ul>
+                        <li><code class="inline-code">🕒 操作履歴(Undo)</code> ➔ <strong><code class="inline-code">🕒 操作履歴</code></strong>（Undo文言をスリム化）</li>
+                        <li><code class="inline-code">⚡ 直近空き枠速報</code> ➔ <strong><code class="inline-code">⚡ 空き枠速報</code></strong></li>
+                    </ul>
+                </li>
+                <li><strong>CSSフレックスボックス・パディング調整</strong>:
+                    <pre class="code-block"><code>/* assets/css/month_schedule2.css */
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* 6pxから4pxへ圧縮 */
+    flex-wrap: nowrap; /* 意図しない改行を防止 */
+}
+.header-nav .nav-btn {
+    padding: 4px 7px; /* 左右クリアランスを最適化 */
+    font-size: 11px;
+    white-space: nowrap;
+}</code></pre>
+                </li>
+            </ul>
+            <p>これにより、ノートPCや一般的な解像度（1366×768以上）においても、ボタングループがスッキリと1行に収まるようになりました。</p>
+        </section>
+
+        <!-- 4. ダークテーマモーダルの視認性改善 -->
+        <section id="sec4" class="report-section">
+            <h2 class="section-title">4. ダークテーマモーダルの視認性改善（コントラスト比強化）</h2>
+            <p>
+                操作履歴（Undo）モーダルや医療安全アラートスキャンモーダルのヘッダー部において、ダーク調背景に対してタイトル文字列が黒文字で表示され、視認性が著しく低下していました。
+            </p>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>対象モーダル</th>
+                        <th>対象クラス</th>
+                        <th>改修前</th>
+                        <th>改修後</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>操作履歴 (Undo) モーダル</strong></td>
+                        <td><code class="inline-code">.audit-title-text</code></td>
+                        <td>継承文字色 (#0f172a / 黒系)</td>
+                        <td><span class="badge badge-success">#ffffff !important (純白)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>操作履歴 (Undo) モーダル</strong></td>
+                        <td><code class="inline-code">.audit-subtitle-text</code></td>
+                        <td>薄いグレー (#64748b)</td>
+                        <td><span class="badge badge-success">#cbd5e1 !important (高コントラスト薄青白)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>医療安全アラートモーダル</strong></td>
+                        <td>ヘッダータイトル部</td>
+                        <td>ダーク背景に暗い文字</td>
+                        <td><span class="badge badge-success">#ffffff !important (白文字強化)</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 5. 医師別予約件数バッジの安全同期 -->
+        <section id="sec5" class="report-section">
+            <h2 class="section-title">5. 医師別予約件数バッジの安全同期（月ズレバグ解消）</h2>
+            <p>
+                カレンダー上部の医師別件数表示（例: 「哲也 2」「義智 16」）において、選択している日付（例: 9月28日）とカレンダー表示月（例: 10月）が異なる場合、<code class="inline-code">$is_same_month === false</code> の判定により <code class="inline-code">$doctor_counts = []</code> と初期化され、強制的に全医師が「0件」と表示される不具合がありました。
+            </p>
+
+            <h3 class="subsection-title">解決策（安全同期ロジックの実装）</h3>
+            <pre class="code-block"><code>// month_schedule2.php (医師別予約件数集計の強化)
+if ($is_same_month && isset($calendar[$day_of_month])) {
+    $doctor_counts = $calendar[$day_of_month]['doctor_counts'] ?? [];
+} else {
+    // 選択日と表示月が異なる場合でも、選択日の予約一覧データ ($list_data) から正確に集計
+    $doctor_counts = [];
+    foreach ($list_data as $row_item) {
+        if (empty($row_item['is_empty'])) {
+            $dname = trim((string)($row_item['doctor_name'] ?? ''));
+            if ($dname !== '') {
+                $doctor_counts[$dname] = ($doctor_counts[$dname] ?? 0) + 1;
+            }
+        }
+    }
+}</code></pre>
+            <p>これにより、カレンダーの月を前後させても、現在選択されている日付の実際の予約件数が常に正しくバッジに反映されます。</p>
+        </section>
+
+        <!-- 6. 折りたたみ・上下入替バグの根本解消 -->
+        <section id="sec6" class="report-section">
+            <h2 class="section-title">6. 折りたたみ・上下入替バグの根本解消（SyntaxError根絶）</h2>
+            <p>
+                「カレンダーを折りたたむ」および「上下入替」ボタンをクリックしても何も動作しないという重大な不具合が発生していました。
+            </p>
+
+            <h3 class="subsection-title">不具合の根本原因</h3>
+            <div class="callout callout-danger">
+                <span>🚨</span>
+                <div>
+                    <strong>Uncaught SyntaxError: Identifier 'currentScheduleDept' has already been declared</strong><br>
+                    <code class="inline-code">month_schedule2.php</code> のインラインスクリプト（1965行目）で <code class="inline-code">const currentScheduleDept = '...'</code> を宣言しているにもかかわらず、外部JSファイル <code class="inline-code">month_schedule2.js</code> の222行目でも同名の <code class="inline-code">const currentScheduleDept</code> が宣言されていました。<br>
+                    ブラウザのJavaScriptエンジンは同一グローバルスコープでの <code class="inline-code">const</code> 再宣言を構文エラーとみなし、<strong>外部JSファイルのロード・解析を即座に中断</strong>していました。このため、ボタンに付与された関数やリスナーが一切実行されなくなっていました。
+                </div>
+            </div>
+
+            <h3 class="subsection-title">適用した根本対策</h3>
+            <ol style="margin-left: 20px; color: var(--text-sub); line-height: 1.8;">
+                <li><strong>グローバルスコープ変数の安全一元化</strong>:
+                    <code class="inline-code">month_schedule2.php</code> 側では <code class="inline-code">window.currentScheduleDept = '...'</code> として公開し、外部JS側でも <code class="inline-code">var currentScheduleDept</code> に変更して再宣言エラーを根絶。
+                </li>
+                <li><strong>関数のグローバル公開と二重バインド</strong>:
+                    <code class="inline-code">window.toggleCalendar = toggleCalendar;</code> および <code class="inline-code">window.toggleLayoutOrder = toggleLayoutOrder;</code> を明示的に設定。さらに HTML 上の <code class="inline-code">onclick</code> 属性だけでなく、<code class="inline-code">DOMContentLoaded</code> 内でボタン要素にイベントリスナーを直接バインドする二重安全設計を適用。
+                </li>
+                <li><strong>上下入れ替えDOM判定の安定化</strong>:
+                    本番環境（<code class="inline-code">month_schedule.php</code>）で実績のある <code class="inline-code">calWrapper.nextElementSibling === listWrapper</code> による順序判定に復元。
+                </li>
+                <li><strong>CSS非表示スタイルの強化</strong>:
+                    <code class="inline-code">.calendar-wrapper.collapsed { display: none !important; }</code> を指定し、カレンダーが確実に瞬時に折りたたまれるよう保証。
+                </li>
+            </ol>
+        </section>
+
+        <!-- 7. アラートスキャンのJSON外部化検討 -->
+        <section id="sec7" class="report-section">
+            <h2 class="section-title">7. アラートスキャンのJSON外部化検討（今後の拡張案）</h2>
+            <p>
+                今後、医療安全アラートスキャン（抗血栓薬、アレルギー、感染症、発熱等）における検知タグやキーワードの追加・削除の頻度が高くなることを見越し、プログラム（PHP）埋め込みからマスターまたはJSONファイルへ移行すべきかのアーキテクチャ検討を実施しました。
+            </p>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>方式</th>
+                        <th>メリット</th>
+                        <th>デメリット</th>
+                        <th>評価・推奨</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>A. 現行方式<br>(PHP定数埋め込み)</strong></td>
+                        <td>・オーバーヘッドゼロで最速<br>・ファイル単体で完結</td>
+                        <td>・キーワード1個の変更でもPHPコード直接編集が必要<br>・文法事故のリスク</td>
+                        <td><span class="badge badge-warning">運用変更に不向き</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>B. JSONファイル化<br>(★推奨案)</strong></td>
+                        <td>・<strong>PHPロジックを触らず安全に変更可能</strong><br>・DB負荷ゼロ、ファイルキャッシュで高速<br>・簡単なWeb管理UIで看護師・事務も更新可能</td>
+                        <td>・複数人が同時にWeb管理画面を開いた場合の排他制御が多少必要</td>
+                        <td><span class="badge badge-success">最適解（低コスト・高安全）</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>C. DBマスタテーブル化</strong></td>
+                        <td>・カテゴリや有効フラグ、更新者履歴の完全管理が可能<br>・医療監査ログが残せる</td>
+                        <td>・テーブル設計、マイグレーションが必要<br>・スキャン毎のクエリ負荷（キャッシュ要）</td>
+                        <td>将来的な発展段階で検討</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-success">
+                <span>🎯</span>
+                <div>
+                    <strong>推奨アプローチ</strong><br>
+                    まずは明日の本番環境テストを完了させ、安全稼働を確認した次のステップとして「<strong>JSON設定ファイル化（config/medical_alert_rules.json）＋ 動的正規表現生成</strong>」の導入を推奨します。
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. 変更ファイル一覧と構成 -->
+        <section id="sec8" class="report-section">
+            <h2 class="section-title">8. 変更ファイル一覧と構成</h2>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>ファイルパス</th>
+                        <th>変更種別</th>
+                        <th>サイズ</th>
+                        <th>主な改修内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code class="inline-code">month_schedule2.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>107 KB</td>
+                        <td>CSS/JS分離、医師別バッジ月跨ぎ集計、window変数公開、キャッシュバスター追加</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">assets/css/month_schedule2.css</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>31.7 KB</td>
+                        <td>分離CSS、ヘッダーボタングループのクリアランス調整、collapsed !important 適用</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">assets/js/month_schedule2.js</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>22.4 KB</td>
+                        <td>分離JS、二重宣言エラー解消、toggleCalendar/toggleLayoutOrder 安定化</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">audit_modal_inc.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>30.4 KB</td>
+                        <td>操作履歴（Undo）モーダルヘッダータイトルの白文字化・視認性強化</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">medical_alert_modal_inc.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>24.6 KB</td>
+                        <td>医療安全アラートスキャンモーダルのダークヘッダー文字コントラスト強化</td>
+                    </tr>
+                    <tr>
+                        <td><code class="inline-code">仕様書/2026-9-28works.html</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>本ファイル</td>
+                        <td>当日の作業内容・不具合原因分析・改修エビデンスをまとめた作業完了報告書</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 9. 総合テスト・検証エビデンス -->
+        <section id="sec9" class="report-section">
+            <h2 class="section-title">9. 総合テスト・検証エビデンス</h2>
+            <p>改修後の安定性と動作を証明するため、以下の自動テスト・シミュレーションを実施しました。</p>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>テスト項目</th>
+                        <th>検証内容</th>
+                        <th>実行結果</th>
+                        <th>判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>PHP構文チェック</strong></td>
+                        <td><code class="inline-code">php -l month_schedule2.php</code> によるリント検証</td>
+                        <td>No syntax errors detected</td>
+                        <td><span class="badge badge-success">OK / 合格</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>JavaScript構文チェック</strong></td>
+                        <td><code class="inline-code">node -c assets/js/month_schedule2.js</code> による構文検証</td>
+                        <td>エラーなし（Exit Code 0）</td>
+                        <td><span class="badge badge-success">OK / 合格</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>変数二重宣言防止検証</strong></td>
+                        <td>インライン定義と外部JSの逐次ロードシミュレーション</td>
+                        <td>SyntaxError ゼロで全関数が定義されることを確認</td>
+                        <td><span class="badge badge-success">OK / 合格</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>DOMトグルシミュレーション</strong></td>
+                        <td>Fake DOM による <code class="inline-code">toggleCalendar()</code> のクラス・文言遷移テスト</td>
+                        <td>collapsed: true/false およびボタン文字切り替えが正常動作</td>
+                        <td><span class="badge badge-success">OK / 合格</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>レイアウト上下入替テスト</strong></td>
+                        <td>Fake DOM による <code class="inline-code">toggleLayoutOrder()</code> の要素順序テスト</td>
+                        <td>カレンダーと一覧の入れ替え・復元が正確に循環動作</td>
+                        <td><span class="badge badge-success">OK / 合格</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>HTTPアセット疎通検証</strong></td>
+                        <td>curl による CSS および JS の HTTP 200 OK 応答テスト</td>
+                        <td>Content-Type、サイズともに正常に応答</td>
+                        <td><span class="badge badge-success">OK / 合格</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 10. 明日の本番環境テスト・同期計画 -->
+        <section id="sec10" class="report-section">
+            <h2 class="section-title">10. 明日の本番環境テスト・同期計画</h2>
+            <div class="lead-text">
+                本改修により、<code class="inline-code">month_schedule2.php</code> は Modern Web 最適化と動作安定性の両立を達成しました。明日の本番環境でのテストおよび現行ファイルとの切り替え手順は以下の通りです。
+            </div>
+
+            <h3 class="subsection-title">切り替え手順（推奨ステップ）</h3>
+            <ol style="margin-left: 20px; color: var(--text-sub); line-height: 1.8;">
+                <li><strong>本番稼働前テスト</strong>:
+                    本番環境（192.168.1.16）に <code class="inline-code">month_schedule2.php</code> および <code class="inline-code">assets/</code> を配置し、スタッフ端末から操作テスト（予約一覧表示、折りたたみ、上下入替、各モーダル起動）を実施。
+                </li>
+                <li><strong>安全な切り替え方法の選択</strong>:
+                    <ul>
+                        <li><strong>案1（リンク架け替え方式・推奨）</strong>: 各画面（<code class="inline-code">index.php</code> やホワイトボード等）のカレンダーリンク先を <code class="inline-code">month_schedule2.php</code> に変更。万が一のトラブル時も即座に元のリンクに戻せるため最も安全。</li>
+                        <li><strong>案2（ファイル置換方式）</strong>: 現行 <code class="inline-code">month_schedule.php</code> を <code class="inline-code">month_schedule.php.bak_20260928</code> として退避した上で、<code class="inline-code">month_schedule2.php</code> を上書きコピー。</li>
+                    </ul>
+                </li>
+                <li><strong>アラートキーワードJSON外部化の着手</strong>:
+                    本番稼働が確認できた後、ご相談いただいた「アラートタグ・文言のJSONファイル化」を進め、現場でのキーワード保守性を高めます。
+                </li>
+            </ol>
+        </section>
+            <!-- 11. DB不要テーブル整理・廃止検討 -->
+        <section id="sec11" class="report-section">
+            <h2 class="section-title">11. データベース不要テーブル整理・廃止検討（現行コード全スキャン分析）</h2>
+            <div class="lead-text">
+                データベースの肥大化・スキーマ複雑化を防ぎ、保守性を高めるため、現行稼働中のPostgreSQLデータベース（全24テーブル）を網羅的に棚卸しし、アクティブなPHP/JSコードベース全ファイルを対象とした静的参照解析（Grepスキャン）を実施しました。
+            </div>
+
+            <h3 class="subsection-title">11.1 全24テーブルの現況一覧 ＆ 参照解析マトリクス</h3>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>テーブル名</th>
+                        <th>件数</th>
+                        <th>本番参照</th>
+                        <th>世代・カテゴリ</th>
+                        <th>判定 ＆ 推奨アクション</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background:#fef2f2;">
+                        <td><strong>m_doctor</strong></td>
+                        <td>4 件</td>
+                        <td><span class="badge badge-danger">参照 0件</span></td>
+                        <td>旧世代医師マスタ</td>
+                        <td><span class="badge badge-danger">🗑️ 廃止可能</span> (新世代 m2_doctor に完全移行済)</td>
+                    </tr>
+                    <tr style="background:#fef2f2;">
+                        <td><strong>m_doctor_attendance</strong></td>
+                        <td>2 件</td>
+                        <td><span class="badge badge-danger">参照 0件</span></td>
+                        <td>旧世代出勤マスタ</td>
+                        <td><span class="badge badge-danger">🗑️ 廃止可能</span> (新世代 m2_doctor_attendance に完全移行済)</td>
+                    </tr>
+                    <tr style="background:#fef2f2;">
+                        <td><strong>m_doctor_slot_pattern</strong></td>
+                        <td>47 件</td>
+                        <td><span class="badge badge-danger">参照 0件</span></td>
+                        <td>旧世代枠パターン</td>
+                        <td><span class="badge badge-danger">🗑️ 廃止可能</span> (新世代 m2_doctor_slot_pattern に完全移行済)</td>
+                    </tr>
+                    <tr style="background:#fef2f2;">
+                        <td><strong>m_waku_master</strong></td>
+                        <td>21 件</td>
+                        <td><span class="badge badge-danger">参照 0件</span></td>
+                        <td>旧世代時間枠マスタ</td>
+                        <td><span class="badge badge-danger">🗑️ 廃止可能</span> (2026-09-27に m2_waku へ完全一本化完了)</td>
+                    </tr>
+                    <tr style="background:#fffbeb;">
+                        <td><strong>t_followup</strong></td>
+                        <td>10 件</td>
+                        <td><span class="badge badge-warning">followup/ のみ</span></td>
+                        <td>フォローアップ管理</td>
+                        <td><span class="badge badge-warning">⏸️ 凍結対象</span> (実運用なし・開発凍結。退避後削除検討)</td>
+                    </tr>
+                    <tr style="background:#fffbeb;">
+                        <td><strong>t_followup_items</strong></td>
+                        <td>13 件</td>
+                        <td><span class="badge badge-warning">followup/ のみ</span></td>
+                        <td>フォローアップ項目</td>
+                        <td><span class="badge badge-warning">⏸️ 凍結対象</span> (実運用なし・開発凍結。退避後削除検討)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m2_doctor_daily_capacity_v2</strong></td>
+                        <td>0 件</td>
+                        <td><span class="badge badge-success">参照 11本</span></td>
+                        <td>日別臨時キャパシティ</td>
+                        <td><span class="badge badge-primary">⚠️ 削除厳禁</span> (現役機能。臨時設定がないため0件なだけ)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m2_doctor</strong></td>
+                        <td>4 件</td>
+                        <td><span class="badge badge-success">参照 10本</span></td>
+                        <td>現行医師マスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (誠吾・哲也・義智・慶太郎)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m2_doctor_attendance</strong></td>
+                        <td>14 件</td>
+                        <td><span class="badge badge-success">参照 11本</span></td>
+                        <td>現行医師出勤マスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (曜日別出勤シフト定義)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m2_doctor_slot_pattern</strong></td>
+                        <td>51 件</td>
+                        <td><span class="badge badge-success">参照 17本</span></td>
+                        <td>現行枠パターンマスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (医師別時間枠割当定義)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m2_waku</strong></td>
+                        <td>26 件</td>
+                        <td><span class="badge badge-success">参照 16本</span></td>
+                        <td>現行時間枠マスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (予約枠の一元管理マスタ)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m2_slot_group</strong></td>
+                        <td>5 件</td>
+                        <td><span class="badge badge-success">参照 1本</span></td>
+                        <td>検査種別枠グループ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (TCF/GIF/ECHO枠定義)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m_exam_type_group</strong></td>
+                        <td>8 件</td>
+                        <td><span class="badge badge-success">参照 5本</span></td>
+                        <td>検査グループマスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (検査種別紐付け)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m_input_master</strong></td>
+                        <td>109 件</td>
+                        <td><span class="badge badge-success">参照 17本</span></td>
+                        <td>汎用入力候補マスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (備考定型文パレット、処置具等)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>m_progress_status</strong></td>
+                        <td>7 件</td>
+                        <td><span class="badge badge-success">参照 2本</span></td>
+                        <td>進捗ステータスマスタ</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (ホワイトボードステータス定義)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_endoscopy_schedule</strong></td>
+                        <td>986 件</td>
+                        <td><span class="badge badge-success">全画面</span></td>
+                        <td>予約データ本体</td>
+                        <td><span class="badge badge-success">✅ 最重要コア</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_mall_memo</strong></td>
+                        <td>713 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>電子カルテMALLメモ</td>
+                        <td><span class="badge badge-success">✅ 最重要コア</span> (アラートスキャン連携元)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_today_progress</strong></td>
+                        <td>69 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>当日進捗データ</td>
+                        <td><span class="badge badge-success">✅ 最重要コア</span> (ホワイトボード)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_schedule_audit_log</strong></td>
+                        <td>30 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>予約操作監査ログ</td>
+                        <td><span class="badge badge-success">✅ 2026-09-27新設</span> (Undo復元元データ)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_patient_medical_alert</strong></td>
+                        <td>5 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>医療安全アラート</td>
+                        <td><span class="badge badge-success">✅ 2026-09-27新設</span> (休薬・アレルギー・感染・風邪)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_doctor_notification_*</strong></td>
+                        <td>計 7 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>医師向け変更通知</td>
+                        <td><span class="badge badge-success">✅ 2026-09-27新設</span> (既読カーソル・通知ステータス)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_daily_memo</strong></td>
+                        <td>1 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>日別カレンダーメモ</td>
+                        <td><span class="badge badge-success">✅ 2026-09-26新設</span> (カレンダー日別備考)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>t_progress_status_log</strong></td>
+                        <td>22 件</td>
+                        <td><span class="badge badge-success">参照 多数</span></td>
+                        <td>進捗ステータス履歴</td>
+                        <td><span class="badge badge-success">✅ 維持必須</span> (ステータス変更監査用)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="subsection-title">11.2 即時安全に廃止可能なテーブル（旧世代マスタ4種）の分析詳細</h3>
+            <p>
+                以下の4テーブルは、現行のアクティブな本番プログラムファイル（<code class="inline-code">month_schedule.php</code>、<code class="inline-code">modal_edit.php</code>、<code class="inline-code">progress_monitor.php</code>、<code class="inline-code">slot_search.php</code> 等）からは<strong>完全に参照がゼロ</strong>となっており、過去のバックアップ・アーカイブ（<code class="inline-code">archive/</code>、<code class="inline-code">archive/legacy_unused/</code>）にしかコードが残っていません。
+            </p>
+            <ul style="margin-left: 20px; color: var(--text-sub); line-height: 1.8;">
+                <li><code class="inline-code">m_doctor</code> ➔ 新世代の <strong><code class="inline-code">m2_doctor</code></strong> に完全移行済み。</li>
+                <li><code class="inline-code">m_doctor_attendance</code> ➔ 新世代の <strong><code class="inline-code">m2_doctor_attendance</code></strong> に完全移行済み。</li>
+                <li><code class="inline-code">m_doctor_slot_pattern</code> ➔ 新世代の <strong><code class="inline-code">m2_doctor_slot_pattern</code></strong> に完全移行済み。</li>
+                <li><code class="inline-code">m_waku_master</code> ➔ 2026年9月27日の改修にて、新世代の <strong><code class="inline-code">m2_waku</code></strong> に完全一本化済み。</li>
+            </ul>
+
+            <h3 class="subsection-title">11.3 凍結機能テーブル（フォローアップ系）の状況</h3>
+            <p>
+                <code class="inline-code">t_followup</code> および <code class="inline-code">t_followup_items</code> は、過去に開発されたフォローアップ管理機能専用テーブルです。<br>
+                全体機能仕様書（<code class="inline-code">specdoc.html</code>）の「第6章」において<strong>『🧊 開発凍結中（実運用利用なし）』</strong>と定義されており、本番の日常業務では使用されていません。将来的にこの機能を完全撤退する場合は、テーブルごとクリーンアップすることが可能です。
+            </p>
+
+            <h3 class="subsection-title">11.4 0件だが削除してはならない現役テーブル</h3>
+            <div class="callout callout-warning">
+                <span>⚠️</span>
+                <div>
+                    <strong>m2_doctor_daily_capacity_v2 は削除厳禁です</strong><br>
+                    レコード数が現在「0件」ですが、これは「日別の臨時キャパシティ設定（特定の日に特定医師の予約枠数を臨時に増減する上書き設定）」が現在登録されていないためです。<br>
+                    コード上は <code class="inline-code">daily_slot_summary.php</code>、<code class="inline-code">month_matrix_v2.php</code>、<code class="inline-code">month_schedule.php</code>、<code class="inline-code">slot_search.php</code> 等の11ファイルから参照されている<strong>現役の機能テーブル</strong>ですので、決して削除しないでください。
+                </div>
+            </div>
+
+            <h3 class="subsection-title">11.5 安全な廃止マイグレーション手順（推奨ステップ）</h3>
+            <ol style="margin-left: 20px; color: var(--text-sub); line-height: 1.8;">
+                <li><strong>Step 1: SQLバックアップ（pg_dump）の取得</strong><br>
+                    廃止対象のテーブルデータを安全のためファイル（<code class="inline-code">tools/backup_deprecated_tables_20260928.sql</code>）としてエクスポート退避。
+                </li>
+                <li><strong>Step 2: リネームによる安全猶予期間の設置</strong><br>
+                    いきなり DROP せず、<code class="inline-code">ALTER TABLE m_waku_master RENAME TO z_deprecated_m_waku_master;</code> のように接頭辞 <code class="inline-code">z_deprecated_</code> を付与。万一の潜在的呼び出しがないかを実業務で1〜2週間モニタリング。
+                </li>
+                <li><strong>Step 3: 完全削除（DROP TABLE）の実行</strong><br>
+                    業務影響が一切ないことを確認後、<code class="inline-code">DROP TABLE z_deprecated_m_*;</code> を実行してスキーマを完全クリーンアップ。
+                </li>
+            </ol>
+        </section>
+
+    </main>
+
+    <footer class="report-footer">
+        <p>© 2026 医療法人小野会 内視鏡予約システム開発プロジェクト. All Rights Reserved.</p>
+        <p>Generated by Google Antigravity Advanced Agentic Coding Workflow (/daily-works)</p>
+    </footer>
+</div>
+
+</body>
+</html>

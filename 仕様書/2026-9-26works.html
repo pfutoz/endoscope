@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-09-26)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.65;
+            font-size: 14px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(59, 130, 246, 0.25);
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .header-date {
+            font-size: 13px;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        h1.main-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+            line-height: 1.35;
+        }
+
+        .header-summary-meta {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 12.5px;
+            color: #94a3b8;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 14px;
+            margin-top: 6px;
+        }
+
+        .meta-item strong {
+            color: #f1f5f9;
+        }
+
+        nav.toc-nav {
+            background: #f1f5f9;
+            padding: 18px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 6px 16px;
+            list-style: none;
+        }
+
+        .toc-list a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toc-list a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        main.content {
+            padding: 36px;
+        }
+
+        section.report-section {
+            margin-bottom: 40px;
+        }
+
+        section.report-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2.section-title .section-num {
+            background: var(--primary);
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        h3.sub-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 18px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #334155;
+            font-size: 13.5px;
+        }
+
+        ul, ol {
+            margin-bottom: 14px;
+            padding-left: 20px;
+            color: #334155;
+        }
+
+        li {
+            margin-bottom: 6px;
+            font-size: 13.5px;
+        }
+
+        .alert-box {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-box.info {
+            background-color: var(--primary-light);
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .alert-box.success {
+            background-color: var(--success-light);
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+
+        .alert-box.warning {
+            background-color: var(--warning-light);
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-bottom: 18px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        table.custom-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        table.custom-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        table.custom-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        table.custom-table tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .badge-primary { background: #dbeafe; color: #1e40af; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger  { background: #fee2e2; color: #991b1b; }
+        .badge-neutral { background: #e2e8f0; color: #475569; }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 18px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+
+        .stat-label {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .stat-sub {
+            font-size: 11px;
+            color: var(--success);
+            margin-top: 4px;
+            font-weight: 600;
+        }
+
+        code {
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: Consolas, Monaco, "Courier New", monospace;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            border-radius: 0;
+            font-size: inherit;
+        }
+
+        .code-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .container { box-shadow: none; border: none; max-width: 100%; }
+            nav.toc-nav { display: none; }
+            header.report-header { background: #0f172a !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">医療法人小野会 内視鏡予約システム</span>
+            <span class="header-date">📅 作業実施日: 2026年9月26日</span>
+        </div>
+        <h1 class="main-title">予約モーダル出勤例外連動 不具合改修・日別メモ機能（t_daily_memo） ＆<br>胃腸科実施場所自動設定・UI刷新 ＆ 当日進捗モニター（電子ホワイトボード）リリース 完了報告書</h1>
+        <div class="header-summary-meta">
+            <div class="meta-item">対象環境: <strong>Windows / Apache 2.4 / PostgreSQL 18.3 / PHP 8.5.9</strong></div>
+            <div class="meta-item">作業種別: <strong>不具合是正・機能拡張・UI/UX改善・【大型新設】当日電子ホワイトボード開発</strong></div>
+            <div class="meta-item">ステータス: <strong>全項目検証完了 (100% 稼働確認)</strong></div>
+        </div>
+    </header>
+
+    <!-- ── 目次 ── -->
+    <nav class="toc-nav">
+        <div class="toc-title">📋 報告内容目次</div>
+        <ul class="toc-list">
+            <li><a href="#sec1">1. 本日の対応概要・ステータス</a></li>
+            <li><a href="#sec2">2. 予約編集モーダルにおける出勤例外医師の反映対応</a></li>
+            <li><a href="#sec3">3. 日別カレンダーメモ機能（t_daily_memo）の実装・連携</a></li>
+            <li><a href="#sec4">4. 胃腸科GIF/TCF枠における実施場所デフォルト自動選択（modal_edit.php）</a></li>
+            <li><a href="#sec5">5. カレンダー選択セルの強調UI（2重線＆グラデーション）改善（month_schedule.php）</a></li>
+            <li><a href="#sec6">6. modal_edit.php における診療科別（肛門科・胃腸科）特別処理一覧</a></li>
+            <li><a href="#sec7">7. 改修・関連モジュール一覧</a></li>
+            <li><a href="#sec8">8. 動作検証結果・テスト記録</a></li>
+            <li><a href="#sec9" style="color: #2563eb; font-weight: 800;">9. 【大型新設】当日進捗ステータスモニター (電子ホワイトボード)</a></li>
+        </ul>
+    </nav>
+
+    <!-- ── 本文コンテンツ ── -->
+    <main class="content">
+
+        <!-- ── セクション 1 ── -->
+        <section id="sec1" class="report-section">
+            <h2 class="section-title"><span class="section-num">1</span>本日の対応概要・ステータス</h2>
+            <p>2026年9月26日に実施したシステム保守・改修・新規機能開発の全体サマリーです。検査枠マスターメンテナンスの出勤例外設定と予約編集モーダルのデータ不整合を解決し、カレンダー画面に直感的な連絡事項を表示・管理する「日別カレンダーメモ機能」を新設しました。さらに、予約入力負荷を軽減する「胃腸科GIF/TCF枠の実施場所自動選択機能」およびカレンダー選択日の視認性を高める「UIデザイン強化」を完遂しました。また、当日診療の安全管理とリアルタイム動線俯瞰を実現する大型機能<strong>「当日進捗ステータスモニター（電子ホワイトボード：progress_monitor.php）」</strong>を設計・実装し、ポータルデザインの全面改善とともに本番リリースを完了しました。</p>
+
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-label">出勤判定API改修</div>
+                    <div class="stat-value">1 件</div>
+                    <div class="stat-sub">✓ 例外最優先ロジックへ刷新</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">日別メモ管理テーブル</div>
+                    <div class="stat-value">t_daily_memo</div>
+                    <div class="stat-sub">✓ UPSERT / 自動削除対応</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">実施場所初期値連動</div>
+                    <div class="stat-value">GASTRO</div>
+                    <div class="stat-sub">✓ GIF/TCF枠で先頭自動選択</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">カレンダー選択UI改善</div>
+                    <div class="stat-value">CSS刷新</div>
+                    <div class="stat-sub">✓ 2重枠線 ＆ グラデーション</div>
+                </div>
+                <div class="stat-card" style="border: 2px solid #3b82f6; background: #eff6ff;">
+                    <div class="stat-label" style="color: #1d4ed8;">当日電子ホワイトボード</div>
+                    <div class="stat-value" style="color: #1d4ed8;">完全新設</div>
+                    <div class="stat-sub" style="color: #2563eb;">✓ 7段階動線/検体照合/Undo/タイマー</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">総合検証結果</div>
+                    <div class="stat-value">合格</div>
+                    <div class="stat-sub">✓ 全項目・単体結合テスト完了</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── セクション 2 ── -->
+        <section id="sec2" class="report-section">
+            <h2 class="section-title"><span class="section-num">2</span>予約編集モーダルにおける出勤例外医師の反映対応</h2>
+            
+            <h3 class="sub-title">📌 事象・課題の背景</h3>
+            <p>検査枠マスターメンテナンス（<code>slot_master_maintenance.php</code>）の「出勤例外」タブにおいて、<strong>2026-11-14（土）に哲也先生の検査枠（GIF: 5, エコー: 2, TCF: 8 / 合計: 15）</strong> を登録した際、以下の乖離が発生していました。</p>
+            <ul>
+                <li><strong>月間カレンダー（<code>month_schedule.php</code>）</strong>: 正常に「哲 🔵0/5 🟠0/2 🟢0/8」と枠数が反映され、日別セルにも青丸囲みバッジが表示される。</li>
+                <li><strong>予約編集モーダル（<code>modal_edit.php</code>）</strong>: 該当日の時間枠をクリックして予約編集モーダルを開くと、「担当医師」プルダウンに「哲也」が表示されず、担当医師として割り当てることができない。</li>
+            </ul>
+
+            <h3 class="sub-title">🔍 原因の究明</h3>
+            <div class="alert-box warning">
+                <div>
+                    <strong>原因の所在:</strong> 予約編集モーダルの医師選択肢を非同期取得する <code>get_present_doctors.php</code> の内部クエリにおいて、システム最優先テーブルである「出勤例外（<code>m2_doctor_attendance</code>）」の参照処理が抜け落ちていました。
+                </div>
+            </div>
+            <p><code>modal_edit.php</code> は、画面表示時および日付変更時に <code>fetch('get_present_doctors.php?date=...&dept=...')</code> を実行してプルダウンを再構築しています。しかし、従来の <code>get_present_doctors.php</code> では「基本の曜日パターン（<code>m2_doctor_slot_pattern</code>）」と「日別上書き（<code>m2_doctor_daily_capacity_v2</code>）」の2テーブルのみで出勤判定を行っており、曜日パターンに登録のない哲也先生が出勤判定から漏れていました。</p>
+
+            <h3 class="sub-title">🛠️ 実施した改修内容</h3>
+            <p><code>get_present_doctors.php</code> 内で独自実行していたSQLクエリを全面撤廃し、プロジェクト共通ライブラリ <code>lib/slot_helper.php</code> の <code>getDoctorStatus()</code> を呼び出すアーキテクチャに統一しました。</p>
+
+            <div class="alert-box success">
+                <div>
+                    <strong>統一された出勤判定優先順位:</strong><br>
+                    1. <strong>出勤例外（<code>m2_doctor_attendance</code>）</strong> ← 最優先適用（枠数合計 &gt; 0 なら出勤、0 なら休診）<br>
+                    2. <strong>日別上書き（<code>m2_doctor_daily_capacity_v2</code>）</strong><br>
+                    3. <strong>曜日パターン（<code>m2_doctor_slot_pattern</code>）</strong>
+                </div>
+            </div>
+
+            <div class="code-title">📄 get_present_doctors.php（改修後コード抜粋）</div>
+            <pre><code>// 共通ライブラリの読み込み
+require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/slot_helper.php';
+
+$pdo = getDbConnection();
+// ... (医師マスタ一覧の取得) ...
+
+$present_doctors = [];
+foreach ($all_doctors as $doctor_name) {
+    // 優先順位（出勤例外 ＞ 日別上書き ＞ 曜日パターン）を完全適用して判定
+    $status = getDoctorStatus($pdo, $doctor_name, $dept, $date);
+    if (!empty($status['present'])) {
+        $present_doctors[] = $doctor_name;
+    }
+}
+// 担当未定等の整形処理を経て JSON 出力</code></pre>
+        </section>
+
+        <!-- ── セクション 3 ── -->
+        <section id="sec3" class="report-section">
+            <h2 class="section-title"><span class="section-num">3</span>日別カレンダーメモ機能（t_daily_memo）の実装・連携</h2>
+
+            <h3 class="sub-title">📌 目的と運用効果</h3>
+            <p>カレンダー上の各日付セルに、医師の診療予定（例: <code>📝 哲診 義10</code> など）や休診連絡、日別の特記事項を直接メモとして登録・可視化できる機能です。紙の連絡票や別ファイルを参照することなく、カレンダーを一目見るだけで当日の体制や引き継ぎ事項を把握できます。</p>
+
+            <h3 class="sub-title">🗄️ データベース設計（<code>t_daily_memo</code>）</h3>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>カラム名</th>
+                            <th>型</th>
+                            <th>制約</th>
+                            <th>説明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>SERIAL</td>
+                            <td><span class="badge badge-primary">PRIMARY KEY</span></td>
+                            <td>シーケンス主キー</td>
+                        </tr>
+                        <tr>
+                            <td><code>department_code</code></td>
+                            <td>VARCHAR(20)</td>
+                            <td><span class="badge badge-warning">NOT NULL</span></td>
+                            <td>診療科コード（<code>GASTRO</code> / <code>PROCT</code>）</td>
+                        </tr>
+                        <tr>
+                            <td><code>target_date</code></td>
+                            <td>DATE</td>
+                            <td><span class="badge badge-warning">NOT NULL</span></td>
+                            <td>メモ対象日付（<code>YYYY-MM-DD</code>）</td>
+                        </tr>
+                        <tr>
+                            <td><code>memo</code></td>
+                            <td>TEXT</td>
+                            <td><span class="badge badge-neutral">DEFAULT NULL</span></td>
+                            <td>メモ本文（連絡事項・医師割当等）</td>
+                        </tr>
+                        <tr>
+                            <td><code>updated_at</code></td>
+                            <td>TIMESTAMP</td>
+                            <td><span class="badge badge-neutral">DEFAULT NOW()</span></td>
+                            <td>最終更新日時</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><small>※ <code>(department_code, target_date)</code> の複合一意制約（UNIQUE）を付与し、同一科・同一日における重複登録を抑止（UPSERT対応）。</small></p>
+
+            <h3 class="sub-title">⚡ 高速化アーキテクチャ（N+1クエリ解消）</h3>
+            <p>月間カレンダー（<code>month_schedule.php</code>）の描画において、1日ごとにSQLを発行すると最大35〜42回のクエリ遅延が発生します。これに対し、表示期間（前月末〜当月末）のメモを単一クエリで一括プリフェッチする方式を採用しました。</p>
+            <pre><code>// 月間日別メモの一括プリフェッチ
+$stmt_memo = $pdo->prepare("
+    SELECT target_date::text, memo 
+    FROM t_daily_memo 
+    WHERE department_code = :dept 
+      AND target_date >= :start_date 
+      AND target_date <= :end_date
+");
+$stmt_memo->execute([':dept' => $dept, ':start_date' => $start_date_month, ':end_date' => $end_date_month]);
+$month_daily_memo_cache = $stmt_memo->fetchAll(PDO::FETCH_KEY_PAIR);</code></pre>
+            <p>各日付セル生成時は <code>$month_daily_memo_cache[$date_str]</code> によるインメモリ連想配列参照（計算量 <code>O(1)</code>）を行うため、データベース負荷および画面描画オーバーヘッドはほぼゼロです。</p>
+
+            <h3 class="sub-title">🖥️ UI/UX設計と画面連動</h3>
+            <ul>
+                <li><strong>日付セルバッジ表示（カレンダー部）:</strong>
+                    メモが存在する日は日付数字の横に <code>.day-memo-badge</code>（黄色背景）で <code>📝 メモ内容</code> を表示。セルクリックによる画面遷移と競合しないよう、バッジクリック時は <code>event.stopPropagation()</code> を介して直接編集モーダルを起動。
+                </li>
+                <li><strong>選択日リスト側ヘッダー連動:</strong>
+                    右側の選択日詳細エリアの見出し横にも現在のメモを表示し、クリックで再編集が可能。未登録時は「＋メモ追加」ボタンを表示。
+                </li>
+                <li><strong>編集モーダル（<code>dailyMemoModal</code>）＆ 自動クリーンアップ:</strong>
+                    非同期AJAX API（<code>action=ajax_save_daily_memo</code>）により、ページ遷移なしで保存・即時反映。空文字で保存された場合は <code>DELETE</code> クエリを発行して空レコードを自動消去する軽量最適化を実装。
+                </li>
+            </ul>
+        </section>
+
+        <!-- ── セクション 4 ── -->
+        <section id="sec4" class="report-section">
+            <h2 class="section-title"><span class="section-num">4</span>胃腸科GIF/TCF枠における実施場所デフォルト自動選択（modal_edit.php）</h2>
+            
+            <h3 class="sub-title">📌 改修の背景と運用ニーズ</h3>
+            <p>胃腸科（GASTRO）の予約業務において、GIF枠およびTCF枠で予約登録を行う際、実施場所プルダウンはマスタ最上位の「内視鏡室」が選択される運用が大半を占めていました。しかし、従来は「-- 実施場所 --」（未選択）が初期値となっていたため、予約のたびに毎回プルダウンを開いて選択する操作負担が生じていました。</p>
+            <p>※なお、エコー枠については実施場所が多岐にわたるため、従来通り未選択をデフォルトとする仕様を維持することが求められました。</p>
+
+            <h3 class="sub-title">🛠️ 実装内容（初期値設定 ＆ 時間枠動的連動）</h3>
+            <ul>
+                <li><strong>新規予約画面読み込み時の初期判定（PHP）:</strong><br>
+                    URLパラメータまたは初期選択された時間枠名（<code>$waku</code>）に <code>GIF</code> または <code>TCF</code> が含まれる場合、実施場所（<code>$curr_loc</code>）にマスタの先頭アイテム（<code>$exam_locations_master[0]</code> ＝ <strong>「内視鏡室」</strong>）を自動設定。エコー枠等の場合は空文字（未選択）を代入。
+                </li>
+                <li><strong>時間枠変更イベントの動的連動（JavaScript: <code>handleWakuChange</code>）:</strong><br>
+                    新規予約画面（<code>isNew</code>）において、時間枠プルダウン（<code>scheduled_time</code>）を切り替えた際、選択枠が <code>GIF</code> または <code>TCF</code> なら実施場所プルダウンを自動的に先頭選択肢（<code>locSelect.selectedIndex = 1</code>）へ切り替え。エコー枠等へ切り替えた場合は未選択（<code>locSelect.value = ''</code>）に自動リセット。
+                </li>
+                <li><strong>既存予約データの非破壊保護設計:</strong><br>
+                    既に保存・登録されている予約の編集画面（<code>$schedule_id > 0</code> / <code>!isNew</code>）を開いた際には、本自動補完ロジックは作動せず、データベースに登録された実施場所を100%保持します。
+                </li>
+            </ul>
+
+            <div class="code-title">📄 modal_edit.php（改修後PHPロジック抜粋: 158〜174行目）</div>
+            <pre><code>    } else {
+        $curr_doctor  = '';
+        $default_first_loc = $exam_locations_master[0] ?? '';
+        if (stripos($waku, 'GIF') !== false) {
+            $curr_exam    = 'GIF';
+            $curr_arrival = calculateArrivalBefore30Min($waku);
+            $curr_loc     = $default_first_loc; // ★GIF枠：マスタ先頭「内視鏡室」
+        } elseif (stripos($waku, 'TCF') !== false) {
+            $curr_exam    = '';
+            $curr_arrival = '';
+            $curr_loc     = $default_first_loc; // ★TCF枠：マスタ先頭「内視鏡室」
+        } else {
+            $curr_exam    = '';
+            $curr_arrival = '';
+            $curr_loc     = ''; // ★エコー枠等：従来通り未選択
+        }
+    }</code></pre>
+
+            <div class="code-title">📄 modal_edit.php（改修後JavaScript連動コード抜粋: 1086〜1113行目）</div>
+            <pre><code>function handleWakuChange(wakuName) {
+    checkDuplicateAndLimits();
+    if (!isNew) return;
+
+    const dept = document.getElementById('f_dept').value;
+    const examSelect = document.getElementById('exam_type');
+    const arrivalInput = document.getElementById('arrival_time');
+    const locSelect = document.getElementById('exam_location');
+
+    if (dept === 'GASTRO') {
+        const isGif = wakuName.includes('GIF');
+        const isTcf = wakuName.includes('TCF');
+
+        if (isGif) {
+            if (!examSelect.value) examSelect.value = 'GIF';
+            if (examSelect.value === 'GIF') {
+                arrivalInput.value = calculateBefore30Min(wakuName);
+            }
+        }
+
+        // GIF枠またはTCF枠の場合、実施場所は一番上の選択肢を選択（エコー枠等は未選択）
+        if (isGif || isTcf) {
+            if (locSelect && locSelect.options.length > 1) {
+                locSelect.selectedIndex = 1;
+            }
+        } else {
+            if (locSelect) {
+                locSelect.value = '';
+            }
+        }
+    }
+}</code></pre>
+        </section>
+
+        <!-- ── セクション 5 ── -->
+        <section id="sec5" class="report-section">
+            <h2 class="section-title"><span class="section-num">5</span>カレンダー選択セルの強調UI（2重線＆グラデーション）改善（month_schedule.php）</h2>
+
+            <h3 class="sub-title">📌 課題とデザインアプローチ</h3>
+            <p>月間カレンダー画面（<code>month_schedule.php</code>）において、多数の予約状況バッジや医師別集計が表示される中、現在どのカレンダーセルを選択しているかの視認性をさらに高めるデザイン調整を実施しました。</p>
+
+            <h3 class="sub-title">🎨 適用したCSSスタイル設計</h3>
+            <ul>
+                <li><strong>2重線アウトライン（レイアウト非破壊）:</strong><br>
+                    通常の <code>border</code> で太枠を指定するとセルのサイズや内部テーブルの余白が押し出されてレイアウト崩れが生じるため、<code>outline: 3.5px double #033bb3ff !important;</code> および <code>outline-offset: -2px;</code> を適用。外枠のみをくっきりと濃紺・青色の2重線で浮き立たせています。
+                </li>
+                <li><strong>視認性を阻害しない淡いブルーグラデーション:</strong><br>
+                    セル背景に <code>background: linear-gradient(to bottom, #ddeaffff 0%, #7bbbffff 100%);</code> を指定。セル内部の文字情報（日付、各枠の予約数・空き数バッジ）の可読性を損なうことなく、選択セルであることが一目で判別できる質感を実現しました。
+                </li>
+            </ul>
+
+            <div class="code-title">📄 month_schedule.php（選択セルCSS定義: 1174行目付近）</div>
+            <pre><code>.cal-table .day-cell.selected {
+  outline: 3.5px double #033bb3ff !important;
+  outline-offset: -2px;
+  position: relative;
+  z-index: 10;
+  /* 内部：上から下へ 淡い青のグラデーション */
+  background: linear-gradient(to bottom, #ddeaffff 0%, #7bbbffff 100%);
+}</code></pre>
+        </section>
+
+        <!-- ── セクション 6 ── -->
+        <section id="sec6" class="report-section">
+            <h2 class="section-title"><span class="section-num">6</span>modal_edit.php における診療科別（肛門科・胃腸科）特別処理一覧</h2>
+            <p><code>modal_edit.php</code>（予約登録・編集画面）では、診療科（肛門科 <code>PROCT</code> / 胃腸科 <code>GASTRO</code>）ごとに実務運用に合わせた固有の特別処理が組み込まれています。仕様の明確化と将来の保守性向上のため、両診療科の特別処理を網羅的に一覧化しました。</p>
+
+            <h3 class="sub-title">🟢 1. 肛門科（PROCT）だけの特別処理一覧</h3>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th style="width:190px;">機能・項目</th>
+                            <th>処理内容・仕様詳細</th>
+                            <th style="width:170px;">実装箇所</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>新規予約初期値の固定設定</strong></td>
+                            <td>新規予約登録画面を開いた際、初期値として以下を固定セット：<br>
+                                ・担当医師：<code>誠吾</code><br>
+                                ・検査場所：<code>内視鏡室（おの）</code><br>
+                                ・来院時間：<code>9:00</code><br>
+                                ・検査種別：未選択（空文字）
+                            </td>
+                            <td><code>modal_edit.php</code><br><small>153〜157行目 (PHP)</small></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>担当医プルダウンへの「誠吾」強制追加</strong></td>
+                            <td>日付変更時等に実行される出勤医師取得API（<code>get_present_doctors.php</code>）の返却結果に「誠吾」が含まれていない場合でも、<strong>必ずリストの先頭に「誠吾」を追加（unshift）</strong>し、常に選択可能とする。</td>
+                            <td><code>modal_edit.php</code><br><small>1244〜1246行目 (JS)</small></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>肛門科専用時間枠マスタの取得</strong></td>
+                            <td><code>getWakuList($pdo, 'PROCT')</code> により、<code>m2_waku</code> テーブルから <code>department_code = 'PROCT'</code> に紐付く時間枠のみを取得・セレクトボックスに展開。</td>
+                            <td><code>modal_edit.php</code><br><small>91行目 (PHP)</small></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>UIバッジ・表示スタイル</strong></td>
+                            <td>ヘッダーバッジで青色背景（<code>#3b82f6</code>）を適用。セレクトボックス内では <code>🟢 肛門科 (PROCT)</code> と表示。</td>
+                            <td><code>modal_edit.php</code><br><small>225, 591, 643行目</small></td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>胃腸科固有の自動変更除外</strong></td>
+                            <td>時間枠変更時（<code>handleWakuChange</code>）や検査種別変更時（<code>handleExamTypeChange</code>）に、胃腸科で行われる「GIF判定・30分前計算・実施場所自動選択」の対象外として安全に隔離。</td>
+                            <td><code>modal_edit.php</code><br><small>1086〜1128行目 (JS)</small></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="sub-title" style="margin-top:24px;">🔵 2. 胃腸科（GASTRO）だけの特別処理一覧</h3>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th style="width:190px;">機能・項目</th>
+                            <th>処理内容・仕様詳細</th>
+                            <th style="width:170px;">実装箇所</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>GIF枠：種別・時間・場所の自動算出</strong></td>
+                            <td>新規予約登録時、選択時間枠に <code>GIF</code> が含まれる場合：<br>
+                                ・検査種別を自動で <code>GIF</code> にセット<br>
+                                ・時間枠開始の <strong>30分前時刻を来院時間に自動計算</strong><br>
+                                ・実施場所をマスタ先頭（<code>内視鏡室</code>）に自動設定
+                            </td>
+                            <td><code>modal_edit.php</code><br><small>158〜164行目 (PHP)</small></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>TCF枠：実施場所の自動選択</strong></td>
+                            <td>新規予約登録時、選択時間枠に <code>TCF</code> が含まれる場合、実施場所をマスタ先頭（<code>内視鏡室</code>）に自動設定。（検査種別・来院時間は手動入力）</td>
+                            <td><code>modal_edit.php</code><br><small>165〜168行目 (PHP)</small></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>エコー枠等の実施場所未選択維持</strong></td>
+                            <td>エコー枠など上記以外の枠では、実施場所は従来通り <code>-- 実施場所 --</code>（未選択）のまま初期化。</td>
+                            <td><code>modal_edit.php</code><br><small>169〜173行目 (PHP)</small></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>時間枠変更時の動的連動（JS）</strong></td>
+                            <td>新規登録画面で時間枠プルダウン（<code>scheduled_time</code>）を変更した際：<br>
+                                ・枠名に <code>GIF</code> が含まれ種別未選択なら <code>GIF</code> を補完<br>
+                                ・種別が <code>GIF</code> なら枠の30分前時刻を来院時間に再計算<br>
+                                ・枠名に <code>GIF</code> または <code>TCF</code> が含まれるなら実施場所を先頭（<code>内視鏡室</code>）に自動切替、エコー枠なら未選択へリセット
+                            </td>
+                            <td><code>modal_edit.php</code><br><small>1086〜1113行目 (JS)</small></td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>検査種別変更時の来院時間連動（JS）</strong></td>
+                            <td>新規登録画面で検査種別プルダウン（<code>exam_type</code>）を変更した際：<br>
+                                ・<code>GIF</code> を選択した場合は時間枠の30分前時刻を来院時間へ自動セット<br>
+                                ・<code>GIF</code> 以外に変更し枠名に <code>GIF</code> が含まれていた場合は来院時間を空文字クリア
+                            </td>
+                            <td><code>modal_edit.php</code><br><small>1115〜1128行目 (JS)</small></td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>胃腸科専用時間枠マスタの取得</strong></td>
+                            <td><code>getWakuList($pdo, 'GASTRO')</code> により、<code>m2_waku</code> テーブルから <code>department_code = 'GASTRO'</code> に紐付く時間枠のみを取得・セレクトボックスに展開。</td>
+                            <td><code>modal_edit.php</code><br><small>91行目 (PHP)</small></td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><strong>システム標準デフォルト診療科</strong></td>
+                            <td>URLクエリ <code>?dept=</code> が未指定または不正値の場合、自動的に <code>GASTRO</code> を採用（フォールバック）。</td>
+                            <td><code>modal_edit.php</code><br><small>73, 77, 1234行目</small></td>
+                        </tr>
+                        <tr>
+                            <td>8</td>
+                            <td><strong>UIバッジ・表示スタイル</strong></td>
+                            <td>ヘッダーバッジで緑色背景（<code>#10b981</code>）を適用。セレクトボックス内では <code>🔵 胃腸科 (GASTRO)</code> と表示。</td>
+                            <td><code>modal_edit.php</code><br><small>226, 591, 644行目</small></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="sub-title" style="margin-top:24px;">💻 主な実装コードスニペット抜粋</h3>
+
+            <div class="code-title">📄 modal_edit.php: 新規予約時の初期値分岐処理（153〜174行目）</div>
+            <pre><code>if ($dept === 'PROCT') {
+    // 【肛門科】固定の初期値（誠吾 / 内視鏡室（おの） / 9:00）
+    $curr_doctor  = '誠吾';
+    $curr_loc     = '内視鏡室（おの）';
+    $curr_arrival = '9:00';
+    $curr_exam    = '';
+} else {
+    // 【胃腸科】枠に応じた動的判定（GIF/TCFは内視鏡室、GIFは30分前計算、エコー等は未選択）
+    $curr_doctor  = '';
+    $default_first_loc = $exam_locations_master[0] ?? '';
+    if (stripos($waku, 'GIF') !== false) {
+        $curr_exam    = 'GIF';
+        $curr_arrival = calculateArrivalBefore30Min($waku);
+        $curr_loc     = $default_first_loc;
+    } elseif (stripos($waku, 'TCF') !== false) {
+        $curr_exam    = '';
+        $curr_arrival = '';
+        $curr_loc     = $default_first_loc;
+    } else {
+        $curr_exam    = '';
+        $curr_arrival = '';
+        $curr_loc     = '';
+    }
+}</code></pre>
+
+            <div class="code-title">📄 modal_edit.php: 肛門科の担当医プルダウン補正（1244〜1246行目）</div>
+            <pre><code>// 肛門科の場合、出勤判定APIの結果に含まれていなくても先頭に「誠吾」を強制追加
+if (dept === 'PROCT' && !doctors.includes('誠吾')) {
+    doctors.unshift('誠吾');
+}</code></pre>
+
+            <div class="code-title">📄 modal_edit.php: 胃腸科の検査種別変更時イベント（1115〜1128行目）</div>
+            <pre><code>function handleExamTypeChange(etype) {
+    if (!isNew) return;
+    const dept = document.getElementById('f_dept').value;
+    const waku = document.getElementById('scheduled_time').value;
+    const arrivalInput = document.getElementById('arrival_time');
+
+    if (dept === 'GASTRO') {
+        if (etype === 'GIF') {
+            arrivalInput.value = calculateBefore30Min(waku);
+        } else if (arrivalInput.value && waku.includes('GIF')) {
+            arrivalInput.value = '';
+        }
+    }
+}</code></pre>
+        </section>
+
+        <!-- ── セクション 7 ── -->
+        <section id="sec7" class="report-section">
+            <h2 class="section-title"><span class="section-num">7</span>改修・関連モジュール一覧</h2>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>対象ファイル</th>
+                            <th>区分</th>
+                            <th>主な変更・役割</th>
+                            <th>ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>get_present_doctors.php</code></td>
+                            <td><span class="badge badge-warning">改修</span></td>
+                            <td>出勤判定ロジックを <code>lib/slot_helper.php</code> の <code>getDoctorStatus()</code> に統一。出勤例外（<code>m2_doctor_attendance</code>）を最優先で反映。</td>
+                            <td><span class="badge badge-success">正常稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>lib/slot_helper.php</code></td>
+                            <td><span class="badge badge-neutral">共通</span></td>
+                            <td>出勤例外 ＞ 日別上書き ＞ 曜日パターンの3層優先度を評価するコア判定モジュール（共通参照元）。</td>
+                            <td><span class="badge badge-success">正常稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>month_schedule.php</code></td>
+                            <td><span class="badge badge-primary">機能・UI改修</span></td>
+                            <td>月間カレンダーでの出勤例外・日別メモバッジ表示、メモ保存AJAX API、選択セルの青色2重線＆淡色グラデーション強調CSS。</td>
+                            <td><span class="badge badge-success">正常稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>modal_edit.php</code></td>
+                            <td><span class="badge badge-primary">機能改修</span></td>
+                            <td>予約登録・編集モーダル。出勤例外医師のプルダウン展開、胃腸科GIF/TCF枠での実施場所自動選択（マスタ先頭「内視鏡室」）、時間枠変更時連動。</td>
+                            <td><span class="badge badge-success">正常稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>t_daily_memo</code></td>
+                            <td><span class="badge badge-primary">DBテーブル</span></td>
+                            <td>日別連絡事項・医師割当メモを保持するテーブル（PostgreSQL）。UPSERT・一括取得対応。</td>
+                            <td><span class="badge badge-success">正常稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>progress_monitor.php</code></td>
+                            <td><span class="badge badge-danger">新規開発</span></td>
+                            <td>内視鏡室 当日進捗ステータスモニター（電子ホワイトボード）。7段階動線、職種別ビュー、検査種別切替、検体照合、Undo、自動更新タイマー。</td>
+                            <td><span class="badge badge-success">本番稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>get_progress_data.php</code></td>
+                            <td><span class="badge badge-danger">新規開発</span></td>
+                            <td>当日進捗データ取得API。エコー完全除外、GIF/セデーション自動判定、サマリ集計、JSON配信。</td>
+                            <td><span class="badge badge-success">本番稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>action_progress.php</code></td>
+                            <td><span class="badge badge-danger">新規開発</span></td>
+                            <td>ステータス更新・Undo・打刻・マイトイレ・下剤・洗浄指示・検体照合・セデーション切替API。</td>
+                            <td><span class="badge badge-success">本番稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>lib/progress_db.php</code></td>
+                            <td><span class="badge badge-danger">新規開発</span></td>
+                            <td>電子ホワイトボード用DBテーブル（m_progress_status, t_today_progress, t_progress_status_log）自動初期化・マイグレーション。</td>
+                            <td><span class="badge badge-success">本番稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>index.php</code></td>
+                            <td><span class="badge badge-warning">UI改修</span></td>
+                            <td>ポータル上部の黒背景コントラスト崩れを完全解消し、白基調＋高視認性動線ステップカードへ刷新。</td>
+                            <td><span class="badge badge-success">本番稼働</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>index.html</code></td>
+                            <td><span class="badge badge-neutral">新規</span></td>
+                            <td>index.html アクセス時の index.php へのシームレスリダイレクト対応。</td>
+                            <td><span class="badge badge-success">本番稼働</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── セクション 8 ── -->
+        <section id="sec8" class="report-section">
+            <h2 class="section-title"><span class="section-num">8</span>動作検証結果・テスト記録</h2>
+
+            <h3 class="sub-title">🧪 テストケース 1: 出勤例外が設定された日付（2026-11-14 / 土曜）</h3>
+            <div class="alert-box info">
+                <div>
+                    <strong>テスト条件:</strong> 曜日パターンでは土曜胃腸科の枠がない「哲也」先生に、出勤例外で 15 枠（GIF:5, ECHO:2, TCF:8）を設定。
+                </div>
+            </div>
+            <div class="code-title">📡 API実行コマンド＆レスポンス検証</div>
+            <pre><code>$ GET http://localhost/endoscope/get_present_doctors.php?date=2026-11-14&dept=GASTRO
+
+{
+  "doctors": [
+    "哲也",
+    "義智",
+    "◆未定◆"
+  ]
+}</code></pre>
+            <p><strong>判定結果: <span style="color:var(--success); font-weight:800;">PASS (正常)</span></strong> ―― 哲也先生が正しくリストアップされ、<code>modal_edit.php</code> のプルダウン選択肢にも「哲也」が表示されることを確認。</p>
+
+            <h3 class="sub-title">🧪 テストケース 2: 休診の出勤例外が設定された日付（2026-09-29 / 火曜）</h3>
+            <div class="alert-box info">
+                <div>
+                    <strong>テスト条件:</strong> 出勤例外として「休診（合計枠数 0）」が設定されている哲也先生の除外テスト。
+                </div>
+            </div>
+            <div class="code-title">📡 API実行コマンド＆レスポンス検証</div>
+            <pre><code>$ GET http://localhost/endoscope/get_present_doctors.php?date=2026-09-29&dept=GASTRO
+
+{
+  "doctors": [
+    "義智",
+    "◆未定◆"
+  ]
+}</code></pre>
+            <p><strong>判定結果: <span style="color:var(--success); font-weight:800;">PASS (正常)</span></strong> ―― 合計枠数0の休診医師は正しく除外され、不要な選択肢が混入しないことを確認。</p>
+
+            <h3 class="sub-title">🧪 テストケース 3: 日別カレンダーメモの保存・表示・削除テスト</h3>
+            <ul>
+                <li><strong>登録・表示:</strong> <code>11/14</code> に対し <code>哲診 義10</code> を保存。カレンダーセルの上部に <code>📝 哲診 義10</code> バッジが描画され、ツールチップおよび詳細リストにも即時反映されることを確認。</li>
+                <li><strong>削除・クリーンアップ:</strong> モーダルから「削除」を実行。データベースから該当レコードが物理削除され、カレンダー上のバッジが綺麗に消去されることを確認。</li>
+            </ul>
+
+            <h3 class="sub-title">🧪 テストケース 4: 胃腸科GIF/TCF枠での実施場所自動選択テスト（新規予約）</h3>
+            <ul>
+                <li><strong>GIF枠（例: GIF9:00）:</strong> 新規予約登録を開くと、実施場所が自動的に「内視鏡室」（マスタ最上位）にセットされることを確認。同時に検査種別「GIF」、来院時刻「8:30」（枠の30分前）も連動設定。</li>
+                <li><strong>TCF枠（例: TCF13:30~14:30）:</strong> 新規予約登録を開くと、実施場所が自動的に「内視鏡室」にセットされることを確認。</li>
+                <li><strong>エコー枠（例: エコー9:00）:</strong> 新規予約登録を開くと、実施場所は「-- 実施場所 --」（未選択）のままであることを確認。</li>
+            </ul>
+
+            <h3 class="sub-title">🧪 テストケース 5: 時間枠プルダウン切り替え時のJS連動 ＆ 既存予約非破壊テスト</h3>
+            <ul>
+                <li><strong>画面上での動的切替:</strong> 新規登録画面で時間枠を「エコー9:00」から「GIF9:20」に変更すると、実施場所が自動で「内視鏡室」に切り替わり、再度「エコー9:00」に戻すと未選択へクリアされることを確認。</li>
+                <li><strong>既存予約データの保持:</strong> 既に別の場所（例: 「内視鏡室（新）」）で保存されている既存予約を編集モーダルで開いた場合、値が「内視鏡室」に書き換わることなく保存済みの値が正しく表示されることを確認。</li>
+            </ul>
+
+            <h3 class="sub-title">🧪 テストケース 6: カレンダー選択中セルの強調表示テスト</h3>
+            <ul>
+                <li>月間カレンダー（<code>month_schedule.php</code>）で任意の日付セルをクリックした際、枠線が青色2重線（<code>outline: 3.5px double #033bb3ff</code>）で強調され、セル背景に淡いブルーのグラデーションが正しく描画されることを確認。内部バッジや文字レイアウトの崩れなし。</li>
+            </ul>
+
+            <h3 class="sub-title">🧪 テストケース 7: エコー (ECHO) 完全除外 ＆ 検査種別フィルターテスト</h3>
+            <div class="alert-box info">
+                <div>
+                    <strong>テスト条件:</strong> 2026-09-28 の予約データから、ホワイトボードAPI（<code>get_progress_data.php</code>）を実行し、エコーが除外されていること、および CF / GIF フィルターが正しく動作することを確認。
+                </div>
+            </div>
+            <div class="code-title">📡 API実行コマンド＆レスポンス検証</div>
+            <pre><code>$ GET http://localhost/endoscope/get_progress_data.php?date=2026-09-28&dept=ALL&exam_filter=ALL
+
+{
+  "success": true,
+  "summary": {
+    "total": 17,
+    "cf_count": 7,
+    "gif_count": 10,
+    "sedation_count": 14,
+    "no_sedation_count": 3
+  }
+}</code></pre>
+            <p><strong>判定結果: <span style="color:var(--success); font-weight:800;">PASS (正常)</span></strong> ―― エコー検査が確実に除外され、全17件（CF系7件、GIF系10件）が正しく分類・取得されることを確認。</p>
+
+            <h3 class="sub-title">🧪 テストケース 8: 胃カメラ (GIF) 患者の前処置自動スキップテスト</h3>
+            <ul>
+                <li><strong>検証内容:</strong> 下剤・マイトイレを伴わない GIF 患者について、受付済(1)から進める際、ステップ2（前処置案内）を自動スキップしてステップ3（検査待ち）へ直接遷移するかを検証。</li>
+                <li><strong>判定結果: <span style="color:var(--success); font-weight:800;">PASS (正常)</span></strong> ―― <code>to_status_id = 2</code> 要求に対し、<code>is_prep_skipped = TRUE</code> が評価され、直接 <code>current_status_id = 3</code> に自動遷移することを確認。</li>
+            </ul>
+
+            <h3 class="sub-title">🧪 テストケース 9: セデーション (鎮静剤) 連動 ＆ 鎮静なし時のリカバリ自動スキップテスト</h3>
+            <ul>
+                <li><strong>検証内容:</strong> 鎮静なし（<code>has_sedation = FALSE</code>）の患者について、検査中(4)から進める際、ステップ5（リカバリ）を自動スキップして直接ステップ6（説明）へ遷移するかを検証。</li>
+                <li><strong>判定結果: <span style="color:var(--success); font-weight:800;">PASS (正常)</span></strong> ―― <code>to_status_id = 5</code> 要求に対し、直接 <code>current_status_id = 6</code> に自動遷移し、不要なベッド占有表示がスキップされることを確認。</li>
+            </ul>
+
+            <h3 class="sub-title">🧪 テストケース 10: 誤操作差し戻し (Undo) ＆ 履歴ログ永続化テスト</h3>
+            <ul>
+                <li><strong>検証内容:</strong> ステータス6（説明）からステップ4（検査中）へ差し戻し（<code>action = revert_status</code>）を実行し、データベースおよび <code>t_progress_status_log</code> に正しく理由付きで保存されるかを検証。</li>
+                <li><strong>判定結果: <span style="color:var(--success); font-weight:800;">PASS (正常)</span></strong> ―― ステータスが直ちに4へ戻り、ログテーブルに <code>action_type = 'REVERT'</code>、<code>revert_reason = 'テスト取り消し'</code> が完全永続化されることを確認。</li>
+            </ul>
+        </section>
+
+        <!-- ── セクション 9 ── -->
+        <section id="sec9" class="report-section">
+            <h2 class="section-title"><span class="section-num">9</span>【大型新設】内視鏡室 当日進捗ステータスモニター（電子ホワイトボード）の開発・リリース</h2>
+            
+            <p>
+                1日の大腸内視鏡（CF・ポリペクトミー）が最大15名超まで増加する当院の内視鏡診療において、内視鏡室・前処置室・リカバリ室の「現在の患者動線」「マイトイレ空き状況」「検体照合・スコープ洗浄などの安全タスク」を看護師・補助看護師・受付事務・医師がリアルタイムに共有・監視できる<strong>「当日進捗ステータスモニター（電子ホワイトボード：<code>progress_monitor.php</code>）」</strong>を新規開発し、リリースしました。
+            </p>
+
+            <h3 class="sub-title">💡 開発の背景と解決した現場課題</h3>
+            <ul>
+                <li><strong>複数職種にまたがる動線・タスクの分断:</strong> 受付事務（来院確認）、補助看護師（マイトイレ案内・下剤作成配薬・スコープ洗浄）、看護師（便チェック・検査介助・検体照合・リカバリ監視）、医師（検査・説明）が関わる複雑な動線を一元化。</li>
+                <li><strong>【重大インシデント未然防止】採取組織・個数の声出し照合:</strong> 生検やポリペクトミー実施時における検体部位（C/A/T/D/S/Rb/Ra/P等）の取り違いや採取個数ミスのインシデントを根絶するため、退室時の声出し照合モーダルを必須化。未照合時は画面全体で点滅警告。</li>
+                <li><strong>スコープ洗浄指示の確実な伝達:</strong> 検査終了と同時に補助看護師へ洗浄指示タスク（指示中 ➔ 洗浄中 ➔ 完了）を自動発行し、伝達漏れによる機器不足を未然に防止。</li>
+                <li><strong>検査種別（CF vs GIF）とセデーション有無による動線分岐の吸収:</strong> 下剤を要しない胃カメラ（GIF）の前処置自動スキップや、鎮静剤なし時のリカバリ自動スキップをインテリジェントに制御。</li>
+                <li><strong>誤操作巻き戻し（Undo）の安全性:</strong> 現場の慌ただしい状況での誤タップに備え、理由選択付きで直前ステータスへ差し戻せるUndo機能と監査ログを完備。</li>
+            </ul>
+
+            <h3 class="sub-title">🎯 7段階動線ステータスパイプライン</h3>
+            <div class="alert-box info" style="font-size:13px; line-height:1.7;">
+                <strong>[ 1. 来院・受付済 ]</strong> ──(自動スキップ: GIF)──➔ <strong>[ 2. 前処置準備 (マイトイレ案内) ]</strong> ──➔ <strong>[ 3. 前処置完了 (検査待ち) ]</strong> ──➔ <strong>[ 4. 検査中 ]</strong> ──(自動スキップ: 鎮静なし)──➔ <strong>[ 5. リカバリ中 ]</strong> ──➔ <strong>[ 6. 説明 ]</strong> ──➔ <strong>[ 7. 帰宅・完了 ]</strong>
+            </div>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>ステータス名称</th>
+                            <th>主な担当職種</th>
+                            <th>業務内容・トリガー・自動制御</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>来院・受付済</strong></td>
+                            <td><span class="badge badge-neutral">受付事務</span></td>
+                            <td>患者来院時に受付時刻を打刻。<code>t_endoscopy_schedule.arrival_time</code> と双方向連携。手打ち修正も可能。</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>前処置準備 (マイトイレ案内)</strong></td>
+                            <td><span class="badge badge-warning">補助看護師</span> <span class="badge badge-primary">看護師</span></td>
+                            <td>マイトイレ部屋（汎用マスタ <code>toilet_room</code>: ﾏ101〜ｺ212）割当、下剤作成指示・配薬。<strong>※胃カメラ(GIF)は前処置不要のため自動スキップしてステップ3へ直行</strong>。</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>前処置完了 (検査待ち)</strong></td>
+                            <td><span class="badge badge-primary">看護師</span> <span class="badge badge-warning">補助看護師</span></td>
+                            <td>便チェック完了、ルート確保完了。内視鏡室への呼出待ち状態。</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>検査中</strong></td>
+                            <td><span class="badge badge-danger">医師</span> <span class="badge badge-primary">看護師</span></td>
+                            <td>内視鏡室入室・検査実施中。検査開始時刻を自動記録。</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>リカバリ中</strong></td>
+                            <td><span class="badge badge-primary">看護師</span> <span class="badge badge-warning">補助看護師</span></td>
+                            <td>退室時に<strong>組織採取声出し照合モーダル起動</strong>、<strong>スコープ洗浄指示を自動発行</strong>。経過時間カウント開始。<strong>※鎮静なし患者は自動スキップしてステップ6へ直行</strong>。</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>説明 (結果説明)</strong></td>
+                            <td><span class="badge badge-danger">医師</span> <span class="badge badge-primary">看護師</span></td>
+                            <td>リカバリ終了後、診察室での結果説明待ち・説明中。</td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><strong>帰宅・完了</strong></td>
+                            <td><span class="badge badge-neutral">受付事務</span></td>
+                            <td>会計・次回予約・処方せん渡し完了による動線完了。完了時刻を記録。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="sub-title">🛡️ 医療安全・臨床現場特化の4大インテリジェント制御</h3>
+            <ol>
+                <li><strong>エコー (ECHO) の完全除外:</strong> 電子ホワイトボードは内視鏡専用のリアルタイム動線管理であるため、データ取得API（<code>get_progress_data.php</code>）にて <code>exam_type NOT IN ('ECHO', 'エコー')</code> を適用し、エコー検査を完全除外。</li>
+                <li><strong>検査種別フィルター (CF / GIF):</strong> ヘッダーに「🔬 全内視鏡 (CF+GIF)」「🟢 大腸系 (CF/ポリペク/W)」「🔵 胃カメラ (GIF/胃がん)」の即時切替タブを新設。診療科を横断して特定の検査区分のみを素早く絞り込み可能。</li>
+                <li><strong>胃カメラ (GIF) の前処置自動スキップ:</strong> 下剤作成やトイレ待機が発生しない胃カメラ患者は、受付済(1)から進める際にステップ2をスキップして直接ステップ3（検査待ち）へ自動遷移（<code>is_prep_skipped = TRUE</code>）。テーブル上でも「GIF前処置なし」と明示。</li>
+                <li><strong>セデーション (鎮静剤) 有無連動 & 自動判定:</strong>
+                    <ul>
+                        <li>カルテメモ（<code>remarks</code>）の「注射あり/なし」「鎮静あり/なし」「プロポフォール」等のテキストから初期値を自動検知（肛門科プロポフォール、胃腸科ミダゾラム等）。</li>
+                        <li>画面上の鎮静バッジ（💉 鎮静あり / 💉 鎮静なし）をクリックしてワンタップでトグル変更可能。</li>
+                        <li><strong>鎮静なし患者の動線短縮:</strong> 鎮静なしの場合は検査中(4)から進める際、リカバリ中(5)を自動スキップして直接説明(6)へ移行し、不要なベッド占有表示を排除。</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3 class="sub-title">🔒 重大インシデント未然防止 ＆ タスク管理システム</h3>
+            <ul>
+                <li><strong>組織採取・病理検体 カルテ声出し照合モーダル:</strong>
+                    検査中から退室する際、組織採取（生検・ポリペクトミー）の有無、部位コード（盲腸C、上行A、横行T、下行D、S状S、直腸Rb/Ra、肛門管P等）、採取個数を入力し、カルテオーダーと声出し突き合わせを行うモーダルを実装。照合完了までは <code>🚨 検体未照合⚠️</code> が画面上で点滅警告し、インシデントを未然に防止。
+                </li>
+                <li><strong>スコープ洗浄タスク連動:</strong>
+                    検査終了時に補助看護師へ洗浄指示タスク（<code>ORDERED</code> ➔ <code>CLEANING</code> ➔ <code>DONE</code>）を自動発行。洗浄完了時刻まで追跡。
+                </li>
+                <li><strong>誤操作差し戻し (Undo) 機能:</strong>
+                    誤ってステータスを進めてしまった場合、理由選択（「押し間違い」「前処置遅延」「医師指示」「その他」）付きで直前ステータスへ安全に差し戻し可能。変更ログ（<code>t_progress_status_log</code>）に操作者・日時・理由を完全永続化。
+                </li>
+                <li><strong>職種別ビュー切替 (5職種・専用ガイダンス ＆ 完全特化UI):</strong>
+                    <ul>
+                        <li><code>🌐 全体俯瞰 (all)</code>: 全体大型モニター・統括用。全7列（枠/科、患者情報、来院受付、マイトイレ、ステータス、検体/洗浄、リカバリ/説明）をバランス良く均等表示。</li>
+                        <li><code>👨‍⚕️ 医師 (doctor)</code>: <strong>【新設・完全特化】</strong>
+                            <ul>
+                                <li><strong>不要列の自動非表示:</strong> 医師業務に無関係な「マイトイレ/下剤」「来院受付打刻」列を完全非表示（<code>display: none;</code>）にして画面を広々と確保（受付時刻は患者情報内にバッジで小さく提示）。</li>
+                                <li><strong>カルテ特記事項の特大強調:</strong> ポリープ切除予定や抗血栓薬、既往歴（<code>remarks</code>）をゴールド枠の特大カードで患者名直下に大きく展開。</li>
+                                <li><strong>臨床直結アクション:</strong> 「🚪 検査開始 (入室)」「✅ 検査終了」「📋 結果説明完了」の大型医師ボタンをワンタップ直結。</li>
+                                <li><strong>医師専用クイック絞り込み:</strong> 「🔥 診察・検査対象のみに絞り込む」トグルで、前処置中や帰宅済の患者を瞬時に隠し、今診るべき患者だけを一覧化。</li>
+                            </ul>
+                        </li>
+                        <li><code>👩‍⚕️ 看護師 (nurse)</code>: <strong>【ケア＆安全特化】</strong>
+                            <ul>
+                                <li><strong>不要列の最小化:</strong> 来院受付列を最小幅に圧縮。</li>
+                                <li><strong>重大インシデント防止:</strong> <code>🚨 検体未照合⚠️</code> を画面最優先で強烈パルス点滅。</li>
+                                <li><strong>安静管理の主役化:</strong> リカバリ安静タイマー（⏱️ ○分/○分）を特大表示し、覚醒目安達成時はグリーンで誘導。セデーションバッジも特大化。</li>
+                                <li><strong>看護師専用クイック絞り込み:</strong> 「🚨 介助・リカバリ・未照合のみ絞り込む」トグルで、要対応患者に即座に集中。</li>
+                            </ul>
+                        </li>
+                        <li><code>🧑‍🔬 補助看護師 (assistant)</code>: <strong>【前処置＆洗浄特化】</strong>
+                            <ul>
+                                <li><strong>不要列の自動非表示:</strong> 補助看護師の管轄外である「リカバリ/説明」列を完全非表示（<code>display: none;</code>）。</li>
+                                <li><strong>マイトイレ・下剤列のドカン拡大:</strong> 横幅260pxで画面中央に拡大。部屋割プルダウンや下剤作成トグル（未作成/作成済/配薬済）を大型化。</li>
+                                <li><strong>スコープ洗浄指示の最優先キャッチ:</strong> 検査終了後の <code>🧼 スコープ洗浄指示中</code>（ORDERED）行をオレンジ点滅で特大表示し、ワンタップで洗浄完了へ移行。</li>
+                                <li><strong>補助専用クイック絞り込み:</strong> 「🧼 トイレ案内 ＆ 洗浄指示のみ絞り込む」トグル完備。</li>
+                            </ul>
+                        </li>
+                        <li><code>📋 受付事務 (clerk)</code>: <strong>【受付＆所在確認特化】</strong>
+                            <ul>
+                                <li><strong>不要列の完全非表示:</strong> 医療処置列（マイトイレ、検体/スコープ、リカバリ詳細）の3列をごっそり非表示（<code>display: none;</code>）にし、受付カウンターのPCで超シンプルな4列構成にスッキリ整理。</li>
+                                <li><strong>来院受付打刻の大型化:</strong> 未打刻の患者行に巨大なエメラルドボタン「🕒 来院受付 打刻」を提示。</li>
+                                <li><strong>患者の現在所在をリアルタイム表示:</strong> 「📍 待合室」「🚽 マイトイレ」「🚪 検査待合」「🔬 内視鏡室」「🛏️ リカバリ室」「💬 診察室」「🏁 帰宅完了」の所在バッジを明示。</li>
+                                <li><strong>会計帰宅完了直結:</strong> 結果説明済みの患者に「🚪 帰宅・完了 (会計済) ▶」を大きく提示。</li>
+                                <li><strong>受付専用クイック絞り込み:</strong> 「📋 未受付 ＆ 会計待ちのみ絞り込む」トグル完備。</li>
+                            </ul>
+                        </li>
+                        <li><strong>職種専用テーマカラー ＆ インジケーターバー:</strong> テーブル直上のバーが各職種専用カラー（医師: エメラルド、看護師: インディゴ、補助: アンバー、受付: ティール、全体: スレート）に美しく切り替わり、現場リアルタイム人数とクイック絞り込みボタンを常設。</li>
+                    </ul>
+                </li>
+                <li><strong>自動更新タイマー ＆ クライアント個別保存 (localStorage):</strong>
+                    10秒 / 20秒 / 30秒 / 60秒 / 停止 を切替可能（カウントダウンバー付き）。<strong>設定した更新秒数および選択した職種ビューはブラウザの <code>localStorage</code> に完全保存</strong>され、リロードや次回アクセス時も各端末（処置室iPad・受付PC・診察室端末・ナースステーション）ごとに最適な設定が永続維持される（ヘッダーに「💾 端末保存」バッジおよびトースト通知を常備）。
+                </li>
+            </ul>
+
+            <h3 class="sub-title">🎨 ポータル（index.php）カードデザイン全面改修 ＆ index.html リダイレクト</h3>
+            <ul>
+                <li><strong>白基調高コントラストデザインへの刷新:</strong> ポータル画面（<code>index.php</code>）に追加した電子ホワイトボードカードについて、初期の黒背景・コントラスト崩れを解消し、白ベース＋淡色アイスブルーグラデーション＋プライマリブルー枠線＋ダークスレート文字の高視認性デザインへ統一。</li>
+                <li><strong>7段階動線ステップパイプライン表示:</strong> カード内にカラーチップ列で動線フローを可視化し、主要現場機能タグ（職種別切替、GIFスキップ、セデーション連動、検体照合、Undo等）を整理して掲載。</li>
+                <li><strong>index.html リダイレクト対応:</strong> ユーザーがブラウザで <code>index.html</code> にアクセスした場合でも即座に <code>index.php</code> へシームレス転送されるよう、ルートに <code>index.html</code> を配置。</li>
+            </ul>
+
+            <h3 class="sub-title">🗄️ 専用データベーステーブル定義</h3>
+            <div class="code-title">📄 m_progress_status: 動線ステータスマスタ</div>
+            <pre><code>CREATE TABLE m_progress_status (
+    status_id INT PRIMARY KEY,
+    status_code VARCHAR(30) NOT NULL UNIQUE,
+    status_name VARCHAR(50) NOT NULL,
+    short_name VARCHAR(20) NOT NULL,
+    step_order INT NOT NULL,
+    color_theme VARCHAR(30) NOT NULL,
+    primary_role VARCHAR(20) NOT NULL,
+    visible_roles TEXT NOT NULL,
+    action_roles TEXT NOT NULL,
+    required_action VARCHAR(50) DEFAULT 'NONE',
+    prev_status_id INT,
+    next_status_id INT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);</code></pre>
+
+            <div class="code-title">📄 t_today_progress: 当日進捗管理テーブル（予約IDと1対1）</div>
+            <pre><code>CREATE TABLE t_today_progress (
+    schedule_id INT PRIMARY KEY,
+    exam_date DATE NOT NULL,
+    current_status_id INT NOT NULL DEFAULT 1,
+    is_arrived BOOLEAN NOT NULL DEFAULT FALSE,
+    arrival_time VARCHAR(10),
+    toilet_room VARCHAR(50),
+    prep_start_time VARCHAR(10),
+    prep_done_time VARCHAR(10),
+    exam_start_time VARCHAR(10),
+    exam_end_time VARCHAR(10),
+    recovery_start_time TIMESTAMP,
+    recovery_end_time TIMESTAMP,
+    recovery_target_minutes INT DEFAULT 30,
+    is_explain_waiting BOOLEAN DEFAULT FALSE,
+    explain_start_time VARCHAR(10),
+    done_time VARCHAR(10),
+    prep_med_status VARCHAR(20) DEFAULT 'NONE',
+    scope_cleaning_status VARCHAR(20) DEFAULT 'NONE',
+    scope_cleaning_ordered_at TIMESTAMP,
+    scope_cleaning_done_at TIMESTAMP,
+    has_biopsy BOOLEAN DEFAULT FALSE,
+    biopsy_count INT DEFAULT 0,
+    biopsy_sites TEXT,
+    biopsy_verified BOOLEAN DEFAULT FALSE,
+    biopsy_verified_by VARCHAR(50),
+    biopsy_verified_at TIMESTAMP,
+    has_sedation BOOLEAN DEFAULT TRUE,
+    sedation_type VARCHAR(30) DEFAULT 'NONE',
+    is_prep_skipped BOOLEAN DEFAULT FALSE,
+    progress_memo TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_today_progress_date ON t_today_progress(exam_date);
+CREATE INDEX idx_today_progress_status ON t_today_progress(current_status_id);</code></pre>
+
+            <div class="code-title">📄 t_progress_status_log: ステータス変更履歴・監査ログテーブル</div>
+            <pre><code>CREATE TABLE t_progress_status_log (
+    log_id SERIAL PRIMARY KEY,
+    schedule_id INT NOT NULL,
+    exam_date DATE NOT NULL,
+    from_status_id INT,
+    to_status_id INT NOT NULL,
+    action_type VARCHAR(20) NOT NULL DEFAULT 'FORWARD',
+    revert_reason VARCHAR(100),
+    operator_name VARCHAR(50),
+    operator_role VARCHAR(20),
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_progress_log_sched ON t_progress_status_log(schedule_id);
+CREATE INDEX idx_progress_log_date ON t_progress_status_log(exam_date);</code></pre>
+        </section>
+
+    </main>
+
+    <!-- ── フッター ── -->
+    <footer class="report-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 開発チーム</div>
+        <div>発行日: 2026年9月26日 | 文書管理番号: ONK-DOC-20260926-01</div>
+    </footer>
+
+</div>
+
+</body>
+</html>

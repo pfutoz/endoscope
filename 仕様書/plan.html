@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約管理システム 今後の中長期開発・連携計画書 (plan.html)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #eff6ff;
+            --secondary: #0f172a;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --purple: #8b5cf6;
+            --purple-light: #f5f3ff;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.spec-header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-badge {
+            background: rgba(59, 130, 246, 0.25);
+            color: #93c5fd;
+            border: 1px solid rgba(147, 197, 253, 0.3);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .header-date {
+            font-size: 12.5px;
+            color: #94a3b8;
+            font-family: var(--font-mono);
+        }
+
+        h1.main-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 10px;
+            line-height: 1.35;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 12.5px;
+            color: #cbd5e1;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        .header-meta span strong {
+            color: #ffffff;
+        }
+
+        nav.toc-nav {
+            background: #f1f5f9;
+            padding: 18px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+
+        .toc-grid a {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .toc-grid a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        main.content {
+            padding: 36px;
+        }
+
+        section.plan-section {
+            margin-bottom: 44px;
+        }
+
+        section.plan-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.category-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plan-card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .plan-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);
+        }
+
+        .plan-header {
+            background: #f8fafc;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .plan-title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plan-title {
+            font-size: 15.5px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .plan-tag {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            background: #e2e8f0;
+            color: #334155;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .plan-body {
+            padding: 22px;
+        }
+
+        .plan-lead {
+            font-size: 13.8px;
+            color: #334155;
+            margin-bottom: 16px;
+            line-height: 1.65;
+            padding-left: 12px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .section-subtitle {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-sub);
+            margin: 16px 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        ul.plan-list {
+            padding-left: 20px;
+            margin-bottom: 14px;
+        }
+
+        ul.plan-list li {
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        ul.plan-list li strong {
+            color: #0f172a;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .badge-primary { background: #dbeafe; color: #1e40af; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-danger  { background: #fee2e2; color: #991b1b; }
+        .badge-purple  { background: #ede9fe; color: #5b21b6; }
+        .badge-neutral { background: #e2e8f0; color: #475569; }
+
+        .arch-diagram {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 18px 22px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            line-height: 1.6;
+            margin: 14px 0;
+            overflow-x: auto;
+            border: 1px solid #334155;
+        }
+
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin: 14px 0;
+        }
+
+        .table-custom th, .table-custom td {
+            border: 1px solid var(--border);
+            padding: 9px 12px;
+            text-align: left;
+        }
+
+        .table-custom th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+        }
+
+        .table-custom tr:nth-child(even) td {
+            background-color: #fbfcfd;
+        }
+
+        .code-box {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: #334155;
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+
+        .note-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 12px 16px;
+            border-radius: 0 6px 6px 0;
+            margin: 14px 0;
+            font-size: 13px;
+            color: #1e3a8a;
+        }
+
+        .warn-box {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 0 6px 6px 0;
+            margin: 14px 0;
+            font-size: 13px;
+            color: #78350f;
+        }
+
+        footer.spec-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .container { box-shadow: none; border: none; max-width: 100%; }
+            nav.toc-nav { display: none; }
+            header.spec-header { background: #0f172a !important; -webkit-print-color-adjust: exact; }
+            .plan-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="spec-header">
+        <div class="header-top">
+            <span class="header-badge">医療法人小野会 内視鏡予約管理システム</span>
+            <span class="header-date">文書番号: PLAN-202609-02</span>
+        </div>
+        <h1 class="main-title">中長期 開発・連携拡張計画書</h1>
+        <div class="header-meta">
+            <span>対象システム: <strong>内視鏡予約システム ＆ 院内医療DX基盤</strong></span>
+            <span>更新日: <strong>2026年9月27日</strong></span>
+            <span>ステータス: <strong>当日モニター ＆ 医療安全・監査ログ・定型文 ＆ 直近空き枠速報（空き枠検索統合） 実装完了</strong></span>
+        </div>
+    </header>
+
+    <!-- ── 関連ドキュメントナビゲーション ── -->
+    <div style="background: #f1f5f9; padding: 10px 36px; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; color: #475569; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+        <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
+        <a href="specdoc.html" style="color: #2563eb; text-decoration: none;">📘 システム仕様書 (specdoc.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-9-27works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-9-27works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-9-26works.html" style="color: #2563eb; text-decoration: none;">📄 前日改修報告書 (2026-9-26works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="../index.php" style="color: #0f172a; text-decoration: none;">🏠 予約システムポータル (index.php)</a>
+    </div>
+
+    <!-- ── 目次 ── -->
+    <nav class="toc-nav">
+        <div class="toc-title">📋 計画構成一覧</div>
+        <ul class="toc-grid">
+            <li><a href="#sec-overview">1. 開発計画の背景と基本方針</a></li>
+            <li><a href="#sec-dicom">2. 計画① 医用画像DICOM MWL連携</a></li>
+            <li><a href="#sec-restore">3. 計画② 院内総合リストアシステム（独立運用）</a></li>
+            <li><a href="#sec-monitor">4. 計画③ 内視鏡室 当日進捗モニター <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">実装完了</span></a></li>
+            <li><a href="#sec-safety">5. 計画④ 医療安全（休薬アラート・変更復元・定型文） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">実装完了</span></a></li>
+            <li><a href="#sec-patient">6. 計画⑤ 直近空き枠速報 ＆ 予約アシスト（空き枠検索統合） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">実装完了</span></a></li>
+            <li><a href="#sec-freeze">7. 既存機能の整理方針（F/U機能の凍結）</a></li>
+            <li><a href="#sec-roadmap">8. 開発優先度ロードマップ</a></li>
+        </ul>
+    </nav>
+
+    <!-- ── 本文 ── -->
+    <main class="content">
+
+        <!-- ============================================================
+        1. 開発計画の背景と基本方針
+        ============================================================ -->
+        <section class="plan-section" id="sec-overview">
+            <h2 class="category-title">1. 開発計画の背景と基本方針</h2>
+            <div class="plan-card">
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        内視鏡予約管理システム（Modernized Edition）は、予約マトリクス、月間カレンダー（日別メモ連携・出勤例外完全連動）、診療科別初期値制御、空き枠検索アルゴリズムの是正等を経て、予約・枠管理の基本機能群をすべて完備し、安定稼働フェーズへ移行しました。<br>
+                        本計画書は、さらなる「内視鏡室の現場DX」「医療事故ゼロ化」「システム保全（BCP）」「患者・窓口サービス向上」に向けた次期開発項目とアーキテクチャ方針を整理したものです。
+                    </p>
+
+                    <div class="section-subtitle">🎯 中核方針（コア・コンセプト）</div>
+                    <ul class="plan-list">
+                        <li><strong>「予約予定」から「当日現場動線」への拡張:</strong> 確定した予約データをモダリティ機器や内視鏡室モニターへ直接繋ぎ、現場スタッフの手作業・二重入力を徹底排除。</li>
+                        <li><strong>強固な医療安全とセーフティネット:</strong> 抗血栓薬の休薬確認や感染症対策をシステム側でアシストし、万が一の誤操作（誤削除・誤移動）に対するUndo復元機能を担保。</li>
+                        <li><strong>責務分離（SoC）とBCPの確立:</strong> DBバックアップ・リストアなどの基盤保全は、Web予約システムから切り離して独立運用し、単一障害点（SPOF）を排除。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        2. 計画① 医用画像DICOM MWL連携
+        ============================================================ -->
+        <section class="plan-section" id="sec-dicom">
+            <h2 class="category-title">2. 計画① 医用画像モダリティ 撮影オーダー連携 (DICOM MWL)</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--primary);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">📡 内視鏡・超音波機器への撮影オーダー自動配信</span>
+                        <span class="plan-tag">DICOM/dicom_plan.html / Python中継サーバー</span>
+                    </div>
+                    <span class="badge badge-primary">連携計画策定済</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        予約システムに確定登録された当日患者データを、内視鏡プロセッサ（富士フイルム ELUXEO / LASEREO、オリンパス等）や超音波診断装置（US）へ <strong>DICOM Modality Worklist (MWL)</strong> を介して自動配信する仕組みを構築します。
+                    </p>
+
+                    <div class="section-subtitle">📌 目的と現場メリット</div>
+                    <ul class="plan-list">
+                        <li><strong>患者取り違え事故の根絶:</strong> カルテ番号、患者氏名（漢字・カナ）、生年月日、性別が機器画面に自動提示され、検査開始前の手入力ミスや取り違えを防止。</li>
+                        <li><strong>検査室スタッフの負担軽減:</strong> 検査直前にプロセッサへ患者情報を打ち込む作業時間をゼロ化し、迅速な検査導入を実現。</li>
+                    </ul>
+
+                    <div class="section-subtitle">🏗️ システム構成アーキテクチャ</div>
+                    <div class="arch-diagram">
+[ 予約システム (PostgreSQL) ]
+      │ (当日予約の確定・変更)
+      ▼
+[ PHP オーダー連携API / JSON生成 ] ──(REST / JSON)──> [ Python DICOM MWLサーバー ]
+  ・api_dicom_orders.php                                   (常駐プロセス: mwl_server.py)
+  ・場所別 (本館/新/おの) フィルタリング                      (pydicom / pynetdicom)
+                                                                │ (DICOM C-FIND 応答)
+                                                                ▼
+                                                    [ 各検査機器・モダリティ ]
+                                                      ・内視鏡室 (富士 / オリンパス) [Modality: ES]
+                                                      ・超音波室 (エコー装置)       [Modality: US]
+                    </div>
+
+                    <div class="section-subtitle">⚙️ 実装ステップと設計要件</div>
+                    <ul class="plan-list">
+                        <li><strong>ステップ1（PHP側）:</strong> 当日の予約情報を取得し、DICOM規格に必要な属性（PatientID, PatientName, BirthDate, Sex, AccessionNumber, Modality, ScheduledProcedureStepStartDate）を出力するAPIエンドポイント（<code>api/dicom_orders.php</code>）を開発。</li>
+                        <li><strong>ステップ2（検査場所とAE Titleの連動）:</strong> 予約の「実施場所」（内視鏡室・内視鏡室新・内視鏡室おの）に応じて、対象端末のAE Title（Application Entity Title）をマッピングし、不要なオーダーの混入を防止。</li>
+                        <li><strong>ステップ3（Python MWLサーバー連携）:</strong> <code>DICOM/dicom_plan.html</code> に策定された <code>mwl_server.py</code> を院内サーバーに常駐サービス化（Windows Service または タスクスケジューラ常駐）。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        3. 計画② 院内総合リストアシステム（独立運用）
+        ============================================================ -->
+        <section class="plan-section" id="sec-restore">
+            <h2 class="category-title">3. 計画② 院内総合データベース・リストアシステム（独立運用）</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--warning);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">🛡️ 全DB一括バックアップ連携 ＆ 3段階リストアシステム</span>
+                        <span class="plan-tag">独立運用ツール / PowerShell GUI / BCP対策</span>
+                    </div>
+                    <span class="badge badge-warning">運用設計フェーズ</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        日次自動バックアップスクリプトにより <code>C:\dbbackup\YYYYMMDD</code> に保存されている <code>00_globals.sql</code> および各DBの <code>.dump</code>（<code>-Fc</code> カスタム形式）を安全かつ迅速に復元するため、<strong>Web予約システム本体から完全に切り離された独立総合リストアツール</strong> を構築します。
+                    </p>
+
+                    <div class="note-box">
+                        <strong>💡 なぜWeb予約システムと切り離すのか？（アーキテクチャ上の必然性）</strong><br>
+                        DB破損やApache障害などの緊急時、Webシステム内に復元機能があると「管理画面が開けずリストアを実行できない」というデッドロックに陥ります。他システム（電子カルテ関連等）も含めた共通インフラとして独立ツール化することが医療情報システムのベストプラクティスです。
+                    </div>
+
+                    <div class="section-subtitle">⚙️ 総合リストアシステムの必須機能要件</div>
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">機能項目</th>
+                                <th style="width: 40%;">実装仕様・アプローチ</th>
+                                <th style="width: 35%;">現場効果・安全設計</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>1. セッション強制切断<br>(セッションKick)</strong></td>
+                                <td>リストア対象DBに対し、実行前に <code>pg_terminate_backend(pid)</code> を発行し、稼働中の全クライアント接続を切断。</td>
+                                <td>「他ユーザーがアクセス中」によるリストア処理のロック・失敗を100%回避。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>2. 3段階の復旧モード</strong></td>
+                                <td>
+                                    ・<strong>全損復旧:</strong> <code>00_globals.sql</code> ➔ 全DB順次展開<br>
+                                    ・<strong>単一DB復元:</strong> 対象DBのみ選択して上書き復元<br>
+                                    ・<strong>テーブル単位救済:</strong> <code>pg_restore -t [テーブル名]</code>
+                                </td>
+                                <td>サーバー交換時の全復旧だけでなく、「予約テーブルだけ誤って消した」等の局所インシデントにも最小限の巻き戻しで対応可能。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>3. 検証用DBへの<br>事前テストリストア</strong></td>
+                                <td>本番DBへ直ちに上書きせず、一時DB（例: <code>restore_test_db</code>）へリストアしてデータ件数・最新日付を確認するモード。</td>
+                                <td>リストア日付の選択ミスによる「正常な本番データを過去データで上書きしてしまう事故」を未然に防止。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-subtitle">💻 コア・コマンドライン仕様（PowerShell / pg_restore）</div>
+                    <div class="code-box">
+# 1. 接続セッション強制切断
+& "$pgBinPath\psql.exe" -U $dbUser -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$targetDb' AND pid <> pg_backend_pid();"
+
+# 2. 単一DBクリーンリストア (-Fc 形式)
+& "$pgBinPath\pg_restore.exe" -U $dbUser -d $targetDb --clean --if-exists -v "$dumpFilePath"
+
+# 3. 特定テーブルのみのピンポイント救済（例: t_schedule のみ復元）
+& "$pgBinPath\pg_restore.exe" -U $dbUser -d $targetDb -t t_schedule "$dumpFilePath"
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        4. 計画③ 内視鏡室 当日進捗ステータスモニター (電子ホワイトボード)
+        ============================================================ -->
+        <section class="plan-section" id="sec-monitor">
+            <h2 class="category-title">4. 計画③ 内視鏡室 当日進捗ステータスモニター（電子ホワイトボード）</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--success);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">📊 検査室・前処置室・リカバリ室 当日リアルタイム動線モニター</span>
+                        <span class="plan-tag">内視鏡室用iPad / 壁掛けサイネージ / 各端末PC</span>
+                    </div>
+                    <span class="badge badge-success" style="background:#059669; color:#fff;">v0926 実装完了</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        予約予定の一覧にとどまらず、検査当日の内視鏡室・前処置室・リカバリ室の「現在の患者動線・部屋状況・安全タスク」をリアルタイムに俯瞰監視する電子ホワイトボード画面（<code>progress_monitor.php</code>）を開発・リリースしました。
+                    </p>
+
+                    <div class="section-subtitle">📌 7段階ステータス遷移モデル ＆ 臨床アクション</div>
+                    <div class="arch-diagram" style="text-align: center; font-size: 12px; line-height: 1.8;">
+[ 1. 来院・受付済 ] ──> [ 2. 前処置準備 (マイトイレ案内) ] ──> [ 3. 前処置完了 (検査待ち) ] ──> [ 4. 検査中 ] ──> [ 5. リカバリ中 ] ──> [ 6. 説明 ] ──> [ 7. 帰宅・完了 ]
+ (受付時刻打刻)           (部屋割当・下剤作成配薬)             (便チェックOK・呼出可能)        (おの/新内視鏡室)       (安静タイマー・覚醒待)      (医師画像説明)      (会計・帰宅)
+                    </div>
+
+                    <div class="section-subtitle">📌 実装された主要機能と医療安全対策</div>
+                    <ul class="plan-list">
+                        <li><strong>一覧リスト ＋ ステータスバッジ型:</strong> 1日最大15名規模のCF/ポリペクや胃カメラ患者を、診療科（肛門科・胃腸科）横断で1画面俯瞰可能。</li>
+                        <li><strong>職種別ビュー切替（タブ）:</strong>
+                            <ul>
+                                <li><code>🌐 全体俯瞰</code>: 大型サイネージ・統括用。全患者の動線と滞留ボトルネックを均等監視。</li>
+                                <li><code>👩‍⚕️ 看護師</code>: 点滴・検体採取照合・リカバリ覚醒・説明待ちを最優先ハイライト。</li>
+                                <li><code>🧑‍🔬 補助看護師</code>: マイトイレ案内・下剤作成配薬・便チェック・スコープ洗浄タスクを強調。</li>
+                                <li><code>📋 受付事務</code>: 来院時刻の打刻・手打ち修正および会計完了に特化。</li>
+                            </ul>
+                        </li>
+                        <li><strong>【重大インシデント未然防止】組織採取・病理検体 カルテ声出し照合:</strong> 検査中(4)からリカバリ(5)への遷移時、部位（盲腸C、上行A、横行T、下行D、S状S、直腸Rb/Ra、肛門管P等）と採取個数の声出し確認モーダルを完備。未照合時は一覧上で <code>🚨 検体未照合⚠️</code> が点滅警告。</li>
+                        <li><strong>スコープ洗浄指示タスク:</strong> 検査終了と同時に補助看護師へ洗浄指示タスクが自動発行され、洗浄完了まで可視化。</li>
+                        <li><strong>誤操作巻き戻し（Undo）機能:</strong> タッチ誤操作時に1つ前のステータスへ安全に差し戻し可能。理由付きで変更ログ（<code>t_progress_status_log</code>）に完全記録。</li>
+                        <li><strong>自動更新間隔切替:</strong> 10秒 / 20秒 / 30秒 / 60秒 / 停止 をヘッダーで即座に切替可能。次回更新プログレスバーを搭載。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        5. 計画④ 医療安全（休薬アラート・変更復元）
+        ============================================================ -->
+        <section class="plan-section" id="sec-safety">
+            <h2 class="category-title">5. 計画④ 医療安全・インシデント未然防止機能 ＆ 定型文DX</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--danger);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">🚨 重要医療アラート ＆ 予約変更履歴（Audit Log） ＆ 備考定型文DX</span>
+                        <span class="plan-tag">t_schedule_audit_log / t_patient_medical_alert / modal_edit.php</span>
+                    </div>
+                    <span class="badge badge-success" style="background:#059669; color:#fff;">v0927 実装完了</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        医療事故の未然防止と、忙しい診療現場での操作ミスによる予約データ消失を防ぐ二重のセーフティネットを構築し、2026年9月27日に本番導入を完了しました。
+                    </p>
+                    <div class="note-box" style="margin: 10px 0 16px 0; background: #ecfdf5; border-left: 4px solid #10b981; color: #065f46;">
+                        📄 <strong>作業完了報告書:</strong> 当該機能の詳細仕様・DBテーブル定義・検証結果は <a href="2026-9-27works.html" style="color: #047857; font-weight: bold; text-decoration: underline;">仕様書/2026-9-27works.html (2026-09-27 改修作業完了報告書)</a> に詳述されています。
+                    </div>
+
+                    <div class="section-subtitle">1. 予約変更・誤削除の操作履歴（Audit Log）＆ ワンクリック復元（Undo）</div>
+                    <ul class="plan-list">
+                        <li><strong>全トランザクション自動記録（<code>t_schedule_audit_log</code>）:</strong> 「いつ」「どの端末IP/操作者」「どの患者」「旧日時➔新日時」「削除・更新・挿入」の全履歴を自動記録。</li>
+                        <li><strong>無変更保存の完全スキップ（手癖保存の無毒化）:</strong> 内容確認で開いて手癖保存した際の差分ゼロ更新を自動検知し、DB更新・ログ作成・医師通知をすべてスキップ。不要なUndoログやオオカミ少年通知を根絶。</li>
+                        <li><strong>直近操作履歴モーダル（<code>audit_modal_inc.php</code>）:</strong> 常に「今Undoできる有効な操作（未復元）」のみをスッキリ一覧表示。自端末絞り込みも完備。</li>
+                        <li><strong>ワンクリック完全復元（Undo ＆ 医療安全アラート連動）:</strong> 誤ってドラッグ移動した予約や誤削除、誤変更を1クリックで元の状態へ安全復元。医療安全アラートフラグ（抗血栓薬・アレルギー等）の変更も当時の状態へ完全巻き戻し。</li>
+                        <li><strong>1年自動ローテーション ＆ マスタ管理保守ツール:</strong> 汎用マスタ画面（<code>master_maintenance.php</code>）に「🧹 操作履歴データ保守ツール」を新設し、1年経過ログを安全に一括パージ。バックグラウンド自動ローテーションも装備しDB肥大化を永久防止。</li>
+                        <li><strong>主要画面への全面統合:</strong> 月間カレンダー（<code>month_schedule.php</code>）、予約マトリクス（<code>month_matrix_v2.php</code>）、当日進捗モニター（<code>progress_monitor.php</code>）のヘッダーに常設。</li>
+                    </ul>
+
+                    <div class="section-subtitle">2. 抗血栓薬（休薬）・アレルギー・感染症・風邪症状アラート機能</div>
+                    <ul class="plan-list">
+                        <li><strong>電カル連携キーワード検知 ＆ 共通判定エンジン（<code>lib/medical_alert_helper.php</code>）:</strong> 電子カルテMALLの3大メモ（本日・カルテ・患者）および予約備考から、4大アラート（💊抗血栓薬、⚠️局麻アレルギー、🔴感染症、😷風邪症状・発熱）を自動スキャン。</li>
+                        <li><strong>スタッフ判断決定モーダル（<code>medical_alert_modal_inc.php</code>）:</strong> 電カル側で担う詳細（薬剤種類・休薬日数計算・他院照会等）を無理に背負い込まず、「アラート対象か」「前後スニペットの根拠」を提示してスタッフが最終ON/OFFを決定。</li>
+                        <li><strong>視覚的警告バッジ ＆ ピクトグラム:</strong> カレンダー一覧（バッジ表示）、予約マトリクス（コンパクトピクトグラム 💊⚠️🔴😷）、当日進捗モニター（サマリーカード＋患者カード境界赤点滅）へリアルタイム連動。</li>
+                        <li><strong>当日進捗モニターでのワンクリックトグル:</strong> 患者カード上の「💊 要休薬確認 ⚠️ ⇄ 💊 休薬確認済 ✔」および「😷 風邪・発熱」をワンクリックで状態反転・DB同期可能。</li>
+                        <li><strong>予約編集画面（<code>modal_edit.php</code>）での意識的ON/OFFコントロール:</strong> スタッフが目視確認しながら4大アラートを直接チェックON/OFFできるコントロールボックスを新設。カルテID入力時に電カルMALL検知ヒントを自動表示。</li>
+                        <li><strong>保存抜け防止 ＆ ループ防止設計:</strong> 備考入力➔スキャンON➔再表示の現象ループを防ぐため確定タグ備考追記を廃止。予約保存API（<code>action_schedule.php</code>）内で同一トランザクション同期（<code>syncMedicalAlertOnScheduleSave</code>）を行い、備考変更時の取りこぼしを100%防止。</li>
+                    </ul>
+
+                    <div class="section-subtitle">3. 備考定型文パレット（#remarksPalette）のフルリニューアル</div>
+                    <ul class="plan-list">
+                        <li><strong>確実で軽快なドラッグ＆ドロップ移動:</strong> ヘッダー（<code>✥ 📋 備考定型文パレット</code>）を掴んで画面内のどこへでも移動可能。テキスト選択の干渉を排除し、画面外はみ出し防止ガードを装備。</li>
+                        <li><strong>ウィンドウ枠可変（サイズリサイズ対応）:</strong> パレット右下をドラッグして縦横サイズを自由に変更可能。内部のチップ一覧エリアが追従して広がり、大量の定型文を一覧可能。</li>
+                        <li><strong>医療安全確定タグのワンクリック挿入:</strong> パレット最上部に色分けされたタグボタン（💊、⚠️、🔴、😷）を常設。</li>
+                        <li><strong>定型文のインライン「編集（✏️）」＆「削除（🗑️）」機能:</strong> マスタテーブル（<code>m_input_master</code>）と連携し、各チップから直接文言編集や安全削除（確認ダイアログ付き）が可能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        6. 計画⑤ 直近空き枠速報 ＆ スマート予約アシスト（空き枠簡易検索 ＆ 患者DX）
+        ============================================================ -->
+        <section class="plan-section" id="sec-patient">
+            <h2 class="category-title">6. 計画⑤ 直近空き枠速報 ＆ スマート予約アシスト（空き枠簡易検索 ＆ 患者DX）</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--purple);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">⚡ 直近空き枠速報 ＆ 全科横断スマート予約アシスト（多職種共用）</span>
+                        <span class="plan-tag">直近1か月CF空き枠 / 医師指名 / 多職種シェア</span>
+                    </div>
+                    <span class="badge badge-success" style="background:#059669; color:#fff;">v0927 実装完了</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        大腸内視鏡検査（CF / TCF / W / ポリペクトミー）は通常1か月待ちが当たり前となっている現場実態を踏まえ、<strong>「本日〜1か月以内（直近30日間）」に発生する貴重な空き枠・直前キャンセル枠を全科横断・全医師横断で即時集約・多職種共有</strong>するスマート予約アシスト環境を構築し、2026年9月27日に本番導入・稼働を開始しました。<br>
+                        診察室の医師、外来・処置室の看護師、受付事務がワンタップで直近空き枠を把握し、患者希望（最短希望・医師指名希望）に応じて即座に予約充当できる体制を確立しました。
+                    </p>
+                    <div class="note-box" style="margin: 10px 0 16px 0; background: #ecfdf5; border-left: 4px solid #10b981; color: #065f46;">
+                        📄 <strong>作業完了報告書:</strong> 当該機能の詳細仕様・DB連携・検証結果は <a href="2026-9-27works.html#sec9" style="color: #047857; font-weight: bold; text-decoration: underline;">仕様書/2026-9-27works.html 第9章 (直近空き枠速報 ＆ スマート予約アシスト)</a> に詳述されています。
+                    </div>
+
+                    <div class="section-subtitle">1. 1か月以内の大腸内視鏡（CF/TCF/W/ポリペク）空き枠リアルタイム速報</div>
+                    <ul class="plan-list">
+                        <li><strong>全科横断（肛門科＋胃腸科）の直近自動集約:</strong> 本日〜1か月先までの全日程から「空き枠 ＞ 0」の日を科の垣根を超えて常時自動集約。</li>
+                        <li><strong>直前キャンセル枠のリアルタイム検知（<code>[⚡キャンセル空き]</code>）:</strong> 予約変更履歴（<code>t_schedule_audit_log</code>）と連動し、直近枠で削除・別日移動が発生した枠をバッジ強調表示。</li>
+                        <li><strong>誤登録の即時取消（10分ルール）＆ 削除理由選択（A+Bハイブリッド判定）:</strong> 作成から10分以内の削除は打ち間違い・誤登録の即時修正とみなし速報から除外。10分超経過時は「🗑️ 削除理由選択モーダル（患者都合キャンセル / 日程変更 / 誤登録）」を表示し、スタッフが意図した真のキャンセルのみを速報へ高精度に抽出。</li>
+                        <li><strong>医師指名（カラーコード ＆ ワンタップ切替）:</strong> 患者の「〇〇先生に検査してほしい」という指名希望に即応できるよう、各医師のパーソナルカラーバッジ（誠吾: 🟢 / 哲也: 🔵 / 義智: 🟣 / 慶太郎: 🟠）を表示。<code>[全医師]</code> <code>[誠吾]</code> <code>[哲也]</code> <code>[義智]</code> <code>[慶太郎]</code> のワンタップ切り替えで即座に絞り込み可能。</li>
+                        <li><strong>枠が埋まり次第の即時自動消滅:</strong> 誰かが予約を入れて空き枠残数が0になった瞬間、全端末の画面から即座に自動非表示化（二重案内・重複ブッキングを100%防止）。</li>
+                        <li><strong>診療科をまたぐワンクリック即予約:</strong> 肛門科カレンダーを開いていても、胃腸科の空き枠カードからワンクリックで該当科・該当日の予約入力モーダルが直接起動（<code>open_new=1</code> 連動）。</li>
+                    </ul>
+
+                    <div class="section-subtitle">2. 院内多職種での共用動線（医師・看護師・受付）</div>
+                    <ul class="plan-list">
+                        <li><strong>👨‍⚕️ 診察室の医師（外来診察中）:</strong> 「大腸カメラを最短いつ受けられるか」を診察室PCから0秒で把握し、その場で即決前倒し予約。</li>
+                        <li><strong>👩‍⚕️ 外来・処置室の看護師:</strong> 患者からの「できるだけ早く受けたい」という相談に対し、直近速報を見て即座に日程提案。</li>
+                        <li><strong>🧑‍🔬 内視鏡室スタッフ（ホワイトボード連動）:</strong> 当日進捗モニター上で直近枠の空き状況をリアルタイム把握し、急患や追加検査の受け入れ可否をスムーズに判断。</li>
+                        <li><strong>💼 受付事務:</strong> 電話受付や会計時の次回予約案内において、最短枠や医師指名枠を保留時間ゼロでサジェスト。</li>
+                    </ul>
+
+                    <div class="section-subtitle">3. 詳細空き枠検索（<code>slot_search.php</code>）とのタブ切替型完全統合</div>
+                    <ul class="plan-list">
+                        <li><strong>タブ切替型リニューアル（デフォルト直近速報モード）:</strong> 従来の「空き枠検索（<code>slot_search.php</code>）」を開くと、デフォルトで「⚡ 直近空き枠速報（全科横断・30日大腸CF）」が自動展開。「🔍 条件指定検索」タブで月別・曜日別・胃カメラ等のフル検索へ即座に切替可能。</li>
+                        <li><strong>即応ウィジェットと詳細検索の連携:</strong> カレンダーやホワイトボードの常設ウィジェットで直近1か月を即答しつつ、「1か月以上先の日程」や「土曜日午前のみ等の特定条件」で探したい場合は、ワンクリックで条件を引き継いで詳細空き枠検索へ遷移。</li>
+                        <li><strong>検索エンジンの共通化:</strong> <code>lib/slot_helper.php</code> の定員・枠計算ロジックを共通利用し、計算結果の完全一致と保守性を担保。</li>
+                    </ul>
+
+                    <div class="section-subtitle">4. 患者控え伝票への「前処置ガイドQRコード」自動印字（Phase 4 残課題）</div>
+                    <ul class="plan-list">
+                        <li><strong>QRコード自動差し込み:</strong> <code>print_patient_slip.php</code>（患者控え伝票）に、検査種別に応じた案内用QRコードを自動印字。</li>
+                        <li><strong>自宅での安心サポート:</strong> スマートフォンで読み取ることで、クリニック公式Webの「大腸内視鏡の下剤の飲み方解説動画」や「胃カメラ前日の食事制限・服薬ガイド」へ直接アクセス可能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        7. 既存機能の整理方針（F/U機能の凍結）
+        ============================================================ -->
+        <section class="plan-section" id="sec-freeze">
+            <h2 class="category-title">7. 既存機能の整理方針（フォローアップ機能の凍結）</h2>
+            <div class="plan-card" style="border-left: 4px solid #94a3b8; opacity: 0.9;">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">🧊 フォローアップ（F/U）管理系の開発凍結</span>
+                        <span class="plan-tag">followup/ フォルダ</span>
+                    </div>
+                    <span class="badge badge-neutral">🧊 開発凍結（利用予定なし）</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead" style="color: #64748b;">
+                        定期内視鏡検査（1〜3年後のフォローアップ）を追跡・案内するサブシステム構想（<code>followup/index.php</code>, <code>followup/edit.php</code>）は、現場の実運用において利用予定がないため、<strong>新規開発および機能改修を完全に凍結</strong>します。
+                    </p>
+                    <ul class="plan-list" style="color: #64748b;">
+                        <li><strong>現行コードの扱い:</strong> 既存ファイルは削除せずアーカイブ資産として維持しつつ、システム全体の保守・テスト対象からは除外。</li>
+                        <li><strong>リソースの集中:</strong> 本機能への開発工数を、上記の「DICOM連携」「総合リストア」「医療安全機能」へ集約。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        8. 開発優先度ロードマップ
+        ============================================================ -->
+        <section class="plan-section" id="sec-roadmap">
+            <h2 class="category-title">8. 開発優先度ロードマップ</h2>
+            <div class="plan-card">
+                <div class="plan-body">
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">フェーズ</th>
+                                <th style="width: 25%;">計画項目</th>
+                                <th style="width: 40%;">開発内容・成果物</th>
+                                <th style="width: 20%;">優先度 / 対象</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Phase 1<br>(直近着手)</strong></td>
+                                <td><strong>DICOM MWL連携<br>(オーダー配信)</strong></td>
+                                <td>
+                                    ・<code>api_dicom_orders.php</code> の作成<br>
+                                    ・検査場所別 AE Title マッピング<br>
+                                    ・Python MWL中継サーバー（<code>mwl_server.py</code>）常駐検証
+                                </td>
+                                <td><span class="badge badge-primary">最優先 (High)</span><br>内視鏡室プロセッサ</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phase 2<br>(基盤保全)</strong></td>
+                                <td><strong>院内総合リストア<br>システム構築</strong></td>
+                                <td>
+                                    ・独立リストアツール（PowerShell / GUI）の開発<br>
+                                    ・セッション強制切断ロジック実装<br>
+                                    ・テーブル単位救済（<code>-t</code>）およびテストリストア機能
+                                </td>
+                                <td><span class="badge badge-warning">高 (High)</span><br>全院DBインフラ・BCP</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phase 3<br>(安全・効率)</strong></td>
+                                <td><strong>医療安全 ＆<br>当日進捗モニター ＆<br>定型文DX</strong></td>
+                                <td>
+                                    ・当日進捗モニター（<code>progress_monitor.php</code>）稼働<br>
+                                    ・休薬・アレルギー・感染症・風邪アラート判定＆同期<br>
+                                    ・予約変更履歴（Audit Log）＆ 自端末Undo復元機能<br>
+                                    ・定型文パレット（リサイズ・ドラッグ・編集削除）完成
+                                </td>
+                                <td><span class="badge badge-success" style="background:#059669; color:#fff;">完了 (Done)</span><br>v0926/v0927 導入済</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phase 4<br>(予約効率化)</strong></td>
+                                <td><strong>直近空き枠速報 ＆<br>スマート予約アシスト<br>(全科横断・患者DX)</strong></td>
+                                <td>
+                                    ・1か月以内の大腸（CF/TCF/W/ポリペク）空き枠速報ウィジェット<br>
+                                    ・直前キャンセル枠のリアルタイム検知 ＆ 枠埋まり次第の自動消滅<br>
+                                    ・10分ルール誤登録即時取消 ＆ 削除理由選択ハイブリッド判定<br>
+                                    ・医師指名（誠吾・哲也・義智・慶太郎）カラーコード＆ワンタップ絞り込み<br>
+                                    ・多職種共用（診察室医師・外来看護師・受付事務・内視鏡室）<br>
+                                    ・詳細空き枠検索（<code>slot_search.php</code>）とのタブ切替型完全統合<br>
+                                    ・患者控え伝票への前処置ガイドQRコード自動印字（次期）
+                                </td>
+                                <td><span class="badge badge-success" style="background:#059669; color:#fff;">コア完了 (Done)</span><br>v0927 導入済</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ── フッター ── -->
+    <footer class="spec-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 開発計画書</div>
+        <div>ファイル名: <code>仕様書/plan.html</code></div>
+    </footer>
+
+</div>
+
+</body>
+</html>
