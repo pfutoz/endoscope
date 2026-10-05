@@ -12,6 +12,11 @@
  * 3. 枠が埋まった瞬間にリアルタイム自動非表示（手動消込不要・二重予約防止）
  * 4. 医師指名（誠吾・哲也・義智・慶太郎）に対応した絞り込み＆カラーコード連携
  * 5. カレンダー・予約モーダル直接起動用のジャンプURL生成
+ * 
+ * 修正履歴:
+ * - 2026-10-05: 休診判定（日曜・祝日・振替休日・年末年始休診）の追加（check_onokai_calendar連携）。
+ *   祝日等の休診日は空き枠候補から除外。ただし出勤例外（m2_doctor_attendance）が登録されている場合は
+ *   出勤例外最優先ルールに基づき検索候補対象とするよう改修。
  */
 
 ini_set('display_errors', "0");
@@ -21,6 +26,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/slot_helper.php';
+require_once __DIR__ . '/calendar_helper_onokai.php';
 
 try {
     $pdo = getDbConnection();
@@ -210,6 +216,21 @@ try {
             $cancel_map[$c_date][$c_dept]['_all_'][] = $cancel_info;
         }
 
+        // 期間内の出勤例外（休診日に臨時枠が設定されているケースに対応）を一括取得
+        $stmt_att_all = $pdo->prepare("
+            SELECT target_date::text as target_date, department_code, doctor_name, tcf_slots, gif_slots, echo_slots
+            FROM m2_doctor_attendance
+            WHERE target_date >= :today AND target_date <= :end_date
+        ");
+        $stmt_att_all->execute([':today' => $today, ':end_date' => $end_date]);
+        $attendance_map = [];
+        while ($row = $stmt_att_all->fetch(PDO::FETCH_ASSOC)) {
+            $attendance_map[$row['target_date']][$row['department_code']][$row['doctor_name']] = [
+                'tcf' => (int)($row['tcf_slots'] ?? 0),
+                'total' => (int)($row['gif_slots'] ?? 0) + (int)($row['echo_slots'] ?? 0) + (int)($row['tcf_slots'] ?? 0),
+            ];
+        }
+
         // 3. スロット計算
         $slots = [];
         $dow_names = ['日', '月', '火', '水', '木', '金', '土'];
@@ -234,12 +255,48 @@ try {
         for ($i = 0; $i < $days; $i++) {
             $cur_date = date('Y-m-d', strtotime("$today +$i days"));
             $dow = (int)date('w', strtotime($cur_date));
-            if ($dow === 0) continue; // 日曜休診
+
+            // ★ 小野会専用カレンダーによる休診（日曜・祝日・振替休日・年末年始休診など）の判定
+            $day_check = check_onokai_calendar($cur_date, null);
+            $is_closed = (bool)($day_check['is_closed'] ?? false);
+
+            if ($is_closed) {
+                // 休診日だが「出勤例外」で大腸枠（TCF>0）が登録されている医師がいるかチェック
+                $has_tcf_exception_on_closed = false;
+                if (!empty($attendance_map[$cur_date])) {
+                    foreach ($attendance_map[$cur_date] as $dep_code => $doc_exceptions) {
+                        foreach ($doc_exceptions as $doc_name => $slot_info) {
+                            if ($slot_info['tcf'] > 0) {
+                                $has_tcf_exception_on_closed = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                // 出勤例外による大腸枠が設定されていない休診日はスキップ
+                if (!$has_tcf_exception_on_closed) {
+                    continue;
+                }
+            }
 
             foreach ($doctors_by_dept as $dept => $doc_list) {
                 // 科全体の空き枠を算出
                 $avail = getSlotAvailability($pdo, $dept, $cur_date);
-                $dept_tcf_free = $avail['free']['TCF'] ?? 0;
+
+                // 休診日の場合、出勤例外の医師のみで科の定員を再計算（曜日パターンの枠混入を防止）
+                if ($is_closed) {
+                    $closed_dept_cap = 0;
+                    foreach ($doc_list as $doc) {
+                        $doc_att = $attendance_map[$cur_date][$dept][$doc] ?? null;
+                        if ($doc_att && $doc_att['tcf'] > 0) {
+                            $closed_dept_cap += $doc_att['tcf'];
+                        }
+                    }
+                    $dept_used_tcf = $avail['used']['TCF'] ?? 0;
+                    $dept_tcf_free = $closed_dept_cap - $dept_used_tcf;
+                } else {
+                    $dept_tcf_free = $avail['free']['TCF'] ?? 0;
+                }
 
                 // 科全体で大腸枠の空きがなければスキップ
                 if ($dept_tcf_free <= 0) {
@@ -250,6 +307,14 @@ try {
                     // 医師フィルター判定
                     if ($doctor_filter !== 'all' && $doctor_filter !== $doc) {
                         continue;
+                    }
+
+                    // 休診日の場合、出勤例外が明示的に登録されていない医師はスキップ（曜日パターン枠を無効化）
+                    if ($is_closed) {
+                        $doc_att = $attendance_map[$cur_date][$dept][$doc] ?? null;
+                        if (!$doc_att || $doc_att['tcf'] <= 0) {
+                            continue;
+                        }
                     }
 
                     $doc_status = $avail['doctors'][$doc] ?? null;
@@ -294,10 +359,10 @@ try {
                         elseif ($day_diff === 2) $relative_label = '明後日';
                         else $relative_label = "{$day_diff}日後";
 
-                        // カレンダーへの遷移URL
+                        // カレンダーへの遷移URL（該当日のカレンダー・予約一覧を選択状態で表示、自動予約モーダル起動は行わない）
                         $cal_year = (int)$dt_obj->format('Y');
                         $cal_month = (int)$dt_obj->format('n');
-                        $jump_url = "month_schedule.php?dept={$dept}&year={$cal_year}&month={$cal_month}&date={$cur_date}&open_new=1";
+                        $jump_url = "month_schedule.php?dept={$dept}&year={$cal_year}&month={$cal_month}&date={$cur_date}";
 
                         $slot_item = [
                             'date' => $cur_date,

@@ -7,6 +7,9 @@
  * デフォルト期間: 当月1日〜今日
  * 月ボタン: 今月から過去に遡る12ヶ月分（西暦付き）
  * 注意書き追加
+ * 修正 (2026-10-05): 
+ *   - 術前F ⇒ 浣腸CFへ変更（exam_type='浣腸CF'を集計、独立別枠維持）
+ *   - 枠なし設定（remarks/patient_name LIKE '%枠なし%'）を集計対象から除外（◆未定◆の大量カウント防止）
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -153,6 +156,8 @@ function getStats($pdo, $start_date, $end_date, $selected_dept, $selected_doctor
         WHERE s.department_code IN ('PROCT', 'GASTRO')
           AND s.exam_date IN ($date_placeholders)
           AND s.is_canceled = FALSE
+          AND (s.remarks IS NULL OR s.remarks NOT LIKE '%枠なし%')
+          AND (s.patient_name IS NULL OR s.patient_name NOT LIKE '%枠なし%')
           $dept_condition
           $doctor_condition
           $day_condition
@@ -180,7 +185,7 @@ function getStats($pdo, $start_date, $end_date, $selected_dept, $selected_doctor
                 'ポリペク' => 0,
                 'エコー' => 0,
                 'ECHO' => 0,
-                '術前F' => 0,
+                '浣腸CF' => 0,
                 'upper_total' => 0,
                 'lower_total' => 0
             ];
@@ -201,8 +206,8 @@ function getStats($pdo, $start_date, $end_date, $selected_dept, $selected_doctor
             $result[$doctor]['lower_total'] += $count;
         } elseif ($exam_type === 'エコー' || $exam_type === 'ECHO') {
             $result[$doctor]['エコー'] += $count;
-        } elseif ($exam_type === '術前F') {
-            $result[$doctor]['術前F'] += $count;
+        } elseif ($exam_type === '浣腸CF' || $exam_type === '術前F' || $exam_type === '前日F') {
+            $result[$doctor]['浣腸CF'] += $count;
         }
     }
     
@@ -213,7 +218,7 @@ function getStats($pdo, $start_date, $end_date, $selected_dept, $selected_doctor
         unset($result[$doctor]['ECHO']);
     }
     
-    $totals = ['GIF' => 0, 'W' => 0, 'TCF' => 0, 'ポリペク' => 0, 'エコー' => 0, '術前F' => 0, 'upper_total' => 0, 'lower_total' => 0];
+    $totals = ['GIF' => 0, 'W' => 0, 'TCF' => 0, 'ポリペク' => 0, 'エコー' => 0, '浣腸CF' => 0, 'upper_total' => 0, 'lower_total' => 0];
     foreach ($result as $doctor => $data) {
         foreach ($data as $type => $count) {
             if (isset($totals[$type])) {
@@ -235,12 +240,12 @@ if ($output === 'csv') {
     header('Content-Type: text/csv; charset=UTF-8');
     header('Content-Disposition: attachment; filename="stats_' . $start_date . '_' . $end_date . '.csv"');
     $fp = fopen('php://output', 'w');
-    fputcsv($fp, ['医師', '上部合計', 'GIF', 'W', '下部合計', 'W', 'TCF', 'ポリペク', 'エコー', '術前F']);
+    fputcsv($fp, ['医師', '上部合計', 'GIF', 'W', '下部合計', 'W', 'TCF', 'ポリペク', 'エコー', '浣腸CF'], ',', '"', "\\");
     foreach ($stats as $doctor => $data) {
         if ($doctor === '_total') continue;
-        fputcsv($fp, [$doctor, $data['upper_total'], $data['GIF'], $data['W'], $data['lower_total'], $data['W'], $data['TCF'], $data['ポリペク'], $data['エコー'], $data['術前F']]);
+        fputcsv($fp, [$doctor, $data['upper_total'], $data['GIF'], $data['W'], $data['lower_total'], $data['W'], $data['TCF'], $data['ポリペク'], $data['エコー'], $data['浣腸CF']], ',', '"', "\\");
     }
-    fputcsv($fp, ['【合計】', $stats['_total']['upper_total'], $stats['_total']['GIF'], $stats['_total']['W'], $stats['_total']['lower_total'], $stats['_total']['W'], $stats['_total']['TCF'], $stats['_total']['ポリペク'], $stats['_total']['エコー'], $stats['_total']['術前F']]);
+    fputcsv($fp, ['【合計】', $stats['_total']['upper_total'], $stats['_total']['GIF'], $stats['_total']['W'], $stats['_total']['lower_total'], $stats['_total']['W'], $stats['_total']['TCF'], $stats['_total']['ポリペク'], $stats['_total']['エコー'], $stats['_total']['浣腸CF']], ',', '"', "\\");
     fclose($fp);
     exit;
 }
@@ -583,14 +588,14 @@ if (!empty($selected_months)) {
                     <th style="width:60px;" class="col-lower">TCF</th>
                     <th style="width:70px;" class="col-lower">ポリペク</th>
                     <th style="width:60px;" class="col-echo">エコー</th>
-                    <th style="width:70px;" class="col-preop">術前F</th>
+                    <th style="width:70px;" class="col-preop">浣腸CF</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
                 $grand_upper = 0; $grand_lower = 0;
                 $grand_gif = 0; $grand_w = 0; $grand_tcf = 0; $grand_poli = 0;
-                $grand_echo = 0; $grand_preop = 0;
+                $grand_echo = 0; $grand_enema = 0;
                 ?>
                 <?php foreach ($stats as $doctor => $data): ?>
                     <?php if ($doctor === '_total') continue; ?>
@@ -604,7 +609,7 @@ if (!empty($selected_months)) {
                     $grand_tcf += $data['TCF'];
                     $grand_poli += $data['ポリペク'];
                     $grand_echo += $data['エコー'];
-                    $grand_preop += $data['術前F'];
+                    $grand_enema += $data['浣腸CF'];
                     ?>
                     <tr>
                         <td class="doctor-name"><?= htmlspecialchars($doctor, ENT_QUOTES, 'UTF-8') ?></td>
@@ -616,7 +621,7 @@ if (!empty($selected_months)) {
                         <td class="num"><?= $data['TCF'] ?></td>
                         <td class="num"><?= $data['ポリペク'] ?></td>
                         <td class="num <?= $data['エコー'] > 0 ? 'num-highlight' : '' ?>"><?= $data['エコー'] ?></td>
-                        <td class="num <?= $data['術前F'] > 0 ? 'num-highlight' : '' ?>" style="color:#f59e0b; font-weight:bold;"><?= $data['術前F'] ?></td>
+                        <td class="num <?= $data['浣腸CF'] > 0 ? 'num-highlight' : '' ?>" style="color:#f59e0b; font-weight:bold;"><?= $data['浣腸CF'] ?></td>
                     </tr>
                 <?php endforeach; ?>
                 <tr class="total-row">
@@ -629,11 +634,11 @@ if (!empty($selected_months)) {
                     <td class="num"><?= $grand_tcf ?></td>
                     <td class="num"><?= $grand_poli ?></td>
                     <td class="num" style="font-weight:bold; color:#8b5cf6;"><?= $grand_echo ?></td>
-                    <td class="num" style="font-weight:bold; color:#f59e0b;"><?= $grand_preop ?></td>
+                    <td class="num" style="font-weight:bold; color:#f59e0b;"><?= $grand_enema ?></td>
                 </tr>
             </tbody>
         </table>
-        <div class="stats-note">※ Wは上部・下部に重複カウントされます。術前Fは独立した別枠です。</div>
+        <div class="stats-note">※ Wは上部・下部に重複カウントされます。浣腸CFは独立した別枠です。</div>
     <?php endif; ?>
 
     <!-- ★★★ 注意書き ★★★ -->

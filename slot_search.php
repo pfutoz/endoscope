@@ -6,6 +6,7 @@
  * 
  * 空き枠検索画面
  * 修正: 2026-08-28 ステップ1（getExamIconの重複排除・共通ライブラリ利用）
+ * 修正: 2026-10-05 休診日（祝日・日曜・年末年始）判定時の出勤例外最優先ロジックの統一
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -140,6 +141,17 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
     $dates = [];
     $today = date('Y-m-d');
     
+    // ★ 出勤例外（m2_doctor_attendance）が登録されている日付を事前に取得（休診日でも出勤例外最優先）
+    $stmt_closed_att = $pdo->prepare("
+        SELECT DISTINCT target_date::text 
+        FROM m2_doctor_attendance 
+        WHERE department_code = :dept 
+          AND (gif_slots > 0 OR echo_slots > 0 OR tcf_slots > 0)
+    ");
+    $stmt_closed_att->execute([':dept' => $dept]);
+    $exception_dates = $stmt_closed_att->fetchAll(PDO::FETCH_COLUMN);
+    $exception_date_set = array_flip($exception_dates);
+    
     if ($is_month_mode && !empty($months)) {
         foreach ($months as $ym) {
             if (strpos($ym, '-') !== false) {
@@ -161,7 +173,8 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
                 }
                 if ($date_str >= $today) {
                     $day_check = check_onokai_calendar($date_str, null);
-                    if (!$day_check['is_closed']) {
+                    // 原則休診日は除外するが、出勤例外が登録されている場合は対象とする
+                    if (!$day_check['is_closed'] || isset($exception_date_set[$date_str])) {
                         $dates[] = $date_str;
                     }
                 }
@@ -182,7 +195,8 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
             }
             if ($date_str >= $today) {
                 $day_check = check_onokai_calendar($date_str, null);
-                if (!$day_check['is_closed']) {
+                // 原則休診日は除外するが、出勤例外が登録されている場合は対象とする
+                if (!$day_check['is_closed'] || isset($exception_date_set[$date_str])) {
                     $dates[] = $date_str;
                 }
             }

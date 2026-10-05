@@ -365,12 +365,12 @@
     <header class="spec-header">
         <div class="header-top">
             <span class="header-badge">医療法人小野会 内視鏡予約管理システム</span>
-            <span class="header-date">文書番号: SPEC-202610-02 (ver1004)</span>
+            <span class="header-date">文書番号: SPEC-202610-03 (ver1005)</span>
         </div>
         <h1 class="main-title">システム機能一覧 ＆ 画面別仕様書</h1>
         <div class="header-meta">
-            <span>対象システム: <strong>内視鏡予約・枠管理システム (Modernized Edition / ver1004)</strong></span>
-            <span>更新日: <strong>2026年10月4日</strong></span>
+            <span>対象システム: <strong>内視鏡予約・枠管理システム (Modernized Edition / ver1005)</strong></span>
+            <span>更新日: <strong>2026年10月5日</strong></span>
             <span>稼働環境: <strong>Windows / Apache 2.4 / PostgreSQL 18.3 / PHP 8.5.9</strong></span>
         </div>
     </header>
@@ -380,9 +380,9 @@
         <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
         <a href="plan.html" style="color: #2563eb; text-decoration: none;">📋 中長期開発計画書 (plan.html)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-4works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-10-4works.html / ver1004)</a>
+        <a href="2026-10-5works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-10-5works.html / ver1005)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-1works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-10-1works.html)</a>
+        <a href="2026-10-4works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-10-4works.html)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="../help.php" style="color: #7c3aed; text-decoration: none;">❓ 操作マニュアル (help.php)</a>
         <span style="color: #cbd5e1;">|</span>
@@ -409,6 +409,7 @@
             <li><a href="#cat-ux20260929">14. UI/UX全面刷新 ＆ 本物インページモーダルランナー系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">v0929新設</span></a></li>
             <li><a href="#cat-medical-alert-onshi">15. 医療安全アラート完全独立ファイル化 ＆ オン資連携強化 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-01新設</span></a></li>
             <li><a href="#cat-ward-admission">16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">ver1004新設</span></a></li>
+            <li><a href="#cat-holiday-exception">17. 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-05新設</span></a></li>
         </ul>
     </nav>
 
@@ -897,8 +898,9 @@
                     <div class="feature-title">📌 主な機能一覧</div>
                     <ul class="feature-list">
                         <li><strong>期間指定集計:</strong> 月次、年次、任意期間での集計。</li>
-                        <li><strong>多角的クロス集計:</strong> 診療科別（胃腸科 / 肛門科）、医師別、検査区分別（上部: GIF+W / 下部: TCF+W+ポリペク / エコー / 術前F）。</li>
-                        <li><strong>CSVエクスポート:</strong> 集計表および明細データのCSVダウンロード機能。</li>
+                        <li><strong>多角的クロス集計:</strong> 診療科別（胃腸科 / 肛門科）、医師別、検査区分別（上部: GIF+W / 下部: TCF+W+ポリペク / エコー / 浣腸CF［旧 術前F］）。</li>
+                        <li><strong>枠なし予約の自動除外:</strong> カレンダー画面で設定された枠なしブロック用予約（<code>※枠なし</code>）を集計対象から自動除外。実患者の予約のみを正確に集計。</li>
+                        <li><strong>CSVエクスポート:</strong> 集計表および明細データのCSVダウンロード機能（浣腸CF対応）。</li>
                     </ul>
                 </div>
             </div>
@@ -1230,6 +1232,7 @@
                         <li><strong>医師指名対応カラーコード ＆ ワンタップ絞り込み:</strong> 患者の「〇〇先生に診てほしい」という希望に応え、医師別カラーコード（誠吾: 🟢 翠 / 哲也: 🔵 藍 / 義智: 🟣 紫 / 慶太郎: 🟠 琥珀）とワンタップ絞り込みタブを完備。</li>
                         <li><strong>完全自動消滅（二重予約防止）:</strong> 予約が登録されて空き枠数が <code>0</code> になった瞬間、クエリから自動除外されて全画面から即座に消滅。古い情報による二重予約やトラブルをシステム的に100%防止。</li>
                         <li><strong>科を跨ぐワンクリック即予約（カレンダー・モーダル連動）:</strong> 各カードの「➕ この枠で予約」をクリックすると、該当科・該当日の月間カレンダーへ自動切り替えし、新規予約モーダルを自動起動（<code>month_schedule.php?dept=...&open_new=1</code> 連動）。</li>
+                        <li><strong>状況確認用カレンダー表示（日付選択連動）:</strong> 各カードの「📅 カレンダー表示」をクリックすると、該当科・該当日の月間カレンダーが指定日付を選択した状態で開き、予約状況を俯瞰確認可能（<code>month_schedule.php?dept=...&date=...</code> 連動、<code>open_new</code> は含めず予約判断はユーザーに委ねる）。</li>
                         <li><strong>多職種常設配置:</strong> 月間カレンダー（<code>month_schedule.php</code>）の上部クイックバー＆ヘッダーナビ、当日ホワイトボード（<code>progress_monitor.php</code>）の同期バーに常設。診察室の医師、外来ナース、受付、内視鏡室の誰もが即座にアクセス可能。</li>
                     </ul>
                 </div>
@@ -1610,6 +1613,35 @@
                     <ul class="feature-list">
                         <li><strong>ポータル・ヘッダー完全連動:</strong> <code>index.php</code> のバージョンバッジを <code>ver1004</code> に更新し、ヘルプボタンのリンク先を <code>help.php</code> に統合。</li>
                         <li><strong>病棟管理連動コントロール解説の追加:</strong> 入院予定チェックボックスの自動ON/OFF挙動、病棟スタッフとの連携留意点を詳細マニュアル化。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        17. 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック
+        ============================================================ -->
+        <section class="spec-section" id="cat-holiday-exception">
+            <h2 class="category-title">17. 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック <span class="badge badge-success" style="font-size:12px; margin-left:8px;">2026-10-05 新設</span></h2>
+
+            <!-- 17-1 休診日自動除外＆出勤例外最優先 -->
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📅 小野会カレンダー連動による休診日（祝日・日曜・年末年始）自動除外 ＆ 出勤例外最優先制御</span>
+                        <span class="screen-file">action_slot_assistant.php / slot_search.php</span>
+                    </div>
+                    <span class="badge badge-primary">直近速報 ＆ 検索統一</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        「⚡直近空き枠速報」（<code>action_slot_assistant.php</code>）および空き枠検索（<code>slot_search.php</code>）において、小野会専用カレンダー判定ヘルパー（<code>calendar_helper_onokai.php</code>）を完全統合。祝日（例: スポーツの日、成人の日等）、日曜日、振替休日、年末年始休診（12/31〜1/3）を空き枠候補から自動除外します。さらに、医院の休診日であっても管理者が出勤例外（<code>m2_doctor_attendance</code>）で明示的に枠を設定した場合は、出勤例外最優先ルールに基づき検索候補対象とする高度な多層判定を実装しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>休診日判定の自動連携:</strong> <code>check_onokai_calendar()</code> を呼び出し、祝日や年末年始などの休診日を自動識別。祝日に通常曜日パターンの枠が誤表示される不良を完全根絶。</li>
+                        <li><strong>出勤例外（m2_doctor_attendance）最優先ルール:</strong> 祝日診療等のために出勤例外が登録されている医師については、休診日であっても最優先で検索候補として出力。出勤例外のない他医師の枠は確実に遮断。</li>
+                        <li><strong>事前プリフェッチによる超高速化:</strong> 走査対象期間（本日〜30日後）の出勤例外をあらかじめ1回のクエリで一括取得・メモリマップ化し、判定処理の高速性を維持。</li>
                     </ul>
                 </div>
             </div>

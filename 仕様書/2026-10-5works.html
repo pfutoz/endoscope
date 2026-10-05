@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-05 / ver1005)</title>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --primary-light: #f0fdfa;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #134e4a, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(13, 148, 136, 0.3);
+            color: #5eead4;
+            border: 1px solid rgba(94, 234, 212, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        /* 目次エリア */
+        nav.report-toc {
+            background: #f1f5f9;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 36px;
+        }
+
+        .toc-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 8px 16px;
+        }
+
+        .toc-grid a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+
+        .toc-grid a:hover {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        /* 本文エリア */
+        main.content {
+            padding: 36px;
+        }
+
+        section.work-sec {
+            margin-bottom: 40px;
+        }
+
+        h2.sec-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            border-left: 5px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3.sub-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+        }
+
+        /* コールアウト・アラート */
+        .callout {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            border-left: 4px solid transparent;
+        }
+
+        .callout-success {
+            background: var(--success-light);
+            border-left-color: var(--success);
+            color: #065f46;
+        }
+
+        .callout-warning {
+            background: var(--warning-light);
+            border-left-color: var(--warning);
+            color: #92400e;
+        }
+
+        .callout-danger {
+            background: var(--danger-light);
+            border-left-color: var(--danger);
+            color: #991b1b;
+        }
+
+        .callout-info {
+            background: #eff6ff;
+            border-left-color: var(--accent);
+            color: #1e40af;
+        }
+
+        /* テーブル */
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-bottom: 16px;
+        }
+
+        table.custom-table th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+
+        table.custom-table td {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+
+        table.custom-table tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        /* バッジ */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-success { background: #dcfce7; color: #15803d; }
+        .badge-warning { background: #fef3c7; color: #b45309; }
+        .badge-danger  { background: #fee2e2; color: #b91c1c; }
+        .badge-primary { background: #dbeafe; color: #1d4ed8; }
+
+        /* コードブロック */
+        pre.code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        code.inline-code {
+            background: #f1f5f9;
+            color: #0f766e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        /* フッター */
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">⚡ 不具合改修 ＆ 枠判定最適化</span>
+            <div style="font-size:12px; color:#99f6e4; font-family:var(--font-mono);">Document ID: 2026-10-5works</div>
+        </div>
+        <h1>🏥 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック実装</h1>
+        <div class="header-meta">
+            <span><strong>作業日:</strong> 2026年10月05日 (月)</span>
+            <span><strong>対象機能:</strong> 直近空き枠速報 (action_slot_assistant.php) / 空き枠検索 (slot_search.php) / 検査数集計 (stats.php)</span>
+            <span><strong>完了ステータス:</strong> <span class="badge badge-success" style="font-size:12px;">✅ 改修完了・検証済</span></span>
+        </div>
+    </header>
+
+    <!-- ── 目次 ── -->
+    <nav class="report-toc">
+        <div class="toc-title">INDEX / 目次</div>
+        <div class="toc-grid">
+            <a href="#sec-background">1. 休診判定改修の背景と解決課題</a>
+            <a href="#sec-logic">2. 休診判定と出勤例外最優先ロジック</a>
+            <a href="#sec-files">3. 改修ファイル一覧と差分詳細</a>
+            <a href="#sec-test">4. 動作検証結果とテストログ</a>
+            <a href="#sec-sync">5. 本番環境同期状況</a>
+            <a href="#sec-stats">6. 検査数集計（stats.php）術前F⇒浣腸CF変更 ＆ 枠なし除外</a>
+            <a href="#sec-cal-link">7. 空き枠速報カード「カレンダー表示」遷移先の適正化（open_new除去）</a>
+        </div>
+    </nav>
+
+    <!-- ── メインコンテンツ ── -->
+    <main class="content">
+
+        <!-- 1. 改修の背景と解決課題 -->
+        <section class="work-sec" id="sec-background">
+            <h2 class="sec-title">1. 改修の背景と解決課題</h2>
+            <div class="callout callout-danger">
+                <strong>【不具合事象】</strong>
+                空き枠検索画面（<code>slot_search.php</code>）の「⚡直近空き枠速報」タブおよびカレンダー画面等の右下に常駐する速報モーダル（<code>urgent_slot_modal_inc.php</code>）において、祝日（例: 2026年10月12日 月曜日・スポーツの日）に月曜日の曜日定員（誠吾先生 残7枠、義智先生 残7枠 等）がそのまま参照され、休診日であるにもかかわらず空き枠候補カードとして表示されてしまう不具合が発生していました。
+            </div>
+            <p>
+                調査の結果、直近速報API（<code>action_slot_assistant.php</code>）内の日付走査ループにおいて <code>if ($dow === 0) continue;</code> と日曜日のみを除外判定しており、小野会専用カレンダーヘルパー（<code>calendar_helper_onokai.php</code>）による祝日・振替休日・医院特別休診（年末年始等）の判定が呼び出されていないことが原因と特定しました。
+            </p>
+            <p>
+                さらに、ユーザーとの対話型仕様確認（/grill-me）に基づき、<strong>「休診日は原則候補から除外するが、祝日・休診日であっても管理者が出勤例外（<code>m2_doctor_attendance</code>）で明示的に枠を設定した場合は出勤例外最優先ルールにより候補対象とする」</strong>という医院の運用実態に完全合致した仕様を策定・実装しました。
+            </p>
+        </section>
+
+        <!-- 2. 休診判定と出勤例外最優先ロジック -->
+        <section class="work-sec" id="sec-logic">
+            <h2 class="sec-title">2. 休診判定と出勤例外最優先ロジック</h2>
+            <p>
+                今回の改修では、システム全体の枠管理ルール（出勤例外 &gt; 日別上書き &gt; 曜日パターン）を厳格に順守し、以下の多層判定アルゴリズムを構築しました。
+            </p>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width:20%;">判定フェーズ</th>
+                        <th style="width:40%;">処理内容</th>
+                        <th style="width:40%;">結果 / 挙動</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>① 出勤例外プリフェッチ</strong></td>
+                        <td>検索対象期間（本日〜30日後）の <code>m2_doctor_attendance</code> を一括取得しメモリマップ化。</td>
+                        <td>DBクエリを1回に集約し高速化。休診日に枠が設定されている医師を即時判定可能。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>② 小野会カレンダー判定</strong></td>
+                        <td><code>check_onokai_calendar($cur_date, null)</code> を実行。日曜日、日本の祝日、振替休日、年末年始休診（12/31〜1/3）を判定。</td>
+                        <td>休診日フラグ（<code>$is_closed</code>）を取得。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>③ 休診日の大枠スキップ</strong></td>
+                        <td>休診日の場合、その日に出勤例外による大腸枠（<code>TCF &gt; 0</code>）が1件も存在しなければ、日付走査を即時スキップ。</td>
+                        <td>出勤例外のない祝日（2026-10-12等）は完全に除外され、無駄な枠計算・SQL発行もゼロに。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>④ 医師別・科別の厳格フィルタ</strong></td>
+                        <td>休診日に出勤例外がある場合、出勤例外が登録されている医師のみを候補対象とし、科定員も出勤例外枠のみで再計算。</td>
+                        <td>休診日に特定の医師だけ臨時診療する場合、出勤例外のない他医師の通常曜日パターン枠が混入するのを100%防止。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 3. 改修ファイル一覧と差分詳細 -->
+        <section class="work-sec" id="sec-files">
+            <h2 class="sec-title">3. 改修ファイル一覧と差分詳細</h2>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>ファイルパス</th>
+                        <th>区分</th>
+                        <th>改修要約</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>action_slot_assistant.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>
+                            <code>calendar_helper_onokai.php</code> の読み込み、<code>check_onokai_calendar</code> 休診判定の追加、出勤例外一括取得および出勤例外最優先ロジックの実装。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>slot_search.php</code></td>
+                        <td><span class="badge badge-warning">改修</span></td>
+                        <td>
+                            カスタム検索タブ（<code>searchAvailableSlots</code>）において、休診日であっても出勤例外が登録されている場合は対象日に含めるよう仕様統一。ヘッダー修正履歴追記。
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="sub-title">主要改修コード抜粋 (action_slot_assistant.php)</h3>
+            <pre class="code-block"><code>// ★ 小野会専用カレンダーによる休診（日曜・祝日・振替休日・年末年始休診など）の判定
+$day_check = check_onokai_calendar($cur_date, null);
+$is_closed = (bool)($day_check['is_closed'] ?? false);
+
+if ($is_closed) {
+    // 休診日だが「出勤例外」で大腸枠（TCF>0）が登録されている医師がいるかチェック
+    $has_tcf_exception_on_closed = false;
+    if (!empty($attendance_map[$cur_date])) {
+        foreach ($attendance_map[$cur_date] as $dep_code => $doc_exceptions) {
+            foreach ($doc_exceptions as $doc_name => $slot_info) {
+                if ($slot_info['tcf'] > 0) {
+                    $has_tcf_exception_on_closed = true;
+                    break 2;
+                }
+            }
+        }
+    }
+    // 出勤例外による大腸枠が設定されていない休診日はスキップ
+    if (!$has_tcf_exception_on_closed) {
+        continue;
+    }
+}</code></pre>
+        </section>
+
+        <!-- 4. 動作検証結果とテストログ -->
+        <section class="work-sec" id="sec-test">
+            <h2 class="sec-title">4. 動作検証結果とテストログ</h2>
+            <div class="callout callout-success">
+                <strong>【検証結果】すべて合格（OK）</strong><br>
+                改修前は「2026-10-12 (月) スポーツの日」に誠吾先生（残7枠）、哲也先生（残2枠）、義智先生（残7枠）が表示されていましたが、改修後は完全に除外され、平日の実稼働枠のみが正確に出力されることを確認しました。
+            </div>
+
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>テストケース</th>
+                        <th>期待される動作</th>
+                        <th>実測結果</th>
+                        <th>判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PHP構文チェック</td>
+                        <td><code>php -l</code> でエラーが出ないこと</td>
+                        <td><code>No syntax errors detected</code></td>
+                        <td><span class="badge badge-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>祝日除外検証 (2026-10-12)</td>
+                        <td>スポーツの日が直近速報スロット一覧に出現しないこと</td>
+                        <td>スロット一覧から完全除外を確認（2026-10-09の次は2026-10-13）</td>
+                        <td><span class="badge badge-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>日曜除外検証</td>
+                        <td>日曜日の枠が出現しないこと</td>
+                        <td>10-11等の日曜日はすべて除外を確認</td>
+                        <td><span class="badge badge-success">OK</span></td>
+                    </tr>
+                    <tr>
+                        <td>Webサーバー実通信テスト</td>
+                        <td>HTTP経由で正常なJSONレスポンスが返ること</td>
+                        <td><code>HTTP 200 OK</code>、正常なJSONデータ取得完了</td>
+                        <td><span class="badge badge-success">OK</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 5. 本番環境同期状況 -->
+        <section class="work-sec" id="sec-sync">
+            <h2 class="sec-title">5. 本番環境同期状況</h2>
+            <p>
+                本改修はPHPロジックの修正であり、データベーススキーマ（DDL）の変更は発生しておりません。既存の <code>m2_doctor_attendance</code> テーブル構造のまますぐに安全に本番稼働可能です。
+            </p>
+        </section>
+
+        <!-- 6. 検査数集計（stats.php）術前F⇒浣腸CF変更 ＆ 枠なし除外 -->
+        <section class="work-sec" id="sec-stats">
+            <h2 class="sec-title">6. 検査数集計（stats.php）術前F⇒浣腸CF変更 ＆ 枠なし除外</h2>
+            
+            <div class="callout callout-warning">
+                <strong>【改修の背景・課題】</strong>
+                <ul style="padding-left:18px; margin-top:6px;">
+                    <li><strong>「◆未定◆」が大量集計される事象:</strong> カレンダー等の「枠なし設定（🚫枠なし設定ボタン）」を実行すると、予約不可ブロック用として <code>doctor_name='◆未定◆'</code>、<code>patient_name='※枠なし'</code>、<code>remarks='＊＊＊🚫枠なし🚫＊＊＊'</code>、<code>is_canceled=FALSE</code> のレコードが登録されます。<code>stats.php</code> のSQLにおいてこれらを除外していなかったため、277件もの「◆未定◆」が実績として誤カウントされていました。</li>
+                    <li><strong>術前F ⇒ 浣腸CFへの移行:</strong> 2026年9月28日の新検査種別「浣腸CF」新設に伴い、旧「術前F」から正式名称「浣腸CF」へ集計・表示を移行する必要がありました。</li>
+                </ul>
+            </div>
+
+            <h3 class="sub-title">改修仕様と設計合意（/grill-me）</h3>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width:25%;">改修項目</th>
+                        <th style="width:35%;">改修前</th>
+                        <th style="width:40%;">改修後（合意仕様）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>枠なし予約の除外</strong></td>
+                        <td>除外条件なし（枠なしブロック用レコードが集計に含まれていた）</td>
+                        <td>
+                            <code>AND (s.remarks IS NULL OR s.remarks NOT LIKE '%枠なし%')</code><br>
+                            <code>AND (s.patient_name IS NULL OR s.patient_name NOT LIKE '%枠なし%')</code><br>
+                            を追加。枠なしブロックを完全除外。実患者の担当医未定予約のみ「◆未定◆」として計上。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>検査区分「浣腸CF」</strong></td>
+                        <td>列名: 「術前F」<br>条件: <code>$exam_type === '術前F'</code></td>
+                        <td>
+                            列名: <strong>「浣腸CF」</strong><br>
+                            条件: <code>in_array($exam_type, ['浣腸CF', '術前F', '前日F'])</code><br>
+                            ※旧「術前F」と同様に<strong>独立した別枠</strong>として集計・表示（下部合計には含めない）。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>CSVエクスポート</strong></td>
+                        <td>ヘッダー: <code>..., 'エコー', '術前F'</code></td>
+                        <td>
+                            ヘッダー: <code>..., 'エコー', '浣腸CF'</code><br>
+                            PHP 8.4+ 非推奨警告（<code>$escape</code>引数未指定）も解消。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>画面注意書き</strong></td>
+                        <td><code>※ Wは上部・下部に重複カウントされます。術前Fは独立した別枠です。</code></td>
+                        <td><code>※ Wは上部・下部に重複カウントされます。浣腸CFは独立した別枠です。</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="sub-title">集計結果の変化（検証実測値）</h3>
+            <p>2026年8月〜10月を対象とした集計結果の実測値の推移です：</p>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>医師名</th>
+                        <th>改修前の集計状況</th>
+                        <th>改修後の集計状況</th>
+                        <th>差異と要因</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>◆未定◆</strong></td>
+                        <td>合計 277 件</td>
+                        <td><strong>合計 1 件</strong></td>
+                        <td>枠なしブロック予約 276件が正常に除外され、実患者（担当医未定）の1件のみ正しく計上。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>浣腸CF</strong></td>
+                        <td>0 件（術前F列）</td>
+                        <td><strong>合計 2 件</strong> (誠吾 1件 / 義智 1件)</td>
+                        <td>新種別「浣腸CF」が正確に独立別枠として集計・反映。</td>
+                    </tr>
+                </tbody>
+            </table>
+        <!-- 7. 空き枠速報カード「カレンダー表示」遷移先の適正化 -->
+        <section class="work-sec" id="sec-cal-link">
+            <h2 class="sec-title">7. 空き枠速報カード「カレンダー表示」遷移先の適正化（open_new除去）</h2>
+            <div class="callout callout-warning">
+                <strong>【改修の背景・課題】</strong>
+                <p>空き枠検索画面（<code>slot_search.php</code>）の直近速報カードおよび各画面の速報モーダル（<code>urgent_slot_modal_inc.php</code>）には、以下の2つのボタンが配置されています：</p>
+                <ul style="padding-left:18px; margin-top:6px;">
+                    <li><strong>「📅 カレンダー表示」:</strong> 該当日のカレンダー・予約一覧を選択状態で開き、状況を確認するボタン。予約するかどうかはユーザーの判断に委ねられる。</li>
+                    <li><strong>「➕ この枠で予約」:</strong> 該当科・該当日のカレンダーを開くと同時に、新規予約入力モーダルを自動起動するボタン（<code>open_new=1</code> 連動）。</li>
+                </ul>
+                <p style="margin-top:6px;">
+                    しかし、<code>action_slot_assistant.php</code> で返却される <code>jump_url</code>（カレンダー表示リンク）の末尾に誤って <code>&open_new=1</code> が付与されていたため、「カレンダー表示」をクリックした際にも「この枠で予約」と全く同じように新規予約モーダルが自動起動してしまう事象が発生していました。
+                </p>
+            </div>
+
+            <h3 class="sub-title">改修仕様と差分内容</h3>
+            <p><code>action_slot_assistant.php</code> の <code>jump_url</code> 生成部から <code>&open_new=1</code> を除去し、純粋に指定日付が選択された状態で月間カレンダーを開くよう修正しました。</p>
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="width:20%;">ボタン</th>
+                        <th style="width:40%;">改修前の遷移先URL</th>
+                        <th style="width:40%;">改修後の遷移先URL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>📅 カレンダー表示</strong></td>
+                        <td><code>month_schedule.php?dept=PROCT&year=2026&month=10&date=2026-10-06&open_new=1</code><br><span class="badge badge-danger">不具合（予約モーダルが誤起動）</span></td>
+                        <td><code>month_schedule.php?dept=PROCT&year=2026&month=10&date=2026-10-06</code><br><span class="badge badge-success">正常（日付選択状態のみで表示）</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>➕ この枠で予約</strong></td>
+                        <td><code>month_schedule.php?dept=PROCT&year=2026&month=10&date=2026-10-06&open_new=1&target_doctor=誠吾</code></td>
+                        <td>同左（<code>open_new=1</code> を維持し即時予約入力モーダルを起動）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <!-- ── フッター ── -->
+    <footer class="report-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 開発チーム</div>
+        <div>仕様書パス: <code>c:\Apache24\htdocs\endoscope\仕様書\2026-10-5works.html</code></div>
+    </footer>
+
+</div>
+
+</body>
+</html>
