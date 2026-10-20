@@ -1,0 +1,32 @@
+{
+  "global": [
+    ".git/**",
+    ".agents/**",
+    ".gemini/**",
+    "node_modules/**",
+    "vendor/**",
+    "scratch/**",
+    "bak/**",
+    "ip_bak/**",
+    "gitshare/**",
+    "deploy_manager/**",
+    "*.bak*",
+    "*.tmp",
+    "*.log",
+    "*.code-workspace",
+    "test_*.js",
+    "scratch_*.js",
+    "Thumbs.db",
+    "desktop.ini"
+  ],
+  "systems": {
+    "_portal": [
+      "_server_health.json",
+      "rsbase.zip"
+    ],
+    "sup": [
+      "suppliers_multicontact.json"
+    ],
+    "rsbase": []
+  }
+}

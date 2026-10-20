@@ -1,0 +1,1086 @@
+<?php
+/**
+ * 内視鏡予約管理システム - 超初心者向け 基本操作＆カルテ切り替えガイド
+ * 対象: PC操作に不慣れな職員・スタッフ向け
+ */
+?>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【超初心者向け】PC基本操作＆カルテ切り替えガイド - 医療法人小野会</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #e0f2fe;
+            --emerald: #059669;
+            --emerald-light: #d1fae5;
+            --amber: #d97706;
+            --amber-light: #fef3c7;
+            --rose: #e11d48;
+            --rose-light: #ffe4e6;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            --border: #cbd5e1;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            --card-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f4f8;
+            color: var(--slate-800);
+            line-height: 1.7;
+            font-size: 16px;
+            padding-bottom: 60px;
+        }
+
+        /* ── トップバー ── */
+        .top-navbar {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-navbar-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .top-navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.28);
+            transform: translateY(-1px);
+        }
+
+        .btn-action-primary {
+            background: #ffffff;
+            color: var(--primary-dark);
+            border-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-action-primary:hover {
+            background: #f8fafc;
+            color: var(--primary);
+        }
+
+        .btn-print {
+            background: #f59e0b;
+            color: #ffffff;
+            border-color: #d97706;
+        }
+        .btn-print:hover {
+            background: #d97706;
+        }
+
+        /* ── メインコンテナ ── */
+        .container {
+            max-width: 980px;
+            margin: 28px auto 0;
+            padding: 0 20px;
+        }
+
+        /* ── 心温まるメッセージバナー（PCは難しくない！） ── */
+        .hero-banner {
+            background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+            border: 2px solid #bae6fd;
+            border-radius: 16px;
+            padding: 28px 32px;
+            margin-bottom: 30px;
+            box-shadow: var(--card-shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-banner::before {
+            content: "🔰";
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 80px;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .hero-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #0369a1;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hero-text {
+            font-size: 16px;
+            color: var(--slate-700);
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+
+        .hero-points {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .hero-point-card {
+            background: #ffffff;
+            border: 1px solid #e0f2fe;
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .hero-point-icon {
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .hero-point-title {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--slate-800);
+            margin-bottom: 2px;
+        }
+
+        .hero-point-desc {
+            font-size: 13px;
+            color: var(--slate-600);
+            line-height: 1.5;
+        }
+
+        /* ── シングルクリック超重要コールアウト（案1） ── */
+        .hero-callout-single-click {
+            background: #fffbeb;
+            border: 1.5px solid #fde68a;
+            border-left: 5px solid #f59e0b;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 18px 0;
+            box-shadow: 0 2px 6px rgba(245, 158, 11, 0.08);
+        }
+
+        .hero-callout-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .hero-callout-badge {
+            background: #f59e0b;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 3px 9px;
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hero-callout-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: #92400e;
+        }
+
+        .hero-callout-content {
+            font-size: 14px;
+            color: #78350f;
+            line-height: 1.75;
+        }
+
+        .hero-callout-content strong {
+            color: #b45309;
+            background: rgba(254, 243, 199, 0.85);
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
+        /* ── 各ステップカード ── */
+        .step-section {
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            padding: 30px 32px;
+            margin-bottom: 28px;
+            box-shadow: var(--card-shadow);
+            position: relative;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #f1f5f9;
+        }
+
+        .step-number {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(2, 132, 199, 0.2);
+            flex-shrink: 0;
+        }
+
+        .step-title-wrap h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--slate-800);
+        }
+
+        .step-title-wrap p {
+            font-size: 14px;
+            color: var(--slate-500);
+            margin-top: 2px;
+        }
+
+        /* ── ブラウザ一覧グリッド ── */
+        .browser-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .browser-card {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 20px 16px;
+            text-align: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .browser-card:hover {
+            border-color: #38bdf8;
+            background: #ffffff;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.15);
+        }
+
+        .browser-icon-box {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        .browser-card:hover .browser-icon-box {
+            transform: scale(1.08);
+        }
+
+        .browser-icon-img {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+            display: block;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+        }
+
+        .browser-name {
+            font-weight: 800;
+            font-size: 16px;
+            color: var(--slate-800);
+            margin-bottom: 6px;
+        }
+
+        .browser-desc {
+            font-size: 12.5px;
+            color: var(--slate-600);
+            line-height: 1.5;
+        }
+
+        /* ── ヒントボックス（あなたのPCはどれ？） ── */
+        .hint-box {
+            background: #f8fafc;
+            border-left: 5px solid #0284c7;
+            border-radius: 0 10px 10px 0;
+            padding: 16px 20px;
+            margin: 18px 0;
+            font-size: 14px;
+        }
+
+        .hint-box-title {
+            font-weight: 700;
+            color: #0369a1;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+        }
+
+        .hint-list {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hint-list li {
+            position: relative;
+            padding-left: 24px;
+            color: var(--slate-700);
+        }
+
+        .hint-list li::before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 14px;
+        }
+
+        /* ── 事務長コールボックス（目立つ注意） ── */
+        .call-boss-card {
+            background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+            border: 2px dashed #f43f5e;
+            border-radius: 12px;
+            padding: 18px 24px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .call-boss-icon {
+            font-size: 38px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .call-boss-body h4 {
+            font-size: 17px;
+            font-weight: 800;
+            color: #be123c;
+            margin-bottom: 4px;
+        }
+
+        .call-boss-body p {
+            font-size: 14px;
+            color: #881337;
+            line-height: 1.6;
+        }
+
+        /* ── ブックマークバー画像表示 ── */
+        .bookmark-mockup-wrap {
+            background: #ffffff;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .bookmark-mockup-wrap img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            display: inline-block;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .bookmark-caption {
+            font-size: 13px;
+            color: var(--slate-600);
+            margin-top: 10px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* ── カルテ切り替えの極意（タスクバー図解） ── */
+        .taskbar-diagram {
+            background: #1e293b;
+            color: #ffffff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .taskbar-label {
+            font-size: 13px;
+            color: #94a3b8;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .taskbar-icons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .taskbar-item {
+            background: #334155;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .taskbar-item.active {
+            background: #0284c7;
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        .taskbar-item:hover {
+            background: #475569;
+        }
+
+        .taskbar-item-icon {
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .taskbar-item-desc {
+            font-size: 11px;
+            color: #cbd5e1;
+            font-weight: normal;
+        }
+
+        /* ── パニック防止コールアウト（カルテが消えた！？） ── */
+        .panic-cure-card {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 14px;
+            padding: 22px 26px;
+            margin: 22px 0;
+            position: relative;
+        }
+
+        .panic-cure-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .panic-cure-header h3 {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1d4ed8;
+        }
+
+        .panic-cure-body {
+            font-size: 15px;
+            color: #1e3a8a;
+            line-height: 1.8;
+        }
+
+        .dont-minimize-tag {
+            display: inline-block;
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 800;
+            border: 1px solid #fca5a5;
+            margin-bottom: 6px;
+        }
+
+        /* ── まとめ早見表 ── */
+        .trouble-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+            background: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .trouble-table th, .trouble-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .trouble-table th {
+            background: #f1f5f9;
+            font-weight: 700;
+            color: var(--slate-700);
+            width: 38%;
+        }
+
+        .trouble-table td {
+            color: var(--slate-800);
+        }
+
+        .badge-boss {
+            background: #f43f5e;
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        /* ── フッターアクション ── */
+        .footer-action-panel {
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            padding: 24px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            margin-top: 30px;
+        }
+
+        .footer-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .big-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .big-btn-blue {
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            box-shadow: 0 4px 6px rgba(2, 132, 199, 0.25);
+        }
+        .big-btn-blue:hover {
+            background: #0369a1;
+            transform: translateY(-2px);
+        }
+
+        .big-btn-outline {
+            background: #ffffff;
+            color: var(--slate-700);
+            border: 2px solid #cbd5e1;
+        }
+        .big-btn-outline:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            transform: translateY(-2px);
+        }
+
+        /* ── 印刷用スタイル (A4横・縦対応) ── */
+        @media print {
+            body {
+                background: #ffffff;
+                color: #000000;
+                padding: 0;
+                font-size: 12pt;
+                line-height: 1.5;
+            }
+
+            .top-navbar, .footer-action-panel, .btn-print, .btn-action {
+                display: none !important;
+            }
+
+            .container {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            .hero-banner {
+                border: 2px solid #000000;
+                box-shadow: none;
+                padding: 12px;
+                margin-bottom: 12px;
+                page-break-inside: avoid;
+            }
+
+            .step-section {
+                border: 1px solid #888888;
+                box-shadow: none;
+                padding: 14px;
+                margin-bottom: 14px;
+                page-break-inside: avoid;
+            }
+
+            .step-number {
+                background: #333333 !important;
+                color: #ffffff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .taskbar-diagram {
+                background: #222222 !important;
+                color: #ffffff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .panic-cure-card {
+                border: 2px solid #000000;
+                background: #f0f4f8 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .call-boss-card {
+                border: 2px dashed #000000;
+                background: #fff0f0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .bookmark-mockup-wrap img {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── トップバー ── -->
+    <header class="top-navbar">
+        <div class="top-navbar-title">
+            <span style="font-size: 24px;">🔰</span>
+            <span>【超初心者向け】PC基本操作＆カルテ切り替えガイド</span>
+        </div>
+        <div class="top-navbar-actions">
+            <button class="btn-action btn-print" onclick="window.print();" title="このページを紙に印刷してパソコンの横に貼っておけます">
+                <span>🖨️</span> A4印刷（PC脇パウチ用）
+            </button>
+            <a href="index.php" class="btn-action btn-action-primary">
+                <span>🏥</span> 内視鏡予約へ
+            </a>
+            <a href="help.php" class="btn-action">
+                <span>📖</span> 総合マニュアル
+            </a>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- ── 心温まる導入メッセージ ── -->
+        <section class="hero-banner">
+            <h1 class="hero-title">
+                <span>🌟</span> パソコン操作は決して難しくありません！
+            </h1>
+            <p class="hero-text">
+                「パソコンが苦手…」「カタカナや専門用語が多すぎてよくわからない…」という方も、どうぞご安心ください。<br>
+                内視鏡予約システムを使うために必要な操作は、<strong>「インターネットを見る画面（ブラウザ）を開くこと」</strong>と、<strong>「画面の下にあるボタンでカルテと行ったり来たりすること」</strong>の<strong>たった2つだけ</strong>です。<br>
+                この2つのコツさえ覚えてしまえば、日々の予約確認や入力が驚くほどカンタンになります。ぜひこのページをお手元で確認しながら、一度マウスを動かしてみてください！
+            </p>
+
+            <!-- ── 案1: 凄く大事な基本のコツ（シングルクリック徹底） ── -->
+            <div class="hero-callout-single-click">
+                <div class="hero-callout-header">
+                    <span class="hero-callout-badge">💡 凄く大事な基本のコツ！</span>
+                    <strong class="hero-callout-title">操作はすべて「1回クリック」！ダブルクリックは一切ありません</strong>
+                </div>
+                <div class="hero-callout-content">
+                    内視鏡予約システムをはじめ、院内イントラネットの利用でのマウスクリックに<strong>ダブルクリック（カチカチッと素早く2回押す操作）は一切ありません。</strong><br>
+                    画面のボタンも、カレンダーの日付も、すべて<strong>「落ち着いて1回だけカチッと押す（シングルクリック）」</strong>だけで動きます。<br>
+                    また、当該イントラシステム以外でもパソコンの殆どの操作はシングルクリックです。<strong>不用意なマウスダブルクリックを減らし「1回だけ押す」</strong>ことを意識していただくだけでも、画面の二重起動や誤作動がなくなり、日々の操作が非常にスムーズになります！
+                </div>
+            </div>
+
+            <div class="hero-points">
+                <div class="hero-point-card">
+                    <span class="hero-point-icon">🖱️</span>
+                    <div>
+                        <div class="hero-point-title">マウスだけで操作完了</div>
+                        <div class="hero-point-desc">難しいキーボードのコマンドは不要。画面下のアイコンを1回カチッと押すだけです。</div>
+                    </div>
+                </div>
+                <div class="hero-point-card">
+                    <span class="hero-point-icon">🔒</span>
+                    <div>
+                        <div class="hero-point-title">カルテは消えないので安心</div>
+                        <div class="hero-point-desc">別の画面を開いても、電子カルテ（MALL3）はずっと動いています。データが消える心配はありません。</div>
+                    </div>
+                </div>
+                <div class="hero-point-card">
+                    <span class="hero-point-icon">🤝</span>
+                    <div>
+                        <div class="hero-point-title">迷ったらすぐ事務長へ</div>
+                        <div class="hero-point-desc">アイコンが見つからなくても心配いりません。遠慮なく事務長にお声がけください。その場ですぐに設定を実施します！</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── ステップ1: ブラウザを探して開く ── -->
+        <section class="step-section">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title-wrap">
+                    <h2>インターネットの画面（ブラウザ）を開いてみよう</h2>
+                    <p>画面の一番下（タスクバー）か、机の画面（デスクトップ）に以下のマークがありますか？</p>
+                </div>
+            </div>
+
+            <p style="font-size: 15px; color: var(--slate-700); margin-bottom: 14px;">
+                当院のパソコンには、以下のいずれかの「インターネットを開くソフト（ブラウザ）」が入っています。<br>
+                <strong>画面の一番下にある黒っぽい帯（タスクバー）</strong>または<strong>デスクトップ（起動した時の画面）</strong>から、下のマークのどれかを探して<strong>1回（デスクトップなら2回トントンと）クリック</strong>してください。
+            </p>
+
+            <div class="browser-grid">
+                <!-- Chrome -->
+                <div class="browser-card">
+                    <div class="browser-icon-box">
+                        <img src="assets/icon_chrome.svg" alt="Google Chrome" class="browser-icon-img">
+                    </div>
+                    <div class="browser-name">Google Chrome</div>
+                    <div class="browser-desc">赤・黄・緑の丸いマーク<br>（院内の大半のPCに搭載）</div>
+                </div>
+
+                <!-- Edge -->
+                <div class="browser-card">
+                    <div class="browser-icon-box">
+                        <img src="assets/icon_edge.svg" alt="Microsoft Edge" class="browser-icon-img">
+                    </div>
+                    <div class="browser-name">Microsoft Edge</div>
+                    <div class="browser-desc">青と緑の波・渦巻きマーク<br>（BML検査端末等に搭載）</div>
+                </div>
+
+                <!-- Firefox -->
+                <div class="browser-card">
+                    <div class="browser-icon-box">
+                        <img src="assets/icon_firefox.svg" alt="Firefox" class="browser-icon-img">
+                    </div>
+                    <div class="browser-name">Firefox</div>
+                    <div class="browser-desc">キツネが地球を抱くマーク<br>（Windows 7機等に搭載）</div>
+                </div>
+
+                <!-- Supermium -->
+                <div class="browser-card">
+                    <div class="browser-icon-box">
+                        <img src="assets/icon_supermium.png" alt="Supermium" class="browser-icon-img">
+                    </div>
+                    <div class="browser-name">Supermium</div>
+                    <div class="browser-desc">中央に地球儀、緑・青・白の丸いマーク<br>（Windows 7機等に搭載）</div>
+                </div>
+            </div>
+
+            <!-- あなたのPCのヒント -->
+            <div class="hint-box">
+                <div class="hint-box-title">
+                    <span>💡</span> あなたが使っているパソコンのヒント
+                </div>
+                <ul class="hint-list">
+                    <li><strong>古いパソコン（Windows 7）：</strong>「Supermium（スーパミアム）」または「Firefox」が入っていることが多いです。</li>
+                    <li><strong>検査会社（BML）のシステムが入っている端末：</strong>「Edge（エッジ）」をお使いください。</li>
+                    <li><strong>その他の一般的なパソコン：</strong>ほぼすべて「Google Chrome（クローム）」が使えます。</li>
+                </ul>
+            </div>
+
+            <!-- 事務長コールボックス -->
+            <div class="call-boss-card">
+                <div class="call-boss-icon">🚨</div>
+                <div class="call-boss-body">
+                    <h4>【画面下にもデスクトップにも上のマークがない場合】</h4>
+                    <p>
+                        <strong>絶対に悩まなくて大丈夫です！すぐに事務長までお声がけください。</strong><br>
+                        パソコンにアイコンを1個配置するだけの作業ですので、事務長が1分で使えるよう設定を実施します。「内視鏡予約用のブラウザを出してほしい」とお伝えください。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── ステップ2: ブックマークから内視鏡予約を開く ── -->
+        <section class="step-section">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title-wrap">
+                    <h2>画面の上の「お気に入り（ブックマーク）」を押してみよう</h2>
+                    <p>ブラウザが開いたら、上部の一覧から「院内ポータル」または「内視鏡予約」をクリックします</p>
+                </div>
+            </div>
+
+            <p style="font-size: 15px; color: var(--slate-700); margin-bottom: 14px;">
+                ブラウザが開くと、画面の上（URLアドレスが出る枠のすぐ下）に、下のような<strong>ボタンの一覧（ブックマークバー）</strong>が並んでいます。
+            </p>
+
+            <div class="bookmark-mockup-wrap">
+                <img src="assets/img_bookmark_bar.jpg?v=20261006_2" alt="ブックマークバーの実物見本（院内ポータル・内視鏡予約システム）">
+                <div class="bookmark-caption">▲ 実際の画面上部に出るブックマークバーの見本</div>
+            </div>
+
+            <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 18px 20px; margin: 18px 0;">
+                <h4 style="color: #166534; font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span>👉</span> どちらか1つをクリックするだけで予約画面が開きます！
+                </h4>
+                <ul style="padding-left: 20px; color: #14532d; font-size: 14px; line-height: 1.8;">
+                    <li><strong>「🌐 🔬 内視鏡予約シス...」</strong> ➔ ここを1回カチッと押せば、すぐに内視鏡予約の画面が開きます！</li>
+                    <li><strong>「🩺 院内ポータル」</strong> ➔ 当院のポータルメニュー（http://192.168.1.16/index.html）が開きます。そこにある「内視鏡予約」を押してもOKです。</li>
+                    <li><strong>「🌐 🗓️ 月間カレンダービュ...」</strong> ➔ 1ヶ月の予約一覧カレンダーを直接開きたいときはここを押します。</li>
+                    <li style="color: #475569; font-size: 13px;">※「RS_Base」や「ヒヤリハット管理システム」などの他の院内システムもこの並びにあります。</li>
+                </ul>
+            </div>
+
+            <!-- ブックマークがない場合の事務長コール -->
+            <div class="call-boss-card">
+                <div class="call-boss-icon">🚨</div>
+                <div class="call-boss-body">
+                    <h4>【この帯（ブックマークバー）が見当たらない・文字がない場合】</h4>
+                    <p>
+                        <strong>この場合も、お使いの端末にまだ登録されていないだけですので、即・事務長までお知らせください。</strong><br>
+                        「内視鏡予約のブックマークを出してほしい」とお伝えいただければ、事務長が直ちにブラウザへ登録・表示設定を実施します。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── ステップ3: 電子カルテ（MALL3）との切り替え操作 ── -->
+        <section class="step-section">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title-wrap">
+                    <h2>電子カルテ（MALL3）と予約画面を行ったり来たりするコツ</h2>
+                    <p>カルテを閉じる必要は一切ありません！画面下のアイコンを1回カチッと押すだけです</p>
+                </div>
+            </div>
+
+            <p style="font-size: 15px; color: var(--slate-700); margin-bottom: 14px;">
+                当院の電子カルテ（MALL3）は、パソコンを起動したときに自動で立ち上がり、<strong>常に裏で安全に動き続けています</strong>。<br>
+                「カルテを開き直す」必要も「終了する」必要もありません。<strong>画面の一番下にある帯（タスクバー）</strong>を使って、行きたい画面のアイコンを1回カチッと押すだけで、パッと目の前に切り替わります。
+            </p>
+
+            <!-- タスクバー切り替え図解 -->
+            <div class="taskbar-diagram">
+                <div class="taskbar-label">
+                    <span>🖥️</span> 画面の一番下（タスクバー）のアイコンを見る
+                </div>
+                <div class="taskbar-icons">
+                    <div class="taskbar-item active">
+                        <span class="taskbar-item-icon">📋</span>
+                        <div>
+                            <div>電子カルテ（MALL3）</div>
+                            <div class="taskbar-item-desc">押すとカルテが手前に出る</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 20px; color: #94a3b8;">⇄</div>
+                    <div class="taskbar-item active">
+                        <span class="taskbar-item-icon">🌐</span>
+                        <div>
+                            <div>予約画面（ブラウザ）</div>
+                            <div class="taskbar-item-desc">押すと予約画面が手前に出る</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 超重要！パニック防止特効薬 -->
+            <div class="panic-cure-card">
+                <div class="dont-minimize-tag">⚠️ 超重要！トラブルを未然に防ぐお約束</div>
+                <div class="panic-cure-header">
+                    <span>🚨</span>
+                    <h3>「最小化ボタン（─）」は押さなくて大丈夫です！</h3>
+                </div>
+                <div class="panic-cure-body">
+                    画面の右上にある「最小化（マイナス記号 ─）」を押してしまうと、画面が画面下のバーの中にシュッと吸い込まれて消えてしまい、<strong>「カルテが消えた！」「どこか行っちゃった！」</strong>と大慌てになってしまいがちです。<br><br>
+                    <strong>【安心のポイント】</strong><br>
+                    最小化を押さなくても、<strong>画面下のタスクバーのアイコンを押すだけで、見たい画面が勝手に一番手前に飛び出してきます！</strong>
+                </div>
+            </div>
+
+            <div style="background: #fefce8; border: 1.5px solid #fde047; border-radius: 12px; padding: 18px 20px; margin: 18px 0;">
+                <h4 style="color: #854d0e; font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span>💡</span> もし「カルテが消えた！？」と思ったらこうしてください
+                </h4>
+                <p style="color: #713f12; font-size: 14px; line-height: 1.8;">
+                    カルテのデータは絶対に消えていません！予約画面の後ろに隠れているだけです。<br>
+                    <strong>慌てずに、画面の一番下にある「カルテ（MALL3）」のアイコンを1回カチッと押してください。</strong>一瞬で元のカルテ画面が目の前に戻ってきます。
+                </p>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-top: 14px;">
+                <div style="font-weight: 700; font-size: 14px; color: var(--slate-700); margin-bottom: 4px;">
+                    ⌨️ 【少し慣れてきた方向けのワンポイント技】
+                </div>
+                <div style="font-size: 13px; color: var(--slate-600); line-height: 1.6;">
+                    キーボードの左下にある <strong>[Alt] キーを押したまま</strong>、<strong>[Tab] キーを1回トンと押す</strong>と、カルテとブラウザが一瞬で交互に切り替わります。マウスを持たずに素早く切り替えたいときに便利です（無理に使わなくてもマウスだけで全く問題ありません！）。
+                </div>
+            </div>
+        </section>
+
+        <!-- ── ステップ4: 困ったときの「事務長対応」早見表 ── -->
+        <section class="step-section">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title-wrap">
+                    <h2>困ったときの「事務長対応」早見表</h2>
+                    <p>このような症状が出たときは、無理に悩まず事務長へお知らせください。事務長が直接対応・設定を実施します</p>
+                </div>
+            </div>
+
+            <table class="trouble-table">
+                <thead>
+                    <tr>
+                        <th>困ったこと（今の状態）</th>
+                        <th>対処法 ＆ 事務長が実施すること</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>画面の下にも机の上にもブラウザのマークがない</strong></td>
+                        <td>
+                            <span class="badge-boss">事務長が実施</span>
+                            「インターネットのアイコンを出してほしい」とお伝えください。事務長がタスクバーやデスクトップへショートカットの配備を実施します。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>ブラウザを開いたけれど、画面の上のブックマークにお気に入り（内視鏡予約やポータル）がない</strong></td>
+                        <td>
+                            <span class="badge-boss">事務長が実施</span>
+                            「内視鏡予約のブックマークを出してほしい」とお伝えください。事務長がブラウザのお気に入りバーへ登録設定を実施します。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>操作している途中で画面が真っ白になった / 英語のメッセージが出た</strong></td>
+                        <td>
+                            キーボードの一番上にある <strong>[F5] キー</strong> を1回押してください（画面が再読み込みされます）。それでも直らなければ ➔
+                            <span class="badge-boss">事務長が対応</span>「予約画面がエラーで固まった」とお知らせください。事務長が現場へ伺い、原因調査と復旧を実施します。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>カルテと予約画面の切り替えがどうしても分からなくなった</strong></td>
+                        <td>
+                            画面の一番下の帯（タスクバー）にあるアイコンを落ち着いてクリックしてください。それでも切り替わらなければ、遠慮なく事務長をお呼びください。事務長が一緒に画面を見て操作をサポートします。
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ── フッターアクション ── -->
+        <div class="footer-action-panel">
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--slate-800); margin-bottom: 6px;">
+                基本操作の準備はできましたか？
+            </h3>
+            <p style="font-size: 14px; color: var(--slate-600);">
+                実際の予約画面を開いて操作してみましょう。詳しい機能や使い方を知りたいときは総合マニュアルをご覧ください。
+            </p>
+            <div class="footer-buttons">
+                <button class="big-btn big-btn-blue" onclick="window.print();">
+                    <span>🖨️</span> この説明書をA4印刷する
+                </button>
+                <a href="index.php" class="big-btn big-btn-blue" style="background: #059669;">
+                    <span>🏥</span> 内視鏡予約システムを開く
+                </a>
+                <a href="help.php" class="big-btn big-btn-outline">
+                    <span>📖</span> 総合操作マニュアルを見る
+                </a>
+            </div>
+            <p style="font-size: 12px; color: var(--slate-400); margin-top: 18px;">
+                &copy; 2026 医療法人小野会 内視鏡予約管理システム
+            </p>
+        </div>
+
+    </main>
+
+</body>
+</html>

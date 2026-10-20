@@ -37,18 +37,101 @@ function getProdHtdocsBase() {
 }
 define('PROD_HTDOCS', getProdHtdocsBase());
 
-// 除外ディレクトリ
+// ── 除外ルール管理エンジン (Ver 2.2) ──
+define('EXCLUDE_CONFIG_PATH', __DIR__ . '/exclude_rules.json');
 $exclude_dirs = [
     '.git', '.agents', '.gemini', 'node_modules', 'vendor', 
     'scratch', 'bak', 'ip_bak', 'gitshare', 'deploy_manager'
 ];
 
-// 除外ファイル拡張子・パターン
-function isExcludedFile($filename) {
-    if (preg_match('/(\.bak|\.tmp|\.log|test_.*\.js|scratch_.*\.js|Thumbs\.db|desktop\.ini)$/i', $filename)) {
-        return true;
+$default_global_rules = [
+    '.git/**', '.agents/**', '.gemini/**', 'node_modules/**', 'vendor/**',
+    'scratch/**', 'bak/**', 'ip_bak/**', 'gitshare/**', 'deploy_manager/**',
+    '*.bak*', '*.tmp', '*.log', '*.code-workspace', 'test_*.js', 'scratch_*.js',
+    'Thumbs.db', 'desktop.ini'
+];
+
+function loadExcludeConfig() {
+    global $default_global_rules;
+    if (file_exists(EXCLUDE_CONFIG_PATH)) {
+        $raw = file_get_contents(EXCLUDE_CONFIG_PATH);
+        $data = json_decode($raw, true);
+        if (is_array($data)) {
+            if (!isset($data['global']) || !is_array($data['global'])) $data['global'] = $default_global_rules;
+            if (!isset($data['systems']) || !is_array($data['systems'])) $data['systems'] = [];
+            return $data;
+        }
+    }
+    $def = ['global' => $default_global_rules, 'systems' => []];
+    saveExcludeConfig($def);
+    return $def;
+}
+
+function saveExcludeConfig($data) {
+    return file_put_contents(EXCLUDE_CONFIG_PATH, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+}
+
+function testSingleRule($normalizedRel, $filename, $rule) {
+    if (!is_string($rule) || trim($rule) === '') return false;
+    $r = trim(str_replace('\\', '/', $rule));
+    $r = ltrim($r, '/');
+    if ($r === '') return false;
+
+    $normLower = strtolower($normalizedRel);
+    $fileLower = strtolower($filename);
+    $ruleLower = strtolower($r);
+
+    if ($normLower === $ruleLower || $fileLower === $ruleLower) return true;
+
+    // ディレクトリプレフィックス (cache/**, uploads/*, temp/)
+    if (substr($r, -3) === '/**' || substr($r, -2) === '/*' || substr($r, -1) === '/') {
+        $prefix = preg_replace('/(\/\*\*|\/\*|\/)$/', '', $r) . '/';
+        $prefixLower = strtolower($prefix);
+        if (strpos($normLower, $prefixLower) === 0 || $normLower === rtrim($prefixLower, '/')) {
+            return true;
+        }
+    }
+
+    // ワイルドカード
+    if (strpos($r, '*') !== false || strpos($r, '?') !== false) {
+        if (strpos($r, '/') !== false) {
+            $regex = '/^' . str_replace(['\*\*', '\*', '\?'], ['.*', '[^\/]*', '.'], preg_quote($r, '/')) . '$/i';
+            if (@preg_match($regex, $normalizedRel)) return true;
+        } else {
+            $regex = '/^' . str_replace(['\*', '\?'], ['.*', '.'], preg_quote($r, '/')) . '$/i';
+            if (@preg_match($regex, $filename)) return true;
+        }
     }
     return false;
+}
+
+function checkFileExclusion($relPath, $system, $config = null) {
+    global $default_global_rules;
+    $cfg = $config ?: loadExcludeConfig();
+    $normalized = ltrim(str_replace('\\', '/', $relPath), '/');
+    $filename = basename($normalized);
+
+    // システム個別
+    $sysRules = $cfg['systems'][$system] ?? [];
+    if (is_array($sysRules)) {
+        foreach ($sysRules as $rule) {
+            if (testSingleRule($normalized, $filename, $rule)) {
+                return ['isExcluded' => true, 'rule' => $rule, 'scope' => 'system'];
+            }
+        }
+    }
+
+    // 全システム共通
+    $globalRules = $cfg['global'] ?? $default_global_rules;
+    if (is_array($globalRules)) {
+        foreach ($globalRules as $rule) {
+            if (testSingleRule($normalized, $filename, $rule)) {
+                return ['isExcluded' => true, 'rule' => $rule, 'scope' => 'global'];
+            }
+        }
+    }
+
+    return ['isExcluded' => false, 'rule' => null, 'scope' => null];
 }
 
 $action = $_REQUEST['action'] ?? '';
@@ -68,6 +151,17 @@ if ($action === 'test_exec') {
 // ── 3. システム一覧取得 ──
 if ($action === 'list_systems') {
     $systems = [];
+
+    // ルート (htdocs 直下の index.php 等) を「_portal」として先頭に追加
+    $systems[] = [
+        'name' => '_portal',
+        'displayName' => '🏠 ポータル (htdocs/index.php)',
+        'local_path' => LOCAL_HTDOCS,
+        'prod_path' => PROD_HTDOCS,
+        'prod_exists' => is_dir(PROD_HTDOCS),
+        'isRoot' => true
+    ];
+
     $dirs = scandir(LOCAL_HTDOCS);
     foreach ($dirs as $d) {
         if ($d === '.' || $d === '..') continue;
@@ -80,16 +174,18 @@ if ($action === 'list_systems') {
             
             $systems[] = [
                 'name' => $d,
+                'displayName' => $d,
                 'local_path' => $local_path,
                 'prod_path' => $prod_path,
-                'prod_exists' => $prod_exists
+                'prod_exists' => $prod_exists,
+                'isRoot' => false
             ];
         }
     }
     
     // 表示順（主要システムを先頭に）
     usort($systems, function($a, $b) {
-        $priority = ['endoscope' => 1, 'op' => 2, 'karteview' => 3, 'hiyarihat' => 4, 'yotei' => 5];
+        $priority = ['_portal' => 0, 'endoscope' => 1, 'op' => 2, 'karteview' => 3, 'hiyarihat' => 4, 'yotei' => 5];
         $pA = $priority[$a['name']] ?? 99;
         $pB = $priority[$b['name']] ?? 99;
         if ($pA !== $pB) return $pA - $pB;
@@ -112,8 +208,9 @@ if ($action === 'scan_diff') {
         exit;
     }
 
-    $local_base = rtrim(LOCAL_HTDOCS . $system, '/') . '/';
-    $prod_base = rtrim(PROD_HTDOCS . $system, '/') . '/';
+    $is_root = ($system === '_portal');
+    $local_base = $is_root ? LOCAL_HTDOCS : (rtrim(LOCAL_HTDOCS . $system, '/') . '/');
+    $prod_base = $is_root ? PROD_HTDOCS : (rtrim(PROD_HTDOCS . $system, '/') . '/');
 
     if (!is_dir($local_base)) {
         echo json_encode(['success' => false, 'message' => 'ローカルシステムが見つかりません: ' . $system], JSON_UNESCAPED_UNICODE);
@@ -122,54 +219,86 @@ if ($action === 'scan_diff') {
 
     $prod_exists = is_dir($prod_base);
 
-    // 再帰的にローカルファイル収集
+    // ローカルファイル収集
+    $excludeConfig = loadExcludeConfig();
     $local_files = [];
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($local_base, RecursiveDirectoryIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::SELF_FIRST
-    );
-
-    foreach ($iterator as $item) {
-        $rel_path = str_replace('\\', '/', substr($item->getPathname(), strlen($local_base)));
-        
-        // ディレクトリ除外チェック
-        $parts = explode('/', $rel_path);
-        $skip = false;
-        foreach ($parts as $p) {
-            if (in_array($p, $exclude_dirs, true)) {
-                $skip = true;
-                break;
+    if ($is_root) {
+        $root_items = scandir($local_base);
+        foreach ($root_items as $item_name) {
+            if ($item_name === '.' || $item_name === '..') continue;
+            $full = $local_base . $item_name;
+            if (is_file($full)) {
+                $local_files[$item_name] = [
+                    'size' => filesize($full),
+                    'mtime' => filemtime($full)
+                ];
             }
         }
-        if ($skip) continue;
+    } else {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($local_base, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
 
-        if ($item->isFile()) {
-            if (isExcludedFile($item->getFilename())) continue;
+        foreach ($iterator as $item) {
+            $rel_path = str_replace('\\', '/', substr($item->getPathname(), strlen($local_base)));
             
-            $local_files[$rel_path] = [
-                'size' => $item->getSize(),
-                'mtime' => $item->getMTime()
-            ];
+            // ディレクトリ除外チェック
+            $parts = explode('/', $rel_path);
+            $skip = false;
+            foreach ($parts as $p) {
+                if (in_array($p, $exclude_dirs, true)) {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) continue;
+
+            if ($item->isFile()) {
+                $local_files[$rel_path] = [
+                    'size' => $item->getSize(),
+                    'mtime' => $item->getMTime()
+                ];
+            }
         }
     }
 
     // 本番ファイルとの比較
     $diff_list = [];
-    $stats = ['new' => 0, 'modified' => 0, 'same' => 0];
+    $stats = ['new' => 0, 'modified' => 0, 'same' => 0, 'excluded' => 0];
 
     foreach ($local_files as $rel => $info) {
         $prod_file = $prod_base . $rel;
+        $chk = checkFileExclusion($rel, $system, $excludeConfig);
         
         if (!file_exists($prod_file)) {
-            $diff_list[] = [
-                'path' => $rel,
-                'status' => 'NEW',
-                'local_size' => $info['size'],
-                'local_mtime' => date('Y-m-d H:i:s', $info['mtime']),
-                'prod_size' => null,
-                'prod_mtime' => null
-            ];
-            $stats['new']++;
+            if ($chk['isExcluded']) {
+                $stats['excluded']++;
+                $diff_list[] = [
+                    'path' => $rel,
+                    'status' => 'NEW',
+                    'local_size' => $info['size'],
+                    'local_mtime' => date('Y-m-d H:i:s', $info['mtime']),
+                    'prod_size' => null,
+                    'prod_mtime' => null,
+                    'isExcluded' => true,
+                    'excludeRule' => $chk['rule'],
+                    'excludeScope' => $chk['scope']
+                ];
+            } else {
+                $stats['new']++;
+                $diff_list[] = [
+                    'path' => $rel,
+                    'status' => 'NEW',
+                    'local_size' => $info['size'],
+                    'local_mtime' => date('Y-m-d H:i:s', $info['mtime']),
+                    'prod_size' => null,
+                    'prod_mtime' => null,
+                    'isExcluded' => false,
+                    'excludeRule' => null,
+                    'excludeScope' => null
+                ];
+            }
         } else {
             $prod_size = filesize($prod_file);
             $prod_mtime = filemtime($prod_file);
@@ -178,23 +307,44 @@ if ($action === 'scan_diff') {
             $is_diff = ($prod_size !== $info['size']) || (abs($info['mtime'] - $prod_mtime) > 2);
             
             if ($is_diff) {
-                $diff_list[] = [
-                    'path' => $rel,
-                    'status' => 'MODIFIED',
-                    'local_size' => $info['size'],
-                    'local_mtime' => date('Y-m-d H:i:s', $info['mtime']),
-                    'prod_size' => $prod_size,
-                    'prod_mtime' => date('Y-m-d H:i:s', $prod_mtime)
-                ];
-                $stats['modified']++;
+                if ($chk['isExcluded']) {
+                    $stats['excluded']++;
+                    $diff_list[] = [
+                        'path' => $rel,
+                        'status' => 'MODIFIED',
+                        'local_size' => $info['size'],
+                        'local_mtime' => date('Y-m-d H:i:s', $info['mtime']),
+                        'prod_size' => $prod_size,
+                        'prod_mtime' => date('Y-m-d H:i:s', $prod_mtime),
+                        'isExcluded' => true,
+                        'excludeRule' => $chk['rule'],
+                        'excludeScope' => $chk['scope']
+                    ];
+                } else {
+                    $stats['modified']++;
+                    $diff_list[] = [
+                        'path' => $rel,
+                        'status' => 'MODIFIED',
+                        'local_size' => $info['size'],
+                        'local_mtime' => date('Y-m-d H:i:s', $info['mtime']),
+                        'prod_size' => $prod_size,
+                        'prod_mtime' => date('Y-m-d H:i:s', $prod_mtime),
+                        'isExcluded' => false,
+                        'excludeRule' => null,
+                        'excludeScope' => null
+                    ];
+                }
             } else {
                 $stats['same']++;
             }
         }
     }
 
-    // ソート: MODIFIED, NEWの順、パス昇順
+    // ソート: 有効ファイル -> 除外ファイル、MODIFIED, NEWの順、パス昇順
     usort($diff_list, function($a, $b) {
+        if ($a['isExcluded'] !== $b['isExcluded']) {
+            return $a['isExcluded'] ? 1 : -1;
+        }
         $p = ['MODIFIED' => 1, 'NEW' => 2];
         $stA = $p[$a['status']] ?? 9;
         $stB = $p[$b['status']] ?? 9;
@@ -209,8 +359,108 @@ if ($action === 'scan_diff') {
         'stats' => $stats,
         'total_local_files' => count($local_files),
         'diff_count' => count($diff_list),
+        'active_diff_count' => $stats['new'] + $stats['modified'],
+        'excluded_count' => $stats['excluded'],
         'diffs' => $diff_list
     ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ── 4-B. 除外ルール取得 ──
+if ($action === 'get_exclude_rules') {
+    $system = trim($_REQUEST['system'] ?? '_portal');
+    $cfg = loadExcludeConfig();
+    $sysRules = $cfg['systems'][$system] ?? [];
+    $globalRules = $cfg['global'] ?? $default_global_rules;
+
+    echo json_encode([
+        'success' => true,
+        'system' => $system,
+        'systemRules' => $sysRules,
+        'globalRules' => $globalRules
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ── 4-C. 除外ルール一括保存 ──
+if ($action === 'save_exclude_rules') {
+    $system = trim($_POST['system'] ?? '');
+    $cfg = loadExcludeConfig();
+
+    if (isset($_POST['globalRules'])) {
+        $g = is_array($_POST['globalRules']) ? $_POST['globalRules'] : json_decode($_POST['globalRules'], true);
+        if (is_array($g)) $cfg['global'] = array_values(array_filter(array_map('trim', $g)));
+    }
+    if ($system && isset($_POST['systemRules'])) {
+        $s = is_array($_POST['systemRules']) ? $_POST['systemRules'] : json_decode($_POST['systemRules'], true);
+        if (is_array($s)) {
+            if (!isset($cfg['systems'])) $cfg['systems'] = [];
+            $cfg['systems'][$system] = array_values(array_filter(array_map('trim', $s)));
+        }
+    }
+
+    saveExcludeConfig($cfg);
+    echo json_encode(['success' => true, 'message' => '除外ルールを更新・保持しました'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ── 4-D. 除外ルール単一追加 ──
+if ($action === 'add_exclude_rule') {
+    $system = trim($_POST['system'] ?? '');
+    $rule = trim($_POST['rule'] ?? '');
+    $scope = trim($_POST['scope'] ?? 'system');
+
+    if (!$rule) {
+        echo json_encode(['success' => false, 'message' => '除外ルールが指定されていません'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $cfg = loadExcludeConfig();
+    if ($scope === 'global') {
+        if (!in_array($rule, $cfg['global'], true)) {
+            $cfg['global'][] = $rule;
+        }
+    } else {
+        if (!$system) {
+            echo json_encode(['success' => false, 'message' => '対象システム名が指定されていません'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        if (!isset($cfg['systems'][$system])) $cfg['systems'][$system] = [];
+        if (!in_array($rule, $cfg['systems'][$system], true)) {
+            $cfg['systems'][$system][] = $rule;
+        }
+    }
+
+    saveExcludeConfig($cfg);
+    echo json_encode(['success' => true, 'message' => "除外ルール「{$rule}」を登録しました"], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ── 4-E. 除外ルール単一削除 ──
+if ($action === 'remove_exclude_rule') {
+    $system = trim($_POST['system'] ?? '');
+    $rule = trim($_POST['rule'] ?? '');
+    $scope = trim($_POST['scope'] ?? 'system');
+
+    $cfg = loadExcludeConfig();
+    $removed = false;
+
+    if ($scope === 'global') {
+        $idx = array_search($rule, $cfg['global'], true);
+        if ($idx !== false) {
+            array_splice($cfg['global'], $idx, 1);
+            $removed = true;
+        }
+    } elseif ($system && isset($cfg['systems'][$system])) {
+        $idx = array_search($rule, $cfg['systems'][$system], true);
+        if ($idx !== false) {
+            array_splice($cfg['systems'][$system], $idx, 1);
+            $removed = true;
+        }
+    }
+
+    saveExcludeConfig($cfg);
+    echo json_encode(['success' => true, 'removed' => $removed, 'message' => "除外ルール「{$rule}」を解除しました"], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -227,8 +477,27 @@ if ($action === 'deploy') {
         exit;
     }
 
-    $local_base = rtrim(LOCAL_HTDOCS . $system, '/') . '/';
-    $prod_base = rtrim(PROD_HTDOCS . $system, '/') . '/';
+    // ── 除外ファイル強制ブロック防壁 ──
+    $excludeConfig = loadExcludeConfig();
+    $blocked = [];
+    foreach ($files as $rel) {
+        $chk = checkFileExclusion($rel, $system, $excludeConfig);
+        if ($chk['isExcluded']) {
+            $blocked[] = "{$rel} (除外ルール: {$chk['rule']})";
+        }
+    }
+    if (!empty($blocked)) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => "除外ルールに登録されているファイルが含まれているためデプロイを中断しました:\n" . implode("\n", $blocked)
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $is_root = ($system === '_portal');
+    $local_base = $is_root ? LOCAL_HTDOCS : (rtrim(LOCAL_HTDOCS . $system, '/') . '/');
+    $prod_base = $is_root ? PROD_HTDOCS : (rtrim(PROD_HTDOCS . $system, '/') . '/');
 
     if (!is_dir(PROD_HTDOCS)) {
         echo json_encode(['success' => false, 'message' => '本番サーバー（192.168.1.16）にアクセスできません'], JSON_UNESCAPED_UNICODE);
@@ -370,7 +639,8 @@ if ($action === 'rollback') {
         exit;
     }
 
-    $prod_base = rtrim(PROD_HTDOCS . $system, '/') . '/';
+    $is_root = ($system === '_portal');
+    $prod_base = $is_root ? PROD_HTDOCS : (rtrim(PROD_HTDOCS . $system, '/') . '/');
     if (!is_dir(PROD_HTDOCS)) {
         echo json_encode(['success' => false, 'message' => '本番サーバーにアクセスできません'], JSON_UNESCAPED_UNICODE);
         exit;

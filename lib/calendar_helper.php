@@ -2,10 +2,112 @@
 /**
  * lib/calendar_helper.php - カレンダー関連関数（高速化版）
  * 修正: 2026-08-28（枠数0かつ予約あり時の異常値検知・残数-1等の赤枠強調対応）
+ * 修正: 2026-10-09（医師予定表連携: yotei APIより休診・不在予定を取得し日付セル左端列に🙅🏼コンパクトバッジ表示）
  */
 
 require_once __DIR__ . '/slot_helper.php';
 require_once __DIR__ . '/patient_helper.php';
+
+if (!function_exists('fetchDoctorEventsFromYotei')) {
+    /**
+     * 医師予定表 API (GET /yotei/api/events.php) より予定一覧を取得
+     */
+    function fetchDoctorEventsFromYotei(string $startDate, string $endDate): array {
+        $url = "http://127.0.0.1/yotei/api/events.php?start_date=" . urlencode($startDate) . "&end_date=" . urlencode($endDate) . "&expand_period=1";
+        
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+            $res = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($httpCode === 200 && $res) {
+                $json = json_decode($res, true);
+                if (isset($json['status']) && $json['status'] === 'success' && !empty($json['data']) && is_array($json['data'])) {
+                    return $json['data'];
+                }
+            }
+        } else {
+            $ctx = stream_context_create([
+                'http' => ['timeout' => 2]
+            ]);
+            $res = @file_get_contents($url, false, $ctx);
+            if ($res) {
+                $json = json_decode($res, true);
+                if (isset($json['status']) && $json['status'] === 'success' && !empty($json['data']) && is_array($json['data'])) {
+                    return $json['data'];
+                }
+            }
+        }
+        return [];
+    }
+}
+
+if (!function_exists('formatDoctorEventSummary')) {
+    /**
+     * 医師予定をカレンダー用のコンパクト表示形式（🙅🏼医師名 概要）に整形
+     */
+    function formatDoctorEventSummary(array $ev): array {
+        $docShort = $ev['doctor']['short_name'] ?? $ev['doctor']['name'] ?? '医師';
+        $rawTitle = trim((string)($ev['title'] ?? ''));
+        
+        // タイトルから医師名や役職を除去して概要を抽出
+        $clean = $rawTitle;
+        $clean = preg_replace('/^(小野|矢野)?[二三雄誠吾義智哲也太郎]+(医師|院長|副院長)?\s*/u', '', $clean);
+        $clean = preg_replace('/(医師|院長|副院長)/u', '', $clean);
+        
+        // 長い説明文（全角スペースやカンマ以降の注記など）をカット
+        $parts = preg_split('/[\s　、,]/u', $clean);
+        $summary = $parts[0] ?? $clean;
+        
+        // 代表的な短縮ルール
+        $summary = preg_replace('/[：:]00以降不在/u', '時~不在', $summary);
+        $summary = preg_replace('/以降不在/u', '~不在', $summary);
+        $summary = preg_replace('/午前休診/u', '午前休', $summary);
+        $summary = preg_replace('/午後休診/u', '午後休', $summary);
+        if (mb_strpos($summary, '休診') !== false && mb_strlen($summary) > 6) {
+            $summary = str_replace(['休診', '～'], ['休', '~'], $summary);
+        }
+        
+        // 時間帯情報
+        $timeStr = '';
+        if (!empty($ev['start_time']) && !empty($ev['end_time'])) {
+            $timeStr = substr($ev['start_time'], 0, 5) . '~' . substr($ev['end_time'], 0, 5);
+        } elseif (!empty($ev['start_time'])) {
+            $timeStr = substr($ev['start_time'], 0, 5) . '~';
+        }
+
+        // 表示用ラベル: 🙅🏼 + 医師略称 + 概要
+        $label = "🙅🏼{$docShort} {$summary}";
+        if (mb_strlen($label) > 13) {
+            $label = mb_substr($label, 0, 12) . '…';
+        }
+
+        // ホバー用詳細テキスト (title属性)
+        $tooltip = "【医師予定】{$ev['doctor']['name']}";
+        if (!empty($ev['doctor']['department_name'])) {
+            $tooltip .= " ({$ev['doctor']['department_name']})";
+        }
+        $tooltip .= "\n予定: {$rawTitle}";
+        if ($timeStr !== '') {
+            $tooltip .= "\n時間: {$timeStr}";
+        }
+        if (!empty($ev['note'])) {
+            $tooltip .= "\n備考: {$ev['note']}";
+        }
+
+        return [
+            'doc_name' => $ev['doctor']['name'] ?? '',
+            'doc_short' => $docShort,
+            'label' => $label,
+            'tooltip' => $tooltip,
+            'time' => $timeStr,
+            'raw_title' => $rawTitle
+        ];
+    }
+}
 
 /**
  * インメモリ枠数判定（SQL発行ゼロ）
@@ -199,6 +301,32 @@ function renderDateCellFast(string $date_str, string $dept, int $w, array $docto
         echo "</td>";
         return;
     }
+
+    // 医師予定バッジ（yotei連携: 医院休診日は非表示、セル崩れを防ぐため最大2件＋超過時は件数バッジ）
+    if (!$is_closed && !empty($master_cache['doctor_events'][$date_str])) {
+        $day_events = $master_cache['doctor_events'][$date_str];
+        echo "<div class='cal-doctor-events'>";
+        $max_display = 2;
+        $displayed_count = 0;
+        foreach ($day_events as $ev_item) {
+            if ($displayed_count < $max_display) {
+                $label = htmlspecialchars($ev_item['label'], ENT_QUOTES, 'UTF-8');
+                $tooltip = htmlspecialchars($ev_item['tooltip'], ENT_QUOTES, 'UTF-8');
+                echo "<span class='cal-doctor-event-badge' title='{$tooltip}'>{$label}</span>";
+                $displayed_count++;
+            }
+        }
+        if (count($day_events) > $max_display) {
+            $rest = count($day_events) - $max_display;
+            $all_tooltips = [];
+            foreach ($day_events as $ev_item) {
+                $all_tooltips[] = $ev_item['tooltip'];
+            }
+            $more_tooltip = htmlspecialchars(implode("\n---\n", $all_tooltips), ENT_QUOTES, 'UTF-8');
+            echo "<span class='cal-doctor-event-badge more' title='{$more_tooltip}'>他{$rest}件</span>";
+        }
+        echo "</div>";
+    }
     
     if (!empty($day_data['doctors'])) {
         echo "<div style='font-size:9px; line-height:1.4; text-align:left; padding-left:2px; margin-top:2px;'>";
@@ -280,4 +408,86 @@ function renderDateCellFast(string $date_str, string $dept, int $w, array $docto
     }
     
     echo "</td>";
+}
+
+if (!function_exists('getDailyCfCounts')) {
+    /**
+     * 指定日の大腸内視鏡（CF）検査件数を診療科別（胃腸科 / 肛門科）および種別内訳（TCF / W / ポリペク）で集計
+     * 部屋・下剤一括設定ボタンのホバーサマリ用
+     * 
+     * @param PDO $pdo
+     * @param string $targetDate YYYY-MM-DD
+     * @return array
+     */
+    function getDailyCfCounts(PDO $pdo, string $targetDate): array {
+        $result = [
+            'target_date' => $targetDate,
+            'total_cf' => 0,
+            'gastro' => [
+                'total' => 0,
+                'tcf' => 0,
+                'w' => 0,
+                'polypep' => 0,
+            ],
+            'proct' => [
+                'total' => 0,
+                'tcf' => 0,
+                'w' => 0,
+                'polypep' => 0,
+            ],
+        ];
+
+        if (empty($targetDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $targetDate)) {
+            return $result;
+        }
+
+        $sql = "
+            SELECT department_code, exam_type, COUNT(*) as cnt
+            FROM t_endoscopy_schedule
+            WHERE exam_date = :target_date
+              AND (is_canceled IS FALSE OR is_canceled IS NULL)
+              AND patient_id IS NOT NULL 
+              AND patient_id <> ''
+              AND patient_name NOT LIKE '%🚫%'
+              AND (
+                  exam_type IN ('TCF', 'W', 'ポリペク')
+                  OR exam_type LIKE '%TCF%'
+                  OR exam_type LIKE '%ポリペク%'
+              )
+            GROUP BY department_code, exam_type
+        ";
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':target_date' => $targetDate]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($rows as $row) {
+                $dept = strtoupper(trim((string)($row['department_code'] ?? '')));
+                $etype = trim((string)($row['exam_type'] ?? ''));
+                $cnt = (int)$row['cnt'];
+
+                // 診療科の判定（GASTRO: 胃腸科, PROCT: 肛門科）
+                $targetDeptKey = ($dept === 'GASTRO') ? 'gastro' : (($dept === 'PROCT') ? 'proct' : null);
+                if (!$targetDeptKey) continue;
+
+                if ($etype === 'TCF' || strpos($etype, 'TCF') !== false) {
+                    $result[$targetDeptKey]['tcf'] += $cnt;
+                    $result[$targetDeptKey]['total'] += $cnt;
+                    $result['total_cf'] += $cnt;
+                } elseif ($etype === 'W') {
+                    $result[$targetDeptKey]['w'] += $cnt;
+                    $result[$targetDeptKey]['total'] += $cnt;
+                    $result['total_cf'] += $cnt;
+                } elseif ($etype === 'ポリペク' || strpos($etype, 'ポリペク') !== false) {
+                    $result[$targetDeptKey]['polypep'] += $cnt;
+                    $result[$targetDeptKey]['total'] += $cnt;
+                    $result['total_cf'] += $cnt;
+                }
+            }
+        } catch (Exception $e) {
+            // エラー時は初期値を安全に返却
+        }
+
+        return $result;
+    }
 }

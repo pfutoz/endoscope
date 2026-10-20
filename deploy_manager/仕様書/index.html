@@ -523,7 +523,7 @@
                 </p>
             </div>
             <div class="header-badges">
-                <span class="meta-pill">バージョン 2.1.0 安定版</span>
+                <span class="meta-pill">バージョン 2.2.0 安定版 (除外ルール管理エンジン搭載)</span>
                 <span class="meta-pill">ステータス: 稼働・安定運用中</span>
                 <button type="button" class="btn-print" onclick="window.print()">🖨️ 仕様書を印刷 / PDF保存</button>
             </div>
@@ -555,6 +555,7 @@
                         <li><a href="#section-5-2">5.2 事前ZIPバックアップ機構</a></li>
                         <li><a href="#section-5-3">5.3 安全配布（コピー）処理</a></li>
                         <li><a href="#section-5-4">5.4 ワンクリック・ロールバック</a></li>
+                        <li><a href="#section-5-5">5.5 除外ルール管理エンジン（誤アップ防止）</a></li>
                     </ul>
                 </li>
                 <li class="toc-item"><a href="#section-6">6. 自動常駐・プロセス管理機構</a></li>
@@ -562,6 +563,7 @@
                 <li class="toc-item"><a href="#section-8">8. セキュリティ・整合性設計</a></li>
                 <li class="toc-item"><a href="#section-9">9. 環境自己診断 ＆ トラブルシューティング</a></li>
                 <li class="toc-item"><a href="#section-10">10. 付録・設定定数一覧</a></li>
+                <li class="toc-item"><a href="#section-11">11. 改訂履歴 (Changelog)</a></li>
             </ul>
         </aside>
 
@@ -739,6 +741,11 @@
                                 <td><code>diagnostics.js</code> をワンクリックで実行し、画面上で接続要件を即座に確認するツール。</td>
                             </tr>
                             <tr>
+                                <td><strong><code>exclude_rules.json</code></strong></td>
+                                <td>設定ファイル (JSON)</td>
+                                <td><strong>【Ver 2.2 新規】</strong> システム共通および各システム固有の除外ルール定義ファイル。差分スキャン時の一致判定および本番デプロイ時の誤アップロード防止フィルターとして永続保持。</td>
+                            </tr>
+                            <tr>
                                 <td><strong><code>api.php</code></strong></td>
                                 <td>PHP (参照・保守用)</td>
                                 <td>初期開発時のプロトタイプ兼、Apache環境からのローカル診断用エンドポイント。</td>
@@ -822,6 +829,34 @@ execSync(`powershell -NoProfile -Command "${psCmd}"`);</code></pre>
                 <p>
                     PowerShellの <code>Expand-Archive -Force</code> オプションにより、該当のZIPに格納されている確定状態のファイル群が本番サーバー（<code>T:\&lt;system&gt;\</code>）へ一括で直接上書き展開され、数秒で元の安全な状態に巻き戻されます。
                 </p>
+
+                <h3 id="section-5-5">5.5 除外ルール管理エンジン（誤アップロード・動作不良防止） 【Ver 2.2 新機能】</h3>
+                <p>
+                    不要な作業ファイルや未検証の新規ファイルを誤って本番サーバーへアップロードし、システム停止や動作不良を引き起こすリスクを根本から防ぐため、高度な除外ルール管理エンジンを実装しています。
+                </p>
+
+                <h4>二層構造のルール保持アーキテクチャ</h4>
+                <ul>
+                    <li><strong>全体共通ルール (Global Rules):</strong> 全個別システム共通で適用される基本保護（<code>.git/**</code>, <code>node_modules/**</code>, <code>*.bak*</code>, <code>*.tmp</code>, <code>*.log</code>, <code>Thumbs.db</code> 等）。</li>
+                    <li><strong>システム個別ルール (System Rules):</strong> システム毎に特化した除外ルール（例: <code>endoscope</code> システム専用のテストスクリプトや一時設定など）。</li>
+                </ul>
+
+                <h4>Glob ワイルドカード判定ロジック</h4>
+                <p>
+                    <code>server.js</code> および <code>api.php</code> の双方に同一の高速正規表現変換エンジンを搭載。以下のような柔軟なパターンマッチングをサポートします：
+                </p>
+                <ul>
+                    <li><code>filename.ext</code> : 完全一致判定</li>
+                    <li><code>*.tmp</code>, <code>*.bak*</code> : 拡張子・部分ワイルドカード判定</li>
+                    <li><code>dir/**</code> : 指定ディレクトリ配下の全再帰ファイル除外</li>
+                </ul>
+
+                <h4>多重安全ガード（GUI ＆ サーバーAPI双方でのブロック）</h4>
+                <ol>
+                    <li><strong>差分スキャンでの自動隔離:</strong> 除外対象ファイルはスキャン時に <code>status: 'EXCLUDED'</code> として分類され、デフォルトでは差分一覧に表示されません（「👁️ 除外ファイルを表示」で確認可能）。</li>
+                    <li><strong>一括選択からの完全除外:</strong> 「全選択」チェックボックスを押下しても、除外行はチェックボックス自体が無効化されており選択されません。</li>
+                    <li><strong>サーバーデプロイAPIでの強制遮断:</strong> 万が一クライアントから除外ファイルのアップロード要求が送信された場合でも、<code>server.js</code> のデプロイ実行ループ内で除外ルール判定を行い、該当ファイルを強制スキップします。</li>
+                </ol>
             </section>
 
             <!-- 6. 自動常駐・プロセス管理機構 -->
@@ -909,6 +944,18 @@ execSync(`powershell -NoProfile -Command "${psCmd}"`);</code></pre>
                                 <td><span class="badge badge-post">POST</span></td>
                                 <td><code>{ system, zipFilename }</code> (JSON)</td>
                                 <td><strong>ロールバック復元:</strong> 指定された過去のZIPファイルをPowerShell経由で本番ディレクトリへ上書き展開し、元のコードベースへ復元。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/exclude-rules</code></td>
+                                <td><span class="badge badge-get">GET</span></td>
+                                <td><code>system</code> (string)</td>
+                                <td><strong>除外ルール取得:</strong> 指定システムに適用される全体共通ルールおよびシステム個別ルールの一覧をJSON形式で返却。</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/exclude-rules</code></td>
+                                <td><span class="badge badge-post">POST</span></td>
+                                <td><code>{ system, action, rule, scope }</code> (JSON)</td>
+                                <td><strong>除外ルール追加・削除:</strong> 共通（global）または個別（system）ルールへ指定パターンを即時登録・削除し、<code>exclude_rules.json</code> に永続保存。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1031,7 +1078,62 @@ execSync(`powershell -NoProfile -Command "${psCmd}"`);</code></pre>
                 <div style="margin-top: 30px; padding: 16px; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--slate-600);">
                     <strong>文書管理情報:</strong><br>
                     初版作成: 2026年10月02日 / 作成者: 医療法人小野会 情報システム開発室 (Pair Programming via Antigravity Agent)<br>
-                    最終レビュー: 2026年10月02日 / レビュー結果: 実機安定稼働確認済み・承認完了
+                    最終改訂: 2026年10月19日 (Ver 2.2.0 除外管理エンジン追加) / レビュー結果: 実機動作検証完了・承認
+                </div>
+            </section>
+
+            <!-- 11. 改訂履歴 (Changelog) -->
+            <section class="section" id="section-11">
+                <h2><span class="section-num">11</span> 改訂履歴 (Changelog)</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">バージョン</th>
+                                <th style="width: 140px;">改訂年月日</th>
+                                <th style="width: 200px;">変更区分</th>
+                                <th>主な改訂内容・詳細</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="background:#f5f3ff;">
+                                <td><strong style="color:#6d28d9;">Ver 2.2.0</strong></td>
+                                <td>2026年10月19日</td>
+                                <td><span class="badge" style="background:#8b5cf6; color:#fff;">機能追加 / 安全強化</span></td>
+                                <td>
+                                    <strong>除外ルール管理エンジン・誤アップロード防止機能の正式実装:</strong><br>
+                                    ・新設定ファイル <code>exclude_rules.json</code> による全体共通・システム個別ルールの二層永続化。<br>
+                                    ・Globワイルドカード（<code>*</code>, <code>**</code>）による高速パス判定エンジン（Node.js / PHP双方に同等実装）。<br>
+                                    ・差分画面への「🚫 除外」ステータス、除外件数バッジ、表示切替ボタン、ワンクリック除外モーダルの追加。<br>
+                                    ・「⚙️ 除外ルール統合管理」モーダルによるルールの直接登録・削除・復元機能。<br>
+                                    ・本番デプロイAPI（<code>/api/deploy</code>）における多重安全ガード（除外対象の強制スキップ機構）。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ver 2.1.0</strong></td>
+                                <td>2026年10月07日</td>
+                                <td><span class="badge" style="background:#0284c7; color:#fff;">機能追加</span></td>
+                                <td>
+                                    <strong>本番サーバー総合ヘルスモニター統合:</strong><br>
+                                    ・Apacheポート80への即時Ping応答速度計測（ms）。<br>
+                                    ・SSD/HDDのSMART健康診断（故障予兆・SSD消耗度・読取エラー監視）。<br>
+                                    ・C:ドライブ空き容量・使用率プログレスバー表示。<br>
+                                    ・サーバー側定期収集タスク（<code>server_agent/</code>）との連携機能。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ver 2.0.0</strong></td>
+                                <td>2026年10月02日</td>
+                                <td><span class="badge" style="background:#16a34a; color:#fff;">メジャー改修</span></td>
+                                <td>
+                                    <strong>Node.js Local Safe Engine 初版リリース:</strong><br>
+                                    ・Windows サービス（SYSTEM権限）のSMB認証制約を克服する一般ユーザー常駐デーモン方式の確立。<br>
+                                    ・事前ZIPバックアップ全自動化、ミリ秒精度タイムスタンプ同期、ワンクリック・ロールバックの実装。<br>
+                                    ・WebコンソールSPA（<code>index.html</code>）の刷新。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 

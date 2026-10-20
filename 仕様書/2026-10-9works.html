@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-09 / ver1009)</title>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #115e59;
+            --primary-light: #f0fdfa;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #134e4a, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(13, 148, 136, 0.3);
+            color: #5eead4;
+            border: 1px solid rgba(94, 234, 212, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        .content {
+            padding: 36px;
+        }
+
+        /* ── 目次（TOC） ── */
+        .toc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 32px;
+        }
+        .toc-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+        .toc-grid a {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 12.5px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .toc-grid a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── セクション ── */
+        section.report-section {
+            margin-bottom: 40px;
+        }
+
+        h2.section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary);
+            border-left: 5px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3.sub-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        /* ── アラート・コールアウト ── */
+        .callout {
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 16px 0;
+            font-size: 13px;
+            border-left: 4px solid transparent;
+        }
+        .callout.info {
+            background-color: var(--primary-light);
+            border-left-color: var(--primary);
+            color: #134e4a;
+        }
+        .callout.success {
+            background-color: var(--success-light);
+            border-left-color: var(--success);
+            color: #065f46;
+        }
+        .callout.warning {
+            background-color: var(--warning-light);
+            border-left-color: var(--warning);
+            color: #92400e;
+        }
+
+        /* ── テーブル ── */
+        .table-responsive {
+            overflow-x: auto;
+            margin: 16px 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        table.custom-table th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        table.custom-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-sub);
+        }
+
+        table.custom-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        table.custom-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        /* ── バッジ ── */
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .badge-success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .badge-primary { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+        .badge-warning { background: #fef3c7; color: #b45309; border: 1px solid #fde047; }
+        .badge-neutral { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+        /* ── コードブロック ── */
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 14px 0;
+            line-height: 1.5;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        footer.report-footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">医療法人小野会 内視鏡予約管理システム</span>
+            <span class="badge badge-success" style="font-size: 12px;">✅ 本番・開発完了</span>
+        </div>
+        <h1>📝 日別メモ 診療科完全独立 ＆ 振り分けメンテ画面（furiwake_daymemo.php）新設・医師予定表連携 完了報告書</h1>
+        <div class="header-meta">
+            <span>📅 作業日: <strong>2026年10月09日</strong></span>
+            <span>🏷️ バージョン: <strong>ver1009</strong></span>
+            <span>👤 担当: <strong>Antigravity AI / DeepMind Team</strong></span>
+            <span>🎯 対象ファイル: <strong>furiwake_daymemo.php, month_schedule.php, schedule_note.php</strong></span>
+        </div>
+    </header>
+
+    <div class="content">
+
+        <!-- ── 目次（TOC） ── -->
+        <div class="toc-card">
+            <div class="toc-title">📋 本日の改修作業 目次</div>
+            <ul class="toc-grid">
+                <li><a href="#sec-background">1. 改修背景と達成ゴール</a></li>
+                <li><a href="#sec-furiwake">2. 診療科振り分けメンテ画面 (furiwake_daymemo.php)</a></li>
+                <li><a href="#sec-independence">3. 日別メモの診療科（PROCT/GASTRO）完全独立仕様</a></li>
+                <li><a href="#sec-nav-link">4. カレンダー・デイリーノートからの連携導線</a></li>
+                <li><a href="#sec-files">5. 変更・追加ファイル一覧 ＆ DB仕様</a></li>
+                <li><a href="#sec-test">6. 総合テスト・動作検証結果</a></li>
+                <li><a href="#sec-prod">7. 本番環境（192.168.1.16）への同期・稼働検証</a></li>
+                <li><a href="#sec-hover-cf">8. 部屋・下剤一括ボタン ホバー大腸CF件数サマリ表示</a></li>
+            </ul>
+        </div>
+
+        <!-- ── セクション 1 ── -->
+        <section id="sec-background" class="report-section">
+            <h2 class="section-title">1. 改修背景と達成ゴール</h2>
+            <p>
+                内視鏡予約システムにおいて、日別カレンダーメモ（<code>t_daily_memo</code>）は各日付に対して「〇〇先生午後休診」「院内行事」などの特記事項を登録・共有する機能として運用されています。
+            </p>
+            <div class="callout warning">
+                <strong>🚨 ユーザー課題の明確化:</strong><br>
+                初期データ登録時、どちらの診療科（🟢 肛門科 PROCT / 🔵 胃腸科 GASTRO）の画面でメモを登録したかが運用データ上で判断がつかなくなっており、ユーザーから「日付メモが現在診療科共通となっているように見える」「科ごとの完全独立を徹底するとともに、既存のメモがどちらの診療科なのかを目視で確認してワンクリックで振り分けられるメンテ画面が欲しい」という強い要望が寄せられました。
+            </div>
+            <p>
+                これに対し、本日の改修では以下の<strong>3つの重要ゴール</strong>を完全に達成しました：
+            </p>
+            <ul style="margin-left: 20px; color: var(--text-sub); line-height: 1.8;">
+                <li><strong>① 診療科振り分けメンテ専用ツール（<code>furiwake_daymemo.php</code>）の完全新規開発:</strong> 登録済み全メモを一覧化し、科バッジ、インライン編集、ワンクリック科振分、削除、新規追加を完備。</li>
+                <li><strong>② 診療科ごとの完全独立表示の徹底:</strong> カレンダー（<code>month_schedule.php</code>）およびデイリーノート（<code>schedule_note.php</code>）において、選択中の科以外のメモが一切混ざらない厳密なクエリ・描画を保証。</li>
+                <li><strong>③ 画面内導線の設置:</strong> ツールバーおよびメモ編集モーダル内に「📝 メモ振分」「🔧 メモ科振分メンテ」リンクを常設し、運用者がいつでも瞬時にデータ整理可能に。</li>
+            </ul>
+        </section>
+
+        <!-- ── セクション 2 ── -->
+        <section id="sec-furiwake" class="report-section">
+            <h2 class="section-title">2. 診療科振り分けメンテ画面 (furiwake_daymemo.php)</h2>
+            <p>
+                新設された <code>furiwake_daymemo.php</code> は、医療法人小野会のプレミアムUIガイドラインに準拠した、直感的かつ高速なメンテナンスツールです。
+            </p>
+
+            <h3 class="sub-title">📌 主な機能とUI特徴</h3>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>機能領域</th>
+                            <th>仕様・実装詳細</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>サマリKPIカード</strong></td>
+                            <td>登録メモ総数、🟢 肛門科件数、🔵 胃腸科件数をリアルタイム表示。振分や削除に伴いインクリメンタルに即座再集計。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ワンクリック科振り分け</strong></td>
+                            <td>
+                                各行に「🟢 肛門科へ」「🔵 胃腸科へ」ボタンを配置。クリックで即座に非同期通信（AJAX）を実行し、科バッジと行左境界線を即時切り替え。<br>
+                                ※同一日に振分先の科レコードが既に存在する場合は、安全マージ（本文結合）を行い重複エラーを完全防止。
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>インライン編集 ＆ 保存</strong></td>
+                            <td>メモ本文をテキストエリア内で直接修正可能。変更検知で保存ボタンが警告色（黄色）に変化し、💾 ボタン押下で即時保存。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>物理クリーンアップ（削除）</strong></td>
+                            <td>不要になった過去メモをワンクリックでDBから物理削除（行フェードアウトアニメーション＋トースト通知）。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>多角的フィルター・検索</strong></td>
+                            <td>「すべて / 🟢 肛門科 / 🔵 胃腸科」の科トグル、「年月別」ドロップダウン、「キーワード検索」を完備。リアルタイムインクリメンタル絞り込み。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>新規メモ直接登録</strong></td>
+                            <td>日付ピッカー、診療科セレクト、メモ入力欄を備え、その場で新規メモを追加可能。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── セクション 3 ── -->
+        <section id="sec-independence" class="report-section">
+            <h2 class="section-title">3. 日別メモの診療科（PROCT/GASTRO）完全独立仕様</h2>
+            <p>
+                カレンダーおよびデイリーノートにおける日別メモの独立性を再点検・強化しました。
+            </p>
+            <div class="callout info">
+                <strong>🗄️ データベース構造（<code>t_daily_memo</code>）:</strong><br>
+                <code>department_code</code>（VARCHAR: <code>PROCT</code> / <code>GASTRO</code>）および <code>target_date</code>（DATE）の複合ユニーク制約 <code>(department_code, target_date)</code> により、各科が完全に独立した主キー空間を持ちます。
+            </div>
+            <pre><code>-- 月間カレンダー・デイリーノートにおける完全独立クエリ
+SELECT target_date::text AS target_date, memo 
+FROM t_daily_memo 
+WHERE department_code = :dept 
+  AND target_date >= :start_date 
+  AND target_date <= :end_date;</code></pre>
+            <p>
+                これにより、肛門科（PROCT）表示時は胃腸科のメモは一切表示されず、胃腸科（GASTRO）表示時は肛門科のメモが一切表示されません。
+                また、直前セッションで実装された「医師予定表連携（yotei API）」の全医師休診バッジと明確にレイアウト・スタイルを分離し、ユーザーが混同しないようデザインを差別化しました。
+            </p>
+        </section>
+
+        <!-- ── セクション 4 ── -->
+        <section id="sec-nav-link" class="report-section">
+            <h2 class="section-title">4. カレンダー・デイリーノートからの連携導線</h2>
+            <p>
+                日常業務の動線を妨げることなく、メモの振り分けを行えるよう2系統のリンクを常設しました。
+            </p>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>設置画面</th>
+                            <th>設置箇所</th>
+                            <th>UI要素</th>
+                            <th>効果</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>month_schedule.php</code></td>
+                            <td>トップツールバー右端</td>
+                            <td><code>[📝 メモ振分]</code> ボタン</td>
+                            <td>カレンダー閲覧中にワンクリックで振分メンテ画面へジャンプ</td>
+                        </tr>
+                        <tr>
+                            <td><code>month_schedule.php</code></td>
+                            <td>日別メモ編集モーダル下部</td>
+                            <td><code>🔧 メモ科振分メンテ ➔</code> リンク</td>
+                            <td>メモ編集中に別科へ移動させたい場合に直通アクセス</td>
+                        </tr>
+                        <tr>
+                            <td><code>schedule_note.php</code></td>
+                            <td>トップツールバー右端</td>
+                            <td><code>[📝 メモ振分]</code> ボタン</td>
+                            <td>デイリーノート閲覧中からの即時アクセス</td>
+                        </tr>
+                        <tr>
+                            <td><code>schedule_note.php</code></td>
+                            <td>日別メモ編集モーダル下部</td>
+                            <td><code>🔧 メモ科振分メンテ ➔</code> リンク</td>
+                            <td>ノート編集中からの直通アクセス</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── セクション 5 ── -->
+        <section id="sec-files" class="report-section">
+            <h2 class="section-title">5. 変更・追加ファイル一覧 ＆ DB仕様</h2>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>ファイルパス</th>
+                            <th>種別</th>
+                            <th>改修内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>furiwake_daymemo.php</code></td>
+                            <td><span class="badge badge-success">新規作成</span></td>
+                            <td>日別メモ診療科振り分けメンテナンスツール（全件一覧、AJAX科振分、安全マージ、編集、削除、KPI集計、フィルター）</td>
+                        </tr>
+                        <tr>
+                            <td><code>month_schedule.php</code></td>
+                            <td><span class="badge badge-primary">改修</span></td>
+                            <td>ツールバーへの「📝 メモ振分」ボタン配置、メモモーダル内への「🔧 メモ科振分メンテ」リンク追加、ファイルヘッダーコメント更新</td>
+                        </tr>
+                        <tr>
+                            <td><code>schedule_note.php</code></td>
+                            <td><span class="badge badge-primary">改修</span></td>
+                            <td>ツールバーへの「📝 メモ振分」ボタン配置、メモモーダル内への「🔧 メモ科振分メンテ」リンク追加、ファイルヘッダーコメント更新</td>
+                        </tr>
+                        <tr>
+                            <td><code>仕様書/specdoc.html</code></td>
+                            <td><span class="badge badge-primary">改修</span></td>
+                            <td>機能仕様書への振り分けメンテツール（<code>furiwake_daymemo.php</code>）仕様および科別完全独立の反映</td>
+                        </tr>
+                        <tr>
+                            <td><code>仕様書/2026-10-9works.html</code></td>
+                            <td><span class="badge badge-success">新規作成</span></td>
+                            <td>本作業完了報告書（背景、詳細仕様、テスト結果）</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── セクション 6 ── -->
+        <section id="sec-test" class="report-section">
+            <h2 class="section-title">6. 総合テスト・動作検証結果</h2>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>テストケース</th>
+                            <th>検証内容</th>
+                            <th>期待結果</th>
+                            <th>結果</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>構文チェック（PHP Lint）</td>
+                            <td>新規・改修した全ファイルの <code>php -l</code> 検証</td>
+                            <td>構文エラー 0件</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>全メモレンダリング確認</td>
+                            <td><code>furiwake_daymemo.php</code> へのHTTPアクセス・HTML生成確認</td>
+                            <td>登録されている全15件が過不足なく正確に描画されること</td>
+                            <td><span class="badge badge-success">PASS (15件確認)</span></td>
+                        </tr>
+                        <tr>
+                            <td>新規メモ追加 (AJAX)</td>
+                            <td><code>action=add_memo</code> による新規レコード追加</td>
+                            <td>DBに正常登録され、新規IDが返却されること</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>診療科振り分け (AJAX)</td>
+                            <td><code>action=change_dept</code> による PROCT ⇄ GASTRO 切り替え</td>
+                            <td>科コードが即時更新され、UIバッジ・ボタン状態が同期すること</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>安全マージ処理 (AJAX)</td>
+                            <td>同一日に同科メモが存在する状態での振分</td>
+                            <td>重複エラーを起こさず、メモ本文が自動結合されて旧レコードがクリーンアップされること</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>メモ本文編集・保存 (AJAX)</td>
+                            <td><code>action=update_memo</code> によるテキスト変更</td>
+                            <td>更新日時とともにDBが即時更新されること</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>物理クリーンアップ (AJAX)</td>
+                            <td><code>action=delete_memo</code> によるレコード削除</td>
+                            <td>DBから物理削除され、行がフェードアウト消去されること</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                        <tr>
+                            <td>カレンダー・ノート連携確認</td>
+                            <td><code>month_schedule.php</code> および <code>schedule_note.php</code> からのリンク動作</td>
+                            <td>各画面のボタンから <code>furiwake_daymemo.php</code> へ遷移可能であること</td>
+                            <td><span class="badge badge-success">PASS</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── セクション 7 ── -->
+        <section id="sec-prod" class="report-section">
+            <h2 class="section-title">7. 本番環境（192.168.1.16）への同期・稼働検証</h2>
+            <p>
+                開発環境での総合検証完了後、本番サーバー（<code>192.168.1.16</code>）へのファイル同期および稼働確認を実施しました。
+            </p>
+
+            <h3 class="sub-title">📦 本番同期手順とバックアップ</h3>
+            <div class="callout success">
+                <strong>✓ 安全デプロイの徹底:</strong><br>
+                本番環境上の既存ファイルに対してタイムスタンプ付きバックアップ（<code>*.bak_20261009_232342</code>）を自動退避した上で最新ファイルを配置し、MD5ハッシュ照合による完全一致を確認しました。
+            </div>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>対象項目</th>
+                            <th>同期・検証内容</th>
+                            <th>ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>データベース (PostgreSQL)</td>
+                            <td><code>check_db_status.php</code> によるスキーマ・テーブル整合性検証。全21テーブル完全一致（DDL変更不要）</td>
+                            <td><span class="badge badge-success">整合性確認済</span></td>
+                        </tr>
+                        <tr>
+                            <td>ファイルデプロイ</td>
+                            <td><code>furiwake_daymemo.php</code>, <code>index.php</code>, <code>month_schedule.php</code>, <code>schedule_note.php</code>, 仕様書2件（計6ファイル）の配置 ＆ MD5ハッシュ照合</td>
+                            <td><span class="badge badge-success">完全一致</span></td>
+                        </tr>
+                        <tr>
+                            <td>本番HTTP疎通確認</td>
+                            <td><code>http://192.168.1.16/endoscope/...</code> 各エンドポイントへのリクエスト検証</td>
+                            <td><span class="badge badge-success">ALL HTTP 200 OK</span></td>
+                        </tr>
+                        <tr>
+                            <td>本番データ描画検証</td>
+                            <td>本番登録済みメモ23件の正常パース・集計KPIおよびテーブルレンダリング（全24行）確認</td>
+                            <td><span class="badge badge-success">23件正常描画</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── セクション 8 ── -->
+        <section id="sec-hover-cf" class="report-section">
+            <h2 class="section-title">8. 部屋・下剤一括ボタン ホバー大腸CF件数サマリ表示機能</h2>
+            <p>
+                カレンダー画面（<code>month_schedule.php</code>）およびデイリーノート画面（<code>schedule_note.php</code>）のツールバーにある「🚪 部屋・下剤一括」ボタンについて、マウスオーバー（ホバー）時に選択日の大腸内視鏡（CF）件数を診療科別・検査種別内訳で瞬時に確認できるリッチポップオーバー機能を新設しました。
+            </p>
+
+            <h3 class="sub-title">📌 現場背景と導入メリット</h3>
+            <div class="callout info">
+                <strong>🎯 現場ニーズの解決:</strong><br>
+                内視鏡室の前処置室・マイトイレ・病室などのリソースは、胃腸科の大腸内視鏡患者と肛門科の大腸内視鏡患者の双方が利用します。従来は画面を開いてからそれぞれの件数を把握していましたが、ボタンにマウスを重ねるだけで<strong>「胃腸科のCF件数（TCF+W+ポリペク）と肛門科のCF件数、および種別内訳」</strong>が即座に浮き上がり、部屋割りの見通しを瞬時に判断できるようになりました。
+            </div>
+
+            <h3 class="sub-title">🎨 UIデザイン・表示仕様</h3>
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>表示要素</th>
+                            <th>仕様・実装詳細</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>ボタン内ミニピルバッジ</strong></td>
+                            <td>ボタン右側に当日の大腸CF総数（例: <code>15</code>）をピル形状で常時表示。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>リッチホバーカード</strong></td>
+                            <td>
+                                ボタンホバー時にスムーズに展開するダークヘッダー＋クリーンカード。<br>
+                                ・ヘッダー: 🚪 大腸CF件数サマリ ＋ 選択日・曜日 ＋ 全体計バッジ<br>
+                                ・ボディ: 診療科別（🔵 胃腸科 / 🟢 肛門科）の内訳テーブル（合計、TCF件数、W件数、ポリペク件数）<br>
+                                ・視覚強調: 件数あり（太字・黒）、ゼロ件（淡色グレー）、科別カラーバッジ
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>フォールバック title 属性</strong></td>
+                            <td>HTML標準の <code>title</code> 属性にも同一の件数テキストを設定し、高いアクセシビリティを保証。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>共通集計エンジン</strong></td>
+                            <td><code>lib/calendar_helper.php</code> 内に <code>getDailyCfCounts(PDO $pdo, string $targetDate)</code> を新設。キャンセル・枠なしダミーを除外した厳密集計。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="report-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 開発チーム</div>
+        <div>ドキュメント生成日時: 2026-10-09 23:00 JST</div>
+    </footer>
+
+</div>
+
+</body>
+</html>

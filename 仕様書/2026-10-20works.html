@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-20)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(14, 165, 233, 0.3);
+            color: #7dd3fc;
+            border: 1px solid rgba(125, 211, 252, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        .content {
+            padding: 36px;
+        }
+
+        /* ── 目次（TOC） ── */
+        .toc-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 32px;
+        }
+        .toc-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+        .toc-grid a {
+            color: #0284c7;
+            text-decoration: none;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toc-grid a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── セクション共通 ── */
+        section.report-sec {
+            margin-bottom: 40px;
+        }
+        .sec-head {
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sec-head h2 {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .sec-badge {
+            background: #0284c7;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        /* ── テーブル ── */
+        table.spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin: 14px 0 20px 0;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        table.spec-table th, table.spec-table td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+        table.spec-table th {
+            background: #f1f5f9;
+            font-weight: 800;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+        table.spec-table tr:nth-child(even) td {
+            background-color: #f8fafc;
+        }
+
+        /* ── コードブロック ── */
+        pre.code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 14px 18px;
+            border-radius: 6px;
+            overflow-x: auto;
+            line-height: 1.5;
+            margin: 12px 0 18px 0;
+        }
+
+        /* ── アラート・情報ボックス ── */
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #0284c7;
+            padding: 12px 16px;
+            border-radius: 0 6px 6px 0;
+            margin: 14px 0;
+            font-size: 13px;
+            color: #0369a1;
+        }
+        .success-box {
+            background: #ecfdf5;
+            border-left: 4px solid #10b981;
+            padding: 12px 16px;
+            border-radius: 0 6px 6px 0;
+            margin: 14px 0;
+            font-size: 13px;
+            color: #065f46;
+        }
+
+        .badge-pill {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-pill.success { background: #d1fae5; color: #065f46; }
+        .badge-pill.primary { background: #e0f2fe; color: #0369a1; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">🖨️ 帳票出力・印刷DX改修</span>
+            <div style="font-size:12px; color:#cbd5e1;">医療法人小野会 おの肛門科胃腸科内視鏡クリニック</div>
+        </div>
+        <h1>日別予約一覧印刷 (print_schedule_daily.php) 使い勝手向上・A4縦最適化完了報告書</h1>
+        <div class="header-meta">
+            <span>作業日: <strong>2026年10月20日</strong></span>
+            <span>対象モジュール: <strong>print_schedule_daily.php / help.php / help.html</strong></span>
+            <span>検証ステータス: <strong>本番同期・完全動作検証済</strong></span>
+        </div>
+    </header>
+
+    <div class="content">
+        <!-- 目次 -->
+        <nav class="toc-card">
+            <div class="toc-title">📑 目次・インデックス</div>
+            <ul class="toc-grid">
+                <li><a href="#sec-overview">1. 本日の改修背景と達成ゴール</a></li>
+                <li><a href="#sec-features">2. 実装機能の詳細仕様解説</a></li>
+                <li><a href="#sec-files">3. 修正・追加ファイル一覧</a></li>
+                <li><a href="#sec-test">4. 総合テスト・動作検証結果</a></li>
+                <li><a href="#sec-deploy">5. 本番環境 (192.168.1.16) 同期状況</a></li>
+            </ul>
+        </nav>
+
+        <!-- セクション1 -->
+        <section class="report-sec" id="sec-overview">
+            <div class="sec-head">
+                <span class="sec-badge">Step 1</span>
+                <h2>1. 本日の改修背景と達成ゴール</h2>
+            </div>
+            <p>
+                現場スタッフより、日別予約一覧印刷（<code>print_schedule_daily.php</code>）について「クリップボードやカルテバインダーに挟んで回覧・確認しやすいように <strong>A4縦向き</strong> で出力したい」「エコー・胃カメラと大腸カメラ（CF）で担当スタッフや検査室動線が異なるため、<strong>1ページ目にエコー+GIF、2ページ目にCF</strong> と用紙を分けて印刷したい」「余白を極限まで詰めて1枚に入る行数を最大化したい」「メモ用途や省ページ化のために <strong>備考欄の印刷ON/OFF</strong> を切り替えたい」という強い要望がありました。
+            </p>
+            <div class="info-box">
+                <strong>🎯 本日の達成目標:</strong>
+                <ol style="margin-left: 20px; margin-top: 6px;">
+                    <li><strong>A4縦向き（portrait）への全面刷新:</strong> ページ余白および画面プレビューのA4カードUI最適化。</li>
+                    <li><strong>2ブロック常時改ページ分割:</strong> 1ページ目「エコー・GIF」、2ページ目「CF・大腸内視鏡」への論理的分割と改ページ制御。</li>
+                    <li><strong>左右クリアランス限界圧縮:</strong> 各固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）のパディングを極小化し、患者名や備考の幅を確保。</li>
+                    <li><strong>備考欄の印刷ON/OFFトグル:</strong> 操作バーでの瞬時非表示化（列ごと撤去）および localStorage による設定自動記憶。</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- セクション2 -->
+        <section class="report-sec" id="sec-features">
+            <div class="sec-head">
+                <span class="sec-badge">Step 2</span>
+                <h2>2. 実装機能の詳細仕様解説</h2>
+            </div>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">① A4縦向き（portrait）印刷 ＆ 画面シートプレビュー</h3>
+            <p>
+                印刷CSSを <code>@page { size: A4 portrait; margin: 8mm 6mm; }</code> に変更し、カルテバインダーへの綴じ代も確保。
+                画面プレビュー時はダークグレー背景の上に白紙のA4カードが並び、1ページ目・2ページ目の境界線と印刷仕上がりが一目で直感的に把握できます。
+            </p>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">② エコー+GIF / CF の2ページ自動分割 ＆ 見出しタイトル個別化</h3>
+            <p>
+                データ取得時に検査種別を判定し、<code>$rows_echo_gif</code> と <code>$rows_cf</code> に仕分け。
+                2ページ目の先頭コンテナに <code>break-before: page;</code>（改ページ）を付与することで、常に1ページ目がエコー・GIF、2ページ目がCF（大腸内視鏡）から開始されます。
+            </p>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:18%;">出力ページ</th>
+                        <th style="width:30%;">見出しタイトル</th>
+                        <th style="width:25%;">分類対象検査</th>
+                        <th>運用メリット</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>第1ページ</strong></td>
+                        <td><code>内視鏡予約一覧表（エコー・GIF）［診療科名］</code></td>
+                        <td>ECHO, GIF, 胃がん検診, その他上部検査</td>
+                        <td>午前の胃カメラ・腹部エコー検査室スタッフ専用台帳としてそのまま活用可能</td>
+                    </tr>
+                    <tr>
+                        <td><strong>第2ページ</strong></td>
+                        <td><code>内視鏡予約一覧表（CF・大腸内視鏡）［診療科名］</code></td>
+                        <td>TCF, W, ポリペク, 大腸内視鏡全般</td>
+                        <td>前処置室・大腸カメラ担当看護師・処置室専用台帳として独立管理可能</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">③ 左右クリアランスの極小化（幅と行高さの最適化）</h3>
+            <p>
+                セルのパディングを <code>2.5px 2px</code> に圧縮。
+                固定幅列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）に <code>white-space: nowrap; width: 1%;</code> を適用することで、ブラウザのテーブル計算において文字幅ピッタリにジャストフィットさせました。
+                これにより、余剰幅がすべて「患者名」と「備考」に配分され、A4縦でも窮屈感なく美しく収まります。
+            </p>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">④ 備考欄の印刷 ON / OFF トグル機能</h3>
+            <p>
+                上部の操作バーに <strong>「📝 備考を印刷」</strong> チェックボックス（デフォルトON）を設置。
+                チェックを外すと、JavaScriptにより瞬時に <code>body.hide-remarks</code> が付与され、テーブルの <code>&lt;th&gt;備考&lt;/th&gt;</code> および <code>&lt;td&gt;備考&lt;/td&gt;</code> が完全に非表示（<code>display: none;</code>）となります。
+            </p>
+            <pre class="code-block">
+/* 備考欄OFF時の完全非表示制御 */
+body.hide-remarks .col-remarks {
+    display: none !important;
+}
+
+// 設定状態を localStorage に自動記憶し、次回訪問時も状態維持
+function toggleRemarksColumn(show) {
+    document.body.classList.toggle('hide-remarks', !show);
+    localStorage.setItem('print_schedule_show_remarks', show ? '1' : '0');
+}
+            </pre>
+        </section>
+
+        <!-- セクション3 -->
+        <section class="report-sec" id="sec-files">
+            <div class="sec-head">
+                <span class="sec-badge">Step 3</span>
+                <h2>3. 修正・追加ファイル一覧</h2>
+            </div>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:30%;">ファイルパス</th>
+                        <th style="width:12%;">種別</th>
+                        <th>変更内容・要約</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>print_schedule_daily.php</code></td>
+                        <td><span class="badge-pill primary">主要改修</span></td>
+                        <td>A4縦印刷対応、エコー+GIF/CFの2ブロック分割、左右クリアランス極小化、備考ON/OFFトグル</td>
+                    </tr>
+                    <tr>
+                        <td><code>help.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>セクション16（帳票出力）の機能解説拡充、セクション18（Changelog）に10/20作業履歴カード追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>help.html</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>help.php と同期（帳票出力解説拡充、Changelog 10/20追加）</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/2026-10-20works.html</code></td>
+                        <td><span class="badge-pill success">新規作成</span></td>
+                        <td>本日の作業内容・仕様詳細・テスト検証結果をまとめた完了報告書</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/specdoc.html</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>帳票印刷仕様の更新、改修履歴テーブルに 2026-10-20 を追加</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- セクション4 -->
+        <section class="report-sec" id="sec-test">
+            <div class="sec-head">
+                <span class="sec-badge">Step 4</span>
+                <h2>4. 総合テスト・動作検証結果</h2>
+            </div>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:25%;">テスト項目</th>
+                        <th style="width:40%;">検証内容・確認手順</th>
+                        <th style="width:15%;">結果</th>
+                        <th>備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PHP構文チェック</td>
+                        <td><code>php -l print_schedule_daily.php</code></td>
+                        <td><span class="badge-pill success">OK (パス)</span></td>
+                        <td>No syntax errors detected</td>
+                    </tr>
+                    <tr>
+                        <td>HTTP レスポンス検証</td>
+                        <td><code>curl.exe http://localhost/endoscope/print_schedule_daily.php</code></td>
+                        <td><span class="badge-pill success">OK (200)</span></td>
+                        <td>正常レスポンス確認</td>
+                    </tr>
+                    <tr>
+                        <td>2ページ自動改ページ確認</td>
+                        <td>1ページ目（エコー・GIF）と2ページ目（CF）が分割されていること</td>
+                        <td><span class="badge-pill success">OK</span></td>
+                        <td><code>break-before: page;</code> による改ページ動作確認</td>
+                    </tr>
+                    <tr>
+                        <td>備考ON/OFFトグル動作</td>
+                        <td>チェックOFF時に備考列が消え、患者名幅が広がることを確認</td>
+                        <td><span class="badge-pill success">OK</span></td>
+                        <td>リロード不要で即時反映、localStorage記憶確認</td>
+                    </tr>
+                    <tr>
+                        <td>空データ時の表示制御</td>
+                        <td>該当予約がないグループや片方のみの予約時の動作確認</td>
+                        <td><span class="badge-pill success">OK</span></td>
+                        <td>無駄な白紙改ページが発生しないことを確認</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="success-box">
+                ✓ 全テスト項目において期待通りの正常動作を確認いたしました。
+            </div>
+        </section>
+
+        <!-- セクション5 -->
+        <section class="report-sec" id="sec-deploy">
+            <div class="sec-head">
+                <span class="sec-badge">Step 5</span>
+                <h2>5. 本番環境 (192.168.1.16) 同期状況</h2>
+            </div>
+            <p>
+                本番環境（<code>T:\endoscope</code> / 192.168.1.16）への同期デプロイを実施し、MD5ハッシュ一致による整合性を検証完了。
+            </p>
+        </section>
+    </div>
+</div>
+
+</body>
+</html>

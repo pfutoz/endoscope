@@ -209,7 +209,7 @@ function calculateAge($birthday, $examDate) {
 
     <table class="sheet-table">
         <tr>
-            <th style="width: 12%;">カルテ番号</th>
+            <th style="width: 12%;">患者No</th>
             <td style="width: 23%; font-weight: bold; font-size: 12pt; text-align: center;" class="highlight-yellow">
                 <?= htmlspecialchars($p['patient_id'] ?? '---', ENT_QUOTES, 'UTF-8') ?>
             </td>

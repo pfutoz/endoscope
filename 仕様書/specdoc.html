@@ -369,8 +369,8 @@
         </div>
         <h1 class="main-title">システム機能一覧 ＆ 画面別仕様書</h1>
         <div class="header-meta">
-            <span>対象システム: <strong>内視鏡予約・枠管理システム (Modernized Edition / ver1005)</strong></span>
-            <span>更新日: <strong>2026年10月5日</strong></span>
+            <span>対象システム: <strong>内視鏡予約・枠管理システム (Modernized Edition / ver1009)</strong></span>
+            <span>更新日: <strong>2026年10月9日</strong></span>
             <span>稼働環境: <strong>Windows / Apache 2.4 / PostgreSQL 18.3 / PHP 8.5.9</strong></span>
         </div>
     </header>
@@ -380,9 +380,11 @@
         <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
         <a href="plan.html" style="color: #2563eb; text-decoration: none;">📋 中長期開発計画書 (plan.html)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-5works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-10-5works.html / ver1005)</a>
+        <a href="2026-10-9works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-10-9works.html / ver1009)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-4works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-10-4works.html)</a>
+        <a href="2026-10-5works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-10-5works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="../furiwake_daymemo.php" style="color: #d97706; text-decoration: none;">📝 メモ科振分メンテ (furiwake_daymemo.php)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="../help.php" style="color: #7c3aed; text-decoration: none;">❓ 操作マニュアル (help.php)</a>
         <span style="color: #cbd5e1;">|</span>
@@ -410,6 +412,7 @@
             <li><a href="#cat-medical-alert-onshi">15. 医療安全アラート完全独立ファイル化 ＆ オン資連携強化 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-01新設</span></a></li>
             <li><a href="#cat-ward-admission">16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">ver1004新設</span></a></li>
             <li><a href="#cat-holiday-exception">17. 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-05新設</span></a></li>
+            <li><a href="#cat-daymemo-furiwake">18. 日別メモ診療科完全独立 ＆ 振り分けメンテツール系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-09新設</span></a></li>
         </ul>
     </nav>
 
@@ -702,6 +705,7 @@
                         <li><strong>当日患者の一覧テーブル表示:</strong> 氏名、カルテNO、時間枠、現在の部屋・下剤設定を表示。</li>
                         <li><strong>ドロップダウンによる一括変更:</strong> 各患者の部屋番号（1〜4号室等）と下剤種別を選択。</li>
                         <li><strong>リアルタイム部屋重複アラート:</strong> 同一の部屋番号を複数人に割り当てた際にハイライト警告。</li>
+                        <li><strong>ツールバーボタン ホバー大腸CF件数サマリ:</strong> カレンダー（<code>month_schedule.php</code>）およびデイリーノート（<code>schedule_note.php</code>）の「🚪 部屋・下剤一括」ボタンにマウスオーバーした際、選択日の大腸内視鏡（CF: TCF+W+ポリペク）件数を診療科別（🔵 胃腸科 / 🟢 肛門科）および種別内訳テーブルで即座にフロート表示。前処置室・部屋割りの事前見通しを瞬時に判断可能。</li>
                     </ul>
                 </div>
             </div>
@@ -799,16 +803,18 @@
                         <span class="screen-title">🖨️ 当日予約一覧表 印刷</span>
                         <span class="screen-file">print_schedule_daily.php</span>
                     </div>
-                    <span class="badge badge-neutral">A4横 デイリー帳票</span>
+                    <span class="badge badge-neutral">A4縦 デイリー帳票</span>
                 </div>
                 <div class="screen-body">
-                    <p class="screen-desc">内視鏡室やナースステーションで掲示・共有するための当日予約スケジュール一覧印刷画面です。</p>
+                    <p class="screen-desc">内視鏡室やナースステーションで掲示・共有・バインダー管理するための当日予約スケジュール一覧印刷画面です。</p>
                     <div class="feature-title">📌 主な機能一覧</div>
                     <ul class="feature-list">
-                        <li><strong>A4横向き印刷最適化:</strong> ヘッダー・フッターやページ区切りが美しく収まるクリーンレイアウト。</li>
-                        <li><strong>整列順の制御:</strong> 時間枠順、前処置室順での一覧整列。</li>
-                        <li><strong>患者詳細情報印字:</strong> カルテNO、患者名、生年月日、検査種別、担当医、下剤、部屋、備考の網羅。</li>
-                        <li><strong>種別絞り込み印刷:</strong> GIFのみ、TCFのみ等の印刷対象フィルタリング。</li>
+                        <li><strong>A4縦向き（portrait）印刷最適化:</strong> 余白8mm/6mmのA4縦レイアウト。クリップボード・カルテバインダーに最適化。</li>
+                        <li><strong>エコー+GIF / CF 2ページ自動分割:</strong> 1ページ目をエコー・GIF、2ページ目をCF（大腸内視鏡）に強制改ページ分離。各ページに専用タイトルと見出し繰り返し（thead）を装備。</li>
+                        <li><strong>左右クリアランス限界圧縮:</strong> 各固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）を最小幅・折り返し禁止（nowrap）にし、患者名・備考欄の横幅を確保。</li>
+                        <li><strong>備考欄の印刷 ON / OFF トグル:</strong> 上部操作バーのチェックボックスから列ごと瞬時に非表示化。行高さが劇的に圧縮され省ページ化を実現（localStorageで設定維持）。</li>
+                        <li><strong>整列順の制御:</strong> 時間枠順、部屋番号順（重複時は赤色強調枠警告表示）での一覧整列。</li>
+                        <li><strong>種別絞り込み印刷:</strong> 全種別、GIFのみ、エコーのみ、TCFのみ等の印刷対象フィルタリング。</li>
                     </ul>
                 </div>
             </div>
@@ -1641,7 +1647,62 @@
                     <ul class="feature-list">
                         <li><strong>休診日判定の自動連携:</strong> <code>check_onokai_calendar()</code> を呼び出し、祝日や年末年始などの休診日を自動識別。祝日に通常曜日パターンの枠が誤表示される不良を完全根絶。</li>
                         <li><strong>出勤例外（m2_doctor_attendance）最優先ルール:</strong> 祝日診療等のために出勤例外が登録されている医師については、休診日であっても最優先で検索候補として出力。出勤例外のない他医師の枠は確実に遮断。</li>
-                        <li><strong>事前プリフェッチによる超高速化:</strong> 走査対象期間（本日〜30日後）の出勤例外をあらかじめ1回のクエリで一括取得・メモリマップ化し、判定処理の高速性を維持。</li>
+        <!-- ============================================================
+        18. 日別メモ診療科完全独立 ＆ 振り分けメンテツール系 (2026-10-09新設)
+        ============================================================ -->
+        <section class="spec-section" id="cat-daymemo-furiwake">
+            <h2 class="category-title">18. 日別メモ診療科完全独立 ＆ 振り分けメンテツール系 <span class="badge badge-success" style="font-size:11px;">2026-10-09 新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📝 日別メモ 診療科振り分けメンテナンスツール ＆ 科別完全独立</span>
+                        <span class="screen-file">furiwake_daymemo.php / month_schedule.php / schedule_note.php</span>
+                    </div>
+                    <span class="badge badge-primary">データ整理 ＆ 科別完全独立</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        日別カレンダーメモ（<code>t_daily_memo</code>）の診療科（🟢 肛門科 PROCT / 🔵 胃腸科 GASTRO）ごとの完全独立表示を徹底するとともに、運用データ上でどちらの診療科に属するかわかりにくくなっていた登録済みメモを目視確認してワンクリックで振り分けられる専用メンテナンスツール（<code>furiwake_daymemo.php</code>）を新設しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様詳細</div>
+                    <ul class="feature-list">
+                        <li><strong>全メモ一覧 ＆ リアルタイムKPI集計:</strong> 登録されている全メモの日付・曜日・休診判定・現在の科・本文・更新日時を一覧表示。総件数、肛門科件数、胃腸科件数をリアルタイム集計。</li>
+                        <li><strong>ワンクリック診療科振り分け (AJAX):</strong> 各メモに「🟢 肛門科へ」「🔵 胃腸科へ」の独立ボタングループを配置。クリック即座に科コードを更新し、UIバッジおよびボタンスタイルを切り替え。</li>
+                        <li><strong>衝突安全マージ機能:</strong> 同一日に振分先の科レコードが既に存在する場合、重複エラーを起こさず自動でメモ本文を結合（改行マージ）し、余剰となった元レコードを安全に削除。</li>
+                        <li><strong>インライン編集・保存 ＆ 物理削除:</strong> メモ内容の直接編集および不要メモの物理クリーンアップ（行フェードアウト消去）をサポート。</li>
+                        <li><strong>多角的フィルター・検索:</strong> 診療科別（すべて/肛門科/胃腸科）トグル、年月別ドロップダウン、キーワードリアルタイム検索を完備。</li>
+                        <li><strong>カレンダー・ノートからの直通導線:</strong> <code>month_schedule.php</code>（月間カレンダー）および <code>schedule_note.php</code>（デイリーノート）のトップツールバーに <code>[📝 メモ振分]</code> ボタン、各メモ編集モーダル下部に <code>[🔧 メモ科振分メンテ ➔]</code> 直通リンクを常設。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        19. 日別予約一覧印刷 A4縦最適化 ＆ 2ページ分割 ＆ 備考印刷ON/OFF (2026-10-20改修)
+        ============================================================ -->
+        <section class="spec-section" id="cat-print-daily-renewal">
+            <h2 class="category-title">19. 日別予約一覧印刷 A4縦最適化 ＆ 2ページ分割 ＆ 備考印刷ON/OFF <span class="badge badge-success" style="font-size:11px;">2026-10-20 改修</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🖨️ 日別予約一覧印刷 A4縦最適化 ＆ 検査種別2ブロック自動改ページ</span>
+                        <span class="screen-file">print_schedule_daily.php</span>
+                    </div>
+                    <span class="badge badge-primary">印刷DX ＆ 用紙最適化</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        日別予約一覧印刷（<code>print_schedule_daily.php</code>）を現場運用に合わせてA4縦向きに刷新し、エコー・胃カメラ（1ページ目）と大腸カメラ（2ページ目）の用紙分離、左右パディング極小化、および備考欄の印刷ON/OFF切り替え機能を実装しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様詳細</div>
+                    <ul class="feature-list">
+                        <li><strong>A4縦向き（portrait）印刷 ＆ 画面プレビュー:</strong> <code>@page { size: A4 portrait; margin: 8mm 6mm; }</code> に変更。画面上でもA4用紙カードプレビューを表示。</li>
+                        <li><strong>2ブロック自動改ページ（エコー+GIF / CF）:</strong> 1ページ目を「エコー・GIF」、2ページ目を「CF・大腸内視鏡」に強制改ページ分離。各ページに検査種別タイトル・theadヘッダー繰り返しを完備。</li>
+                        <li><strong>左右クリアランス極小化:</strong> セルパディングを 2.5px 2px に圧縮。固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）を最小幅・折り返し禁止（nowrap）にし、患者名・備考欄の横幅を確保。</li>
+                        <li><strong>備考欄の印刷 ON / OFF トグル:</strong> 上部操作バーのチェックボックスから列ごと瞬時に非表示化。行高さが劇的に圧縮され省ページ化を実現（localStorageで設定維持）。</li>
+                        <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-20works.html</code> に完全仕様と検証記録を収録。</li>
                     </ul>
                 </div>
             </div>

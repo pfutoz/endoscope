@@ -9,6 +9,8 @@
  * 修正履歴:
  *   - 2026-09-28: ver0928 リリース、m2_* マスタ管理連携
  *   - 2026-10-04: ver1004 アップデート、総合操作マニュアル help.php へのリンク正規化
+ *   - 2026-10-09: 日別メモ診療科振り分けメンテナンス (furiwake_daymemo.php) へのリンクカードをマスタ管理セクションに追加
+ *   - 2026-10-16: ヘッダー最左端に院内総合ポータル(../index.php)直行ボタン[🏥]を設置、ヘッダー表示を「医療法人小野会」に簡素化、フッターに総合ポータルリンクを増設
  */
 
 // デバッグ設定ファイルのパス
@@ -115,8 +117,49 @@ $today_dow = $week_ja[(int)date('w')];
         .portal-header-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
+        }
+        /* 院内総合ポータル直行ボタン (共通ヘッダー左端・アイコン専用ボタン) */
+        .btn-global-portal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: var(--radius-md);
+            color: #ffffff;
+            font-size: 14px;
+            text-decoration: none;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+            transition: all var(--transition-fast);
+            user-select: none;
+            line-height: 1;
+        }
+        .btn-global-portal:hover {
+            background: rgba(255, 255, 255, 0.32);
+            border-color: rgba(255, 255, 255, 0.75);
+            color: #ffffff;
+            transform: scale(1.08);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+        }
+        .btn-global-portal:active {
+            transform: scale(0.96);
+        }
+        .btn-global-portal-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+        .portal-breadcrumb-sep {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            font-weight: 300;
+            user-select: none;
+            margin: 0 -2px;
         }
         .portal-header h1 {
             color: #ffffff;
@@ -445,10 +488,40 @@ $today_dow = $week_ja[(int)date('w')];
             text-align: center;
             font-size: 11px;
             color: var(--slate-400);
-            margin-top: 14px;
-            padding-top: 8px;
+            margin-top: 18px;
+            padding-top: 12px;
             border-top: 1px solid var(--slate-200);
-            line-height: 1.4;
+            line-height: 1.5;
+        }
+        .portal-footer-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .portal-footer-link {
+            color: var(--slate-600);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .portal-footer-link:hover {
+            color: var(--primary-700);
+            background: var(--primary-50);
+            text-decoration: none;
+        }
+        .portal-footer-sep {
+            color: var(--slate-300);
+            font-size: 11px;
+            user-select: none;
         }
 
         @media (max-width: 768px) {
@@ -513,15 +586,19 @@ $today_dow = $week_ja[(int)date('w')];
     <!-- ヘッダー (ウルトラスリム) -->
     <header class="portal-header" role="banner">
         <div class="portal-header-left">
+            <a href="../index.php" class="btn-global-portal" title="医療法人小野会 院内総合ポータルへ戻る" aria-label="院内総合ポータルへ戻る">
+                <span class="btn-global-portal-icon" aria-hidden="true">🏥</span>
+            </a>
+            <span class="portal-breadcrumb-sep" aria-hidden="true">›</span>
             <h1>
                 <span aria-hidden="true">🔬</span>
                 <span>内視鏡予約システム</span>
             </h1>
-            <span class="portal-header-sub">医療法人小野会 統合ポータル</span>
+            <span class="portal-header-sub">医療法人小野会</span>
         </div>
         <div class="header-badges">
-            <a href="help.php" class="help-btn" target="_blank" rel="noopener noreferrer" title="操作マニュアルを表示（別ウィンドウ）" aria-label="操作マニュアルを表示">📖</a>
-            <a href="./仕様書/specdoc.html" class="help-btn" target="_blank" rel="noopener noreferrer" title="システム仕様書を表示（別ウィンドウ）" aria-label="仕様書を表示">❓</a>
+            <a href="./仕様書/specdoc.html" class="help-btn" target="_blank" rel="noopener noreferrer" title="操作マニュアルを表示（別ウィンドウ）" aria-label="操作マニュアルを表示">📖</a>
+            <a href="help.php" class="help-btn" target="_blank" rel="noopener noreferrer" title="システム仕様書を表示（別ウィンドウ）" aria-label="仕様書を表示">❓</a>
             <span class="ver-pill" title="システムバージョン">ver1004</span>
             <span class="ip-pill" title="クライアントIPアドレス"><?= htmlspecialchars($client_ip, ENT_QUOTES, 'UTF-8') ?></span>
         </div>
@@ -769,6 +846,26 @@ $today_dow = $week_ja[(int)date('w')];
                         <span aria-hidden="true">➔</span>
                     </div>
                 </a>
+
+                <!-- 日別メモ診療科振り分けメンテ -->
+                <a href="furiwake_daymemo.php" class="menu-card" style="border-color: #fde68a; background: linear-gradient(180deg, #ffffff 0%, #fffbeb 100%);">
+                    <div class="menu-card-header">
+                        <div class="menu-card-title">
+                            <span aria-hidden="true">📝</span>
+                            <h2>日別メモ科振分メンテ</h2>
+                        </div>
+                        <div class="card-header-actions">
+                            <span class="badge badge-warning">メモ整理</span>
+                        </div>
+                    </div>
+                    <div class="menu-card-desc">
+                        日別カレンダーメモ（休診・体制）の確認、肛門科・胃腸科へのワンクリック振り分け・整理。
+                    </div>
+                    <div class="menu-card-footer" style="color: #b45309;">
+                        <span>開く</span>
+                        <span aria-hidden="true">➔</span>
+                    </div>
+                </a>
             </div>
         </section>
 
@@ -776,6 +873,13 @@ $today_dow = $week_ja[(int)date('w')];
 
     <!-- フッター -->
     <footer class="portal-footer" role="contentinfo">
+        <nav class="portal-footer-nav" aria-label="フッターナビゲーション">
+            <a href="../index.php" class="portal-footer-link" title="医療法人小野会 院内総合ポータルへ戻る">🏥 院内総合ポータル</a>
+            <span class="portal-footer-sep" aria-hidden="true">•</span>
+            <a href="./仕様書/specdoc.html" class="portal-footer-link" target="_blank" rel="noopener noreferrer" title="操作マニュアルを表示（別ウィンドウ）">📖 操作マニュアル</a>
+            <span class="portal-footer-sep" aria-hidden="true">•</span>
+            <a href="help.php" class="portal-footer-link" target="_blank" rel="noopener noreferrer" title="システム仕様書を表示（別ウィンドウ）">❓ システム仕様書</a>
+        </nav>
         <p>&copy; 2026 Medical Corporation Onokai. All Rights Reserved.</p>
         <p style="font-size: 11px; color: var(--slate-400); margin-top: 4px;">内視鏡予約システム Modernized Edition</p>
     </footer>

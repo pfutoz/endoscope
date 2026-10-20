@@ -27,6 +27,16 @@
  *   - 【直近空き枠速報フローティング化】画面右下への常時フローティング配置、医師通知欄スタイルのダーク系半透明グラスモフィズム、ドラッグ移動＆24時間位置・開閉状態保持（localStorage）、✕ボタンでのコンパクトピル最小化に対応
  *   - 【本物モーダルダイアログ化】予約登録・編集画面（modal_edit.php）を別ウィンドウではなく、画面内インページモーダル（modal_edit_runner.js）として表示。暗転すりガラスオーバーレイと自動DOM生成で呼び出し元コード肥大化を完全防止
  *   - 【アセット統合・ファイル名正規化】month_schedule2.js と modal_edit_runner.js を assets/js/month_schedule.js へ統合一本化。CSSも assets/css/month_schedule.css に正規化
+ * 
+ * 修正履歴 (2026-10-09):
+ *   - 【医師予定表連携 (yotei API)】/yotei/api/events.php より医師の休診・不在予定を取得し、カレンダーの各日付セル内にコンパクトバッジ（🙅🏼医師名 概要）として表示
+ *   - 【要件準拠】かわらばん情報（memo）や小野会全体会日程は非表示・除外、医師個人の休診・不在予定のみを表示
+ *   - 【UI最適化】ホバー時に正式予定タイトル・時間帯・備考等の詳細ツールチップを展開。医院休診日（日・祝等）は非表示とし、全医師の予定を常時一覧可能に実装
+ * 
+ * 修正履歴 (2026-10-09 夜):
+ *   - 【日別メモ 診療科完全独立 ＆ 振り分けメンテ連携 (furiwake_daymemo.php)】
+ *     - 日別メモの診療科（PROCT/GASTRO）完全独立を徹底
+ *     - ツールバーおよび日別メモ編集モーダル内に振り分けメンテ画面（furiwake_daymemo.php）への直通リンクを新設
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -39,6 +49,7 @@ require_once __DIR__ . '/lib/slot_helper.php';
 require_once __DIR__ . '/lib/patient_helper.php';
 require_once __DIR__ . '/lib/audit_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
+require_once __DIR__ . '/lib/calendar_helper.php';
 require_once __DIR__ . '/calendar_helper_onokai.php';
 
 $pdo = getDbConnection();
@@ -549,6 +560,121 @@ while ($row = $stmt_waku->fetch(PDO::FETCH_ASSOC)) {
     $slot_master_cache['waku_map'][(string)$row['waku_name']] = (string)$row['group_code'];
 }
 
+if (!function_exists('fetchDoctorEventsFromYotei')) {
+/**
+ * 医師予定表 API (GET /yotei/api/events.php) より予定一覧を取得
+ */
+function fetchDoctorEventsFromYotei(string $startDate, string $endDate): array {
+    $url = "http://127.0.0.1/yotei/api/events.php?start_date=" . urlencode($startDate) . "&end_date=" . urlencode($endDate) . "&expand_period=1";
+    
+    if (function_exists('curl_init')) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($httpCode === 200 && $res) {
+            $json = json_decode($res, true);
+            if (isset($json['status']) && $json['status'] === 'success' && !empty($json['data']) && is_array($json['data'])) {
+                return $json['data'];
+            }
+        }
+    } else {
+        $ctx = stream_context_create([
+            'http' => ['timeout' => 2]
+        ]);
+        $res = @file_get_contents($url, false, $ctx);
+        if ($res) {
+            $json = json_decode($res, true);
+            if (isset($json['status']) && $json['status'] === 'success' && !empty($json['data']) && is_array($json['data'])) {
+                return $json['data'];
+            }
+        }
+    }
+    return [];
+}
+}
+
+if (!function_exists('formatDoctorEventSummary')) {
+/**
+ * 医師予定をカレンダー用のコンパクト表示形式（🙅🏼医師名 概要）に整形
+ */
+function formatDoctorEventSummary(array $ev): array {
+    $docShort = $ev['doctor']['short_name'] ?? $ev['doctor']['name'] ?? '医師';
+    $rawTitle = trim((string)($ev['title'] ?? ''));
+    
+    // タイトルから医師名や役職を除去して概要を抽出
+    $clean = $rawTitle;
+    $clean = preg_replace('/^(小野|矢野)?[二三雄誠吾義智哲也太郎]+(医師|院長|副院長)?\s*/u', '', $clean);
+    $clean = preg_replace('/(医師|院長|副院長)/u', '', $clean);
+    
+    // 長い説明文（全角スペースやカンマ以降の注記など）をカット
+    $parts = preg_split('/[\s　、,]/u', $clean);
+    $summary = $parts[0] ?? $clean;
+    
+    // 代表的な短縮ルール
+    $summary = preg_replace('/[：:]00以降不在/u', '時~不在', $summary);
+    $summary = preg_replace('/以降不在/u', '~不在', $summary);
+    $summary = preg_replace('/午前休診/u', '午前休', $summary);
+    $summary = preg_replace('/午後休診/u', '午後休', $summary);
+    if (mb_strpos($summary, '休診') !== false && mb_strlen($summary) > 6) {
+        $summary = str_replace(['休診', '～'], ['休', '~'], $summary);
+    }
+    
+    // 時間帯情報
+    $timeStr = '';
+    if (!empty($ev['start_time']) && !empty($ev['end_time'])) {
+        $timeStr = substr($ev['start_time'], 0, 5) . '~' . substr($ev['end_time'], 0, 5);
+    } elseif (!empty($ev['start_time'])) {
+        $timeStr = substr($ev['start_time'], 0, 5) . '~';
+    }
+
+    // 表示用ラベル: 🙅🏼 + 医師略称 + 概要
+    $label = "🙅🏼{$docShort} {$summary}";
+    if (mb_strlen($label) > 13) {
+        $label = mb_substr($label, 0, 12) . '…';
+    }
+
+    // ホバー用詳細テキスト (title属性)
+    $tooltip = "【医師予定】{$ev['doctor']['name']}";
+    if (!empty($ev['doctor']['department_name'])) {
+        $tooltip .= " ({$ev['doctor']['department_name']})";
+    }
+    $tooltip .= "\n予定: {$rawTitle}";
+    if ($timeStr !== '') {
+        $tooltip .= "\n時間: {$timeStr}";
+    }
+    if (!empty($ev['note'])) {
+        $tooltip .= "\n備考: {$ev['note']}";
+    }
+
+    return [
+        'doc_name' => $ev['doctor']['name'] ?? '',
+        'doc_short' => $docShort,
+        'label' => $label,
+        'tooltip' => $tooltip,
+        'time' => $timeStr,
+        'raw_title' => $rawTitle
+    ];
+}
+}
+
+// 4. 月間医師予定プリフェッチ（yotei連携: かわらばん・全体会除外、医師個人予定のみ抽出）
+$raw_doctor_events = fetchDoctorEventsFromYotei($start_date_month, $end_date_month);
+$month_doctor_events_cache = [];
+foreach ($raw_doctor_events as $ev) {
+    if (empty($ev['doctor']) || empty($ev['doctor']['id'])) continue;
+    $ev_type = $ev['event_type'] ?? '';
+    // かわらばん（memo）や小野会全体会（meeting）は除外
+    if ($ev_type === 'meeting' || $ev_type === 'memo') continue;
+    $d_key = $ev['date'] ?? $ev['start_date'] ?? '';
+    if ($d_key !== '') {
+        $month_doctor_events_cache[$d_key][] = formatDoctorEventSummary($ev);
+    }
+}
+
 function getDoctorBadgeHTML(string $doctor_name): string {
     $name = trim($doctor_name);
     if ($name === '' || $name === '◆未定◆') {
@@ -991,7 +1117,7 @@ if ($sheet_single > 0) {
             </div>
             <table class="sheet-table">
                 <tr>
-                    <th style="width:12%;">カルテ番号</th>
+                    <th style="width:12%;">患者No</th>
                     <td style="width:23%; font-weight:bold; font-size:12pt; text-align:center;" class="highlight-yellow"><?= htmlspecialchars((string)($p['patient_id'] ?? '---'), ENT_QUOTES, 'UTF-8') ?></td>
                     <th style="width:10%;">氏名</th>
                     <td style="width:35%; font-weight:bold; font-size:13pt;" class="highlight-yellow"><?= htmlspecialchars((string)($p['patient_name'] ?? '（氏名未登録）'), ENT_QUOTES, 'UTF-8') ?></td>
@@ -1084,6 +1210,13 @@ if ($is_same_month) {
     }
 }
 
+// 選択日の大腸CF件数（胃腸科・肛門科・TCF/W/ポリペク内訳）を取得（部屋・下剤一括ホバーサマリ用）
+$cf_counts = getDailyCfCounts($pdo, $selected_date);
+$cf_tooltip_plain = "【" . date('n/j', $sel_ts) . $day_of_week_str . " 大腸CF件数】全体: {$cf_counts['total_cf']}件\n"
+    . "・🔵 胃腸科: {$cf_counts['gastro']['total']}件 (TCF: {$cf_counts['gastro']['tcf']}, W: {$cf_counts['gastro']['w']}, ポリペク: {$cf_counts['gastro']['polypep']})\n"
+    . "・🟢 肛門科: {$cf_counts['proct']['total']}件 (TCF: {$cf_counts['proct']['tcf']}, W: {$cf_counts['proct']['w']}, ポリペク: {$cf_counts['proct']['polypep']})\n"
+    . "※クリックで部屋割り・下剤の一括設定画面を開きます";
+
 $room_counts = [];
 foreach ($list_data as $r_item) {
     if (empty($r_item['is_empty'])) {
@@ -1144,7 +1277,9 @@ foreach ($list_data as $r_item) {
             <button type="button" onclick="openMedicalAlertScanModal({date: '<?=$selected_date?>', dept: '<?=$dept?>'})" class="nav-btn nav-btn-alert-scan" title="抗血栓薬・アレルギー・感染症・風邪アラートスキャン">
                 <span>🛡️</span> アラートスキャン
             </button>
-
+            <a href="furiwake_daymemo.php" class="nav-btn" style="background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; font-weight: 700;" title="日別メモの診療科振り分けメンテナンス（データ整理）">
+                <span>📝</span> メモ振分
+            </a>
         </div>
     </div>
 
@@ -1442,6 +1577,32 @@ foreach ($list_data as $r_item) {
                     $exception_title = $has_exception ? ' title="出勤例外設定あり"' : '';
                     echo "<div class='day-number' style='{$day_style}'><span class='{$exception_badge_class}'{$exception_title}>{$day}</span>{$memo_badge_html}</div>";
 
+                    // 医師予定バッジ（yotei連携: 医院休診日は非表示、セル崩れを防ぐため最大2件＋超過時は件数バッジ）
+                    if (!$is_closed && !empty($month_doctor_events_cache[$date_str])) {
+                        $day_events = $month_doctor_events_cache[$date_str];
+                        echo "<div class='cal-doctor-events'>";
+                        $max_display = 2;
+                        $displayed_count = 0;
+                        foreach ($day_events as $ev_item) {
+                            if ($displayed_count < $max_display) {
+                                $label = htmlspecialchars($ev_item['label'], ENT_QUOTES, 'UTF-8');
+                                $tooltip = htmlspecialchars($ev_item['tooltip'], ENT_QUOTES, 'UTF-8');
+                                echo "<span class='cal-doctor-event-badge' title='{$tooltip}'>{$label}</span>";
+                                $displayed_count++;
+                            }
+                        }
+                        if (count($day_events) > $max_display) {
+                            $rest = count($day_events) - $max_display;
+                            $all_tooltips = [];
+                            foreach ($day_events as $ev_item) {
+                                $all_tooltips[] = $ev_item['tooltip'];
+                            }
+                            $more_tooltip = htmlspecialchars(implode("\n---\n", $all_tooltips), ENT_QUOTES, 'UTF-8');
+                            echo "<span class='cal-doctor-event-badge more' title='{$more_tooltip}'>他{$rest}件</span>";
+                        }
+                        echo "</div>";
+                    }
+
                     if ($is_closed) {
                         echo "<div class='day-available avail-closed'>⛔休</div>";
                     } elseif ($has_data) {
@@ -1581,9 +1742,70 @@ foreach ($list_data as $r_item) {
                     <button type="button" id="show_tcf" class="btn-slot-toggle btn-slot-tcf active" onclick="toggleSlotFilterBtn('TCF', this)" title="TCF(大腸)枠の表示切替">TCF</button>
                 </div>
                 
-                <button type="button" onclick="openBulkPrepRoomModal('<?= $dept ?>', '<?= $selected_date ?>')" class="summary-btn-modern" style="background:#0d9488;" title="当日の部屋割り・下剤を一括設定">
-                    🚪 部屋・下剤一括
-                </button>
+                <!-- 部屋・下剤一括設定ボタン（ホバーで胃腸科・肛門科CF件数を表示） -->
+                <div class="bulk-prep-btn-container">
+                    <button type="button" onclick="openBulkPrepRoomModal('<?= $dept ?>', '<?= $selected_date ?>')" class="summary-btn-modern" style="background:#0d9488;" aria-label="当日の部屋割り・下剤を一括設定">
+                        🚪 部屋・下剤一括
+                        <?php if ($cf_counts['total_cf'] > 0): ?>
+                            <span class="cf-mini-pill"><?= $cf_counts['total_cf'] ?></span>
+                        <?php endif; ?>
+                    </button>
+
+                    <!-- ホバーで表示されるリッチカード -->
+                    <div class="cf-hover-card" role="tooltip">
+                        <div class="cf-hover-header">
+                            <div class="cf-hover-title">
+                                <span>🚪 大腸CF件数サマリ</span>
+                                <span class="cf-hover-date"><?= date('n/j', $sel_ts) ?><?= $day_of_week_str ?></span>
+                            </div>
+                            <div class="cf-hover-total-badge">
+                                全体計 <strong class="cf-total-num"><?= $cf_counts['total_cf'] ?></strong> 件
+                            </div>
+                        </div>
+                        
+                        <div class="cf-hover-body">
+                            <table class="cf-hover-table">
+                                <thead>
+                                    <tr>
+                                        <th class="th-dept">診療科</th>
+                                        <th class="th-total">CF合計</th>
+                                        <th class="th-detail">TCF</th>
+                                        <th class="th-detail">W</th>
+                                        <th class="th-detail">ポリペク</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="row-gastro">
+                                        <td class="td-dept">
+                                            <strong>🔵 胃腸科</strong>
+                                        </td>
+                                        <td class="td-total">
+                                            <span class="count-badge count-gastro"><?= $cf_counts['gastro']['total'] ?>件</span>
+                                        </td>
+                                        <td class="td-detail <?= $cf_counts['gastro']['tcf'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['gastro']['tcf'] ?></td>
+                                        <td class="td-detail <?= $cf_counts['gastro']['w'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['gastro']['w'] ?></td>
+                                        <td class="td-detail <?= $cf_counts['gastro']['polypep'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['gastro']['polypep'] ?></td>
+                                    </tr>
+                                    <tr class="row-proct">
+                                        <td class="td-dept">
+                                            <strong>🟢 肛門科</strong>
+                                        </td>
+                                        <td class="td-total">
+                                            <span class="count-badge count-proct"><?= $cf_counts['proct']['total'] ?>件</span>
+                                        </td>
+                                        <td class="td-detail <?= $cf_counts['proct']['tcf'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['proct']['tcf'] ?></td>
+                                        <td class="td-detail <?= $cf_counts['proct']['w'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['proct']['w'] ?></td>
+                                        <td class="td-detail <?= $cf_counts['proct']['polypep'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['proct']['polypep'] ?></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="cf-hover-footer">
+                            <span>※CF対象（TCF+W+ポリペク）の前処置・部屋割</span>
+                            <span style="font-size:10.5px; color:#0f766e; font-weight:700;">クリックで開く ➔</span>
+                        </div>
+                    </div>
+                </div>
 
                 <button type="button" onclick="openSlotSummary('<?= $dept ?>', '<?= $selected_date ?>')" class="summary-btn-modern" title="当日の時間枠と医師供給枠のバランスサマリを別画面で表示">
                     📊 枠・供給サマリ
@@ -1630,7 +1852,7 @@ foreach ($list_data as $r_item) {
                         <th style="width:32px; text-align:center;" title="枠なし設定・復帰">🚫</th>
                         <th style="width:28px; text-align:center;" title="編集・削除">✏️</th>
                         <th style="width:110px;">時間枠</th>
-                        <th style="width:85px; text-align:center;">カルテNO</th>
+                        <th style="width:85px; text-align:center;">患者No</th>
                         <th style="width:190px;">患者名</th>
                         <th style="width:88px; text-align:center;">種別</th>
                         <th style="width:65px; text-align:center;">部屋</th>
@@ -1942,6 +2164,12 @@ foreach ($list_data as $r_item) {
                     💾 保存する
                 </button>
             </div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; color: #64748b;">※ メモは診療科（<?= $dept === 'PROCT' ? '🟢 肛門科' : '🔵 胃腸科' ?>）ごとに独立管理されます</span>
+            <a href="furiwake_daymemo.php" target="_blank" style="font-size: 11.5px; color: #0284c7; text-decoration: none; font-weight: 700;">
+                🔧 メモ科振分メンテ ➔
+            </a>
         </div>
     </div>
 </dialog>

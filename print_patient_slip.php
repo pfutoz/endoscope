@@ -242,7 +242,7 @@ $show_location = ($exam_location !== '' && $exam_location !== '---');
         <div><span class="label">フリガナ</span> <span><?=htmlspecialchars($data['patient_kana'] ?? '', ENT_QUOTES, 'UTF-8')?></span></div>
         <div><span class="label">生年月日</span> <span><?=htmlspecialchars($wareki, ENT_QUOTES, 'UTF-8')?></span></div>
         <div><span class="label">年齢</span> <span><?=$age?></span></div>
-        <div><span class="label">カルテID</span> <span class="value"><?=htmlspecialchars($data['patient_id'] ?? '---', ENT_QUOTES, 'UTF-8')?></span></div>
+        <div><span class="label">患者No</span> <span class="value"><?=htmlspecialchars($data['patient_id'] ?? '---', ENT_QUOTES, 'UTF-8')?></span></div>
         <div><span class="label">診療科</span> <span><?=$dept_label?></span></div>
     </div>
 

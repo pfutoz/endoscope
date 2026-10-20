@@ -272,6 +272,8 @@
         .stat-box.new .stat-value { color: var(--success); }
         .stat-box.same { border-left: 4px solid var(--slate-400); }
         .stat-box.same .stat-value { color: var(--slate-500); }
+        .stat-box.excluded { border-left: 4px solid var(--purple); }
+        .stat-box.excluded .stat-value { color: var(--purple); }
 
         /* ── アクションツールバー ── */
         .action-toolbar {
@@ -381,6 +383,51 @@
         }
         .status-pill.MODIFIED { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
         .status-pill.NEW { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .status-pill.EXCLUDED { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+
+        .diff-table tr.row-excluded {
+            background: #faf5ff !important;
+            opacity: 0.75;
+        }
+        .diff-table tr.row-excluded:hover {
+            background: #f3e8ff !important;
+            opacity: 1;
+        }
+
+        .rule-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .rule-chip:hover {
+            background: #f3e8ff;
+            border-color: #c084fc;
+            color: #6b21a8;
+        }
+        .rule-item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 12px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            transition: all 0.15s ease;
+        }
+        .rule-item-row:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
 
         .file-path {
             font-family: 'JetBrains Mono', monospace;
@@ -558,7 +605,38 @@
             font-size: 11.5px;
             color: #0f172a;
         }
+
+        /* ── ヘルスモニター用スタイル ── */
+        .progress-bar-wrap {
+            background: #e2e8f0;
+            border-radius: 9999px;
+            height: 8px;
+            overflow: hidden;
+            width: 100%;
+            margin-top: 6px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 0.4s ease;
+        }
+        .progress-bar-fill.ok { background: #10b981; }
+        .progress-bar-fill.warn { background: #f59e0b; }
+        .progress-bar-fill.danger { background: #ef4444; }
+
+        .disk-item-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
     </style>
+
 </head>
 <body>
 
@@ -567,8 +645,11 @@
         <div class="brand-wrap">
             <div class="brand-icon">🚀</div>
             <div class="brand-text">
-                <h1>院内システム総合デプロイマネージャー</h1>
-                <p>Onokai System Deploy &amp; Rollback Manager (Local Safe Mode)</p>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <h1 style="margin:0;">院内システム総合デプロイマネージャー</h1>
+                    <span style="background:rgba(255,255,255,0.22); border:1px solid rgba(255,255,255,0.35); font-size:11px; padding:1px 7px; border-radius:12px; font-weight:800; letter-spacing:0.5px;">Ver 2.2</span>
+                </div>
+                <p>Onokai System Deploy &amp; Rollback Manager (Local Safe Engine / 除外ルール管理搭載)</p>
             </div>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
@@ -578,9 +659,13 @@
             <button type="button" class="btn btn-outline" onclick="openDiagnosticsModal()" style="background:rgba(255,255,255,0.15); color:#ffffff; border-color:rgba(255,255,255,0.3); font-size:12px; padding:6px 14px; font-weight:700;">
                 📋 前提条件 ＆ 環境診断
             </button>
-            <div class="server-status-pill" id="serverStatusPill" onclick="openDiagnosticsModal()" style="cursor:pointer;" title="クリックして詳細な接続診断を表示">
+            <div class="server-status-pill" id="serverStatusPill" onclick="openDiagnosticsModal('status')" style="cursor:pointer;" title="クリックして詳細な接続診断を表示">
                 <span class="status-dot" id="serverStatusDot"></span>
                 <span id="serverStatusText">本番サーバー (192.168.1.16) 接続確認中...</span>
+            </div>
+            <div class="server-status-pill" id="serverHealthPill" onclick="openDiagnosticsModal('health')" style="cursor:pointer; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.25);" title="クリックして本番サーバーのWeb応答・SMART詳細・リソースを表示">
+                <span class="status-dot" id="serverHealthDot" style="background:#22c55e;"></span>
+                <span id="serverHealthText">💻 Web &amp; SMARTヘルス確認中...</span>
             </div>
         </div>
     </header>
@@ -614,7 +699,7 @@
             <!-- タブ1: 差分スキャン ＆ デプロイ -->
             <div id="tabContentDiff">
                 <!-- サマリバッジ -->
-                <div class="stats-grid">
+                <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                     <div class="stat-box modified">
                         <span class="stat-label">📝 更新ファイル (MODIFIED)</span>
                         <span class="stat-value" id="statModified">0</span>
@@ -627,12 +712,22 @@
                         <span class="stat-label">✓ 一致ファイル (SAME)</span>
                         <span class="stat-value" id="statSame">0</span>
                     </div>
+                    <div class="stat-box excluded">
+                        <span class="stat-label">🚫 除外設定中 (EXCLUDED)</span>
+                        <span class="stat-value" id="statExcluded">0</span>
+                    </div>
                 </div>
 
                 <!-- ツールバー -->
                 <div class="action-toolbar">
                     <div class="btn-group">
                         <button type="button" class="btn btn-outline" onclick="rescanDiff()">🔄 差分を再スキャン</button>
+                        <button type="button" class="btn btn-outline" id="btnToggleExcluded" onclick="toggleShowExcluded()" style="font-weight:700; color:#6b21a8; border-color:#d8b4fe; background:#faf5ff;">
+                            👁️ 除外ファイルを表示 (0)
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="openExcludeRulesModal()" style="font-weight:700; color:#1e3a8a; border-color:#93c5fd; background:#eff6ff;">
+                            ⚙️ 除外ルール設定
+                        </button>
                         <button type="button" class="btn btn-outline" onclick="selectAll(true)">全選択</button>
                         <button type="button" class="btn btn-outline" onclick="selectAll(false)">全解除</button>
                         <span style="font-size:12px; color:#64748b; margin-left:8px;" id="selectedCountText">選択中: 0 件</span>
@@ -650,16 +745,17 @@
                         <thead>
                             <tr>
                                 <th style="width:36px; text-align:center;"><input type="checkbox" id="chkHeaderAll" onchange="toggleHeaderAll(this)"></th>
-                                <th style="width:90px; text-align:center;">状態</th>
+                                <th style="width:115px; text-align:center;">状態</th>
                                 <th>ファイル相対パス</th>
-                                <th style="width:160px;">ローカル更新日時</th>
-                                <th style="width:160px;">本番更新日時</th>
-                                <th style="width:90px; text-align:right;">容量</th>
+                                <th style="width:155px;">ローカル更新日時</th>
+                                <th style="width:155px;">本番更新日時</th>
+                                <th style="width:85px; text-align:right;">容量</th>
+                                <th style="width:125px; text-align:center;">除外・操作</th>
                             </tr>
                         </thead>
                         <tbody id="diffTableBody">
                             <tr>
-                                <td colspan="6" style="text-align:center; padding:40px; color:#64748b;">
+                                <td colspan="7" style="text-align:center; padding:40px; color:#64748b;">
                                     上のシステム一覧からフォルダを選択してください
                                 </td>
                             </tr>
@@ -699,6 +795,128 @@
         </div>
     </div>
 
+    <!-- クイック除外モーダル -->
+    <div class="modal-overlay" id="quickExcludeModal">
+        <div class="modal-content" style="width:540px;">
+            <div class="modal-header">
+                <h3 style="color:#7e22ce;">🚫 ファイルを除外リストへ登録</h3>
+                <button type="button" class="btn btn-outline" onclick="closeQuickExcludeModal()" style="padding:2px 8px;">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:12.5px; color:#334155; margin-bottom:12px; line-height:1.6;">
+                    このファイルを除外設定に登録すると、次回以降の差分スキャンで自動的に除外・非表示となり、誤って本番サーバーへアップロードされるのを防ぎます。
+                </p>
+
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px 14px; margin-bottom:14px;">
+                    <div style="font-size:11px; color:#64748b;">対象ファイル:</div>
+                    <div style="font-family:'JetBrains Mono', monospace; font-size:12.5px; font-weight:700; color:#0f172a; word-break:break-all;" id="quickExcludeFilePath">-</div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <div style="font-weight:700; font-size:12px; color:#1e293b; margin-bottom:8px;">
+                        登録パターンの選択:
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; background:#f1f5f9; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <input type="radio" name="quickExcludeType" id="radioQuickFileOnly" value="file" checked onchange="updateQuickRulePreview()">
+                            <div>
+                                <strong style="color:#1e3a8a;">このファイルのみ除外 (相対パス完全一致)</strong>
+                                <div style="font-size:11px; color:#64748b;" id="previewFileOnlyRule">-</div>
+                            </div>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; background:#f1f5f9; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <input type="radio" name="quickExcludeType" id="radioQuickExt" value="ext" onchange="updateQuickRulePreview()">
+                            <div>
+                                <strong style="color:#0f766e;">この拡張子すべてを除外 (*.拡張子)</strong>
+                                <div style="font-size:11px; color:#64748b;" id="previewExtRule">-</div>
+                            </div>
+                        </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; font-size:12px; background:#f1f5f9; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1;">
+                            <input type="radio" name="quickExcludeType" id="radioQuickGlobal" value="global" onchange="updateQuickRulePreview()">
+                            <div>
+                                <strong style="color:#7e22ce;">全システム共通で除外 (グローバルルール)</strong>
+                                <div style="font-size:11px; color:#64748b;" id="previewGlobalRule">-</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:8px;">
+                    <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">登録するルール文字列（編集可能）:</label>
+                    <input type="text" id="inputQuickRuleText" class="form-input" style="width:100%; font-family:'JetBrains Mono', monospace; font-size:12.5px; padding:6px 10px; border:1.5px solid #94a3b8; border-radius:6px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeQuickExcludeModal()">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="btnSubmitQuickExclude" onclick="submitQuickExclude()" style="background:#7e22ce; border-color:#6b21a8;">
+                    <span>🚫</span> 除外リストに登録して保持
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 除外ルール統合管理モーダル -->
+    <div class="modal-overlay" id="excludeRulesModal">
+        <div class="modal-content" style="width:720px; max-height:85vh; display:flex; flex-direction:column;">
+            <div class="modal-header">
+                <h3 style="color:#1e3a8a;">⚙️ 除外ルールの管理・編集 (Ver 2.2)</h3>
+                <button type="button" class="btn btn-outline" onclick="closeExcludeRulesModal()" style="padding:2px 8px;">✕</button>
+            </div>
+            <div class="modal-body" style="overflow-y:auto; flex:1; padding:18px;">
+                <p style="font-size:12px; color:#475569; margin-bottom:12px; line-height:1.6;">
+                    差分スキャン時に除外するファイルやフォルダを指定します。登録されたルールは <code>exclude_rules.json</code> に永続保持され、システム再起動後も自動適用されます。
+                </p>
+
+                <!-- ルールタブ切替 -->
+                <div class="tab-nav" style="margin-bottom:14px;">
+                    <button type="button" class="tab-btn active" id="tabBtnRuleSystem" onclick="switchRuleTab('system')">
+                        📌 <span id="labelCurrentSystemRules">対象システム</span> 専用ルール (<span id="countSystemRules">0</span>)
+                    </button>
+                    <button type="button" class="tab-btn" id="tabBtnRuleGlobal" onclick="switchRuleTab('global')">
+                        🌐 全システム共通ルール (<span id="countGlobalRules">0</span>)
+                    </button>
+                </div>
+
+                <!-- ルール追加フォーム -->
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; margin-bottom:16px;">
+                    <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:6px;">
+                        ➕ 新しい除外ルールの追加:
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <input type="text" id="inputNewRule" placeholder="例: config.local.php, *.env*, cache/**, test_*" style="flex:1; font-family:'JetBrains Mono', monospace; font-size:12.5px; padding:6px 12px; border:1px solid #94a3b8; border-radius:6px;">
+                        <button type="button" class="btn btn-primary" onclick="addNewRuleFromModal()" style="font-size:12px; padding:6px 16px;">
+                            追加
+                        </button>
+                    </div>
+                    <!-- プリセットクイック追加チップ -->
+                    <div style="margin-top:10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="font-size:11px; color:#64748b;">よく使う除外テンプレート:</span>
+                        <span class="rule-chip" onclick="quickAddPreset('*.env*')">*.env*</span>
+                        <span class="rule-chip" onclick="quickAddPreset('config.local.php')">config.local.php</span>
+                        <span class="rule-chip" onclick="quickAddPreset('cache/**')">cache/**</span>
+                        <span class="rule-chip" onclick="quickAddPreset('uploads/**')">uploads/**</span>
+                        <span class="rule-chip" onclick="quickAddPreset('*.sql')">*.sql</span>
+                        <span class="rule-chip" onclick="quickAddPreset('test_*')">test_*</span>
+                    </div>
+                </div>
+
+                <!-- ルール一覧表示エリア -->
+                <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:12px; font-weight:700; color:#334155;" id="rulesListHeader">登録済みルール一覧</span>
+                    <span style="font-size:11px; color:#64748b;">※ゴミ箱アイコンで削除できます</span>
+                </div>
+                <div id="rulesListContainer" style="max-height:260px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; padding:8px; background:#f8fafc;">
+                    <span style="font-size:12px; color:#64748b;">ルールを読み込み中...</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="background:#f8fafc;">
+                <button type="button" class="btn btn-primary" onclick="closeExcludeRulesModal()">
+                    閉じて差分を再スキャン
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 環境診断 ＆ 前提条件モーダル -->
     <div class="modal-overlay" id="envDiagnosticsModal">
         <div class="modal-content modal-content-lg">
@@ -714,8 +932,9 @@
             </div>
 
             <!-- タブナビゲーション -->
-            <div style="background:#f8fafc; border-bottom:1px solid var(--border); padding:8px 20px 0; display:flex; gap:8px;">
+            <div style="background:#f8fafc; border-bottom:1px solid var(--border); padding:8px 20px 0; display:flex; gap:8px; overflow-x:auto;">
                 <button type="button" class="tab-btn active" id="diagTabBtnStatus" onclick="switchDiagTab('status')">🔍 接続・環境自己診断</button>
+                <button type="button" class="tab-btn" id="diagTabBtnHealth" onclick="switchDiagTab('health')">💻 本番サーバー総合ヘルス (SMART / Web / リソース)</button>
                 <button type="button" class="tab-btn" id="diagTabBtnPrereq" onclick="switchDiagTab('prereq')">📌 必須の前提条件 (T:ドライブ等)</button>
                 <button type="button" class="tab-btn" id="diagTabBtnTrouble" onclick="switchDiagTab('trouble')">🛠️ トラブルシューティング ＆ OS再設定手順</button>
             </div>
@@ -886,6 +1105,104 @@
                     </div>
                 </div>
 
+                <!-- タブ4: 本番サーバー総合ヘルス (SMART / Web / リソース) -->
+                <div id="diagContentHealth" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; background:#f1f5f9; padding:12px 16px; border-radius:8px; border:1px solid #cbd5e1;">
+                        <div>
+                            <div style="font-size:13.5px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                                <span>🖥️ 本番サーバー: <span id="healthHostName">確認中...</span></span>
+                                <span class="diag-badge ok" id="healthOverallBadge">健全</span>
+                            </div>
+                            <div style="font-size:11.5px; color:#475569; margin-top:3px;" id="healthHostMeta">
+                                OS: 確認中... | 稼働時間: 確認中...
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:11px; color:#64748b;" id="healthLastUpdated">🕒 更新: -</span>
+                            <button type="button" class="btn btn-outline" id="btnRefreshHealth" onclick="loadServerHealth(true)" style="font-size:11.5px; padding:5px 12px; background:#fff; font-weight:700;">
+                                🔄 最新情報を強制更新
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4大主要KPIカード -->
+                    <div class="diag-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:16px;">
+                        <!-- 1. Webサーバー (Apache) -->
+                        <div class="diag-card" style="border-left: 3.5px solid #2563eb;">
+                            <div class="diag-card-title">
+                                <span>Web応答 (Apache)</span>
+                                <span class="diag-badge ok" id="healthWebBadge">確認中</span>
+                            </div>
+                            <div class="diag-card-value" style="font-size:17px; color:#1d4ed8;" id="healthWebLatency">- ms</div>
+                            <div style="font-size:11px; color:#64748b;" id="healthWebService">Apache2.4 (ポート80)</div>
+                        </div>
+
+                        <!-- 2. ストレージ健康度 (SMART) -->
+                        <div class="diag-card" style="border-left: 3.5px solid #10b981;">
+                            <div class="diag-card-title">
+                                <span>SMART 故障予兆</span>
+                                <span class="diag-badge ok" id="healthSmartBadge">確認中</span>
+                            </div>
+                            <div class="diag-card-value" style="font-size:17px; color:#047857;" id="healthSmartPredict">-</div>
+                            <div style="font-size:11px; color:#64748b;" id="healthSmartPrimaryDrive">物理ドライブ診断</div>
+                        </div>
+
+                        <!-- 3. SSD 残存寿命 -->
+                        <div class="diag-card" style="border-left: 3.5px solid #06b6d4;">
+                            <div class="diag-card-title">
+                                <span>SSD 残存寿命</span>
+                                <span class="diag-badge ok" id="healthSsdWearBadge">確認中</span>
+                            </div>
+                            <div class="diag-card-value" style="font-size:17px; color:#0e7490;" id="healthSsdWearVal">- %</div>
+                            <div style="font-size:11px; color:#64748b;" id="healthSsdWearDetail">消耗度: - %</div>
+                        </div>
+
+                        <!-- 4. メモリ・CPU -->
+                        <div class="diag-card" style="border-left: 3.5px solid #8b5cf6;">
+                            <div class="diag-card-title">
+                                <span>メモリ / CPU</span>
+                                <span class="diag-badge ok" id="healthResourceBadge">確認中</span>
+                            </div>
+                            <div class="diag-card-value" style="font-size:15.5px; color:#6d28d9;" id="healthMemVal">- GB (-)</div>
+                            <div style="font-size:11px; color:#64748b;" id="healthCpuVal">CPU負荷: - %</div>
+                        </div>
+                    </div>
+
+                    <!-- ディスク容量セクション -->
+                    <div style="background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:16px;">
+                        <div style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <span>💾</span> ドライブ空き容量 (C: 等)
+                        </div>
+                        <div id="healthVolumesContainer">
+                            <span style="font-size:12px; color:#64748b;">読み込み中...</span>
+                        </div>
+                    </div>
+
+                    <!-- 物理ディスク & SMART詳細一覧 -->
+                    <div style="background:#ffffff; border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:16px;">
+                        <div style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                            <span>🔍</span> 物理ディスク ＆ SMART 診断詳細
+                        </div>
+                        <div id="healthPhysicalDisksContainer">
+                            <span style="font-size:12px; color:#64748b;">読み込み中...</span>
+                        </div>
+                    </div>
+
+                    <!-- サーバー側エージェント常駐設定案内 -->
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:14px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <strong style="font-size:12.5px; color:#1e293b;">🛠️ サーバー側定期監視エージェント (タスクスケジューラ)</strong>
+                            <span class="diag-badge ok" id="healthAgentStatusBadge">連携確認済</span>
+                        </div>
+                        <p style="font-size:11.5px; color:#475569; margin:0 0 8px; line-height:1.5;">
+                            本番サーバーのタスクスケジューラで <code>collect_server_health.ps1</code> を10分毎に実行することで、SMART情報や空き容量が常時最新に維持されます。
+                        </p>
+                        <div style="font-size:11px; background:#ffffff; border:1px solid #e2e8f0; border-radius:4px; padding:8px 10px; font-family:'JetBrains Mono',monospace; color:#334155;">
+                            登録ファイル: <strong>T:\deploy_manager\server_agent\register_server_health_task.bat</strong> （本番PCで右クリック ➔ 管理者として実行）
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="modal-footer">
@@ -928,8 +1245,14 @@
 
     <script>
         const API_BASE = (window.location.port === '5050') ? '' : 'http://localhost:5050';
-        let currentSystem = 'endoscope';
+        let currentSystem = '_portal';
+        let systemsMap = {};
         let currentDiffs = [];
+        let showExcluded = false;
+        let currentExcludedCount = 0;
+        let currentExcludeConfig = { globalRules: [], systemRules: [] };
+        let activeRuleTab = 'system';
+        let quickTargetRelPath = '';
 
         // ログ出力ヘルパー
         function log(msg, type = 'info') {
@@ -947,6 +1270,7 @@
         // 初期ロード
         document.addEventListener('DOMContentLoaded', () => {
             loadSystems();
+            loadServerHealthSummary();
         });
 
         // タブ切り替え
@@ -983,17 +1307,23 @@
                 }
 
                 grid.innerHTML = '';
+                systemsMap = {};
                 (data.systems || []).forEach(sys => {
+                    systemsMap[sys.name] = sys;
                     const btn = document.createElement('button');
                     btn.type = 'button';
+                    btn.dataset.sys = sys.name;
                     btn.className = `sys-btn ${sys.name === currentSystem ? 'active' : ''}`;
-                    btn.innerHTML = `<span>${sys.name}</span>`;
+                    btn.innerHTML = `<span>${escapeHtml(sys.displayName || sys.name)}</span>`;
                     btn.onclick = () => selectSystem(sys.name);
                     grid.appendChild(btn);
                 });
 
                 // 初期選択システムのスキャン
-                if (currentSystem) {
+                if (data.systems && data.systems.length > 0) {
+                    if (!systemsMap[currentSystem]) {
+                        currentSystem = data.systems[0].name;
+                    }
                     selectSystem(currentSystem);
                 }
             } catch (err) {
@@ -1079,6 +1409,8 @@
             switchDiagTab(tab);
             if (tab === 'status') {
                 runDiagnostics();
+            } else if (tab === 'health') {
+                loadServerHealth();
             }
         }
 
@@ -1088,12 +1420,18 @@
 
         function switchDiagTab(tab) {
             document.getElementById('diagTabBtnStatus').classList.toggle('active', tab === 'status');
+            document.getElementById('diagTabBtnHealth').classList.toggle('active', tab === 'health');
             document.getElementById('diagTabBtnPrereq').classList.toggle('active', tab === 'prereq');
             document.getElementById('diagTabBtnTrouble').classList.toggle('active', tab === 'trouble');
 
             document.getElementById('diagContentStatus').style.display = (tab === 'status') ? 'block' : 'none';
+            document.getElementById('diagContentHealth').style.display = (tab === 'health') ? 'block' : 'none';
             document.getElementById('diagContentPrereq').style.display = (tab === 'prereq') ? 'block' : 'none';
             document.getElementById('diagContentTrouble').style.display = (tab === 'trouble') ? 'block' : 'none';
+
+            if (tab === 'health') {
+                loadServerHealth();
+            }
         }
 
         // 環境診断実行
@@ -1202,13 +1540,303 @@
             }
         }
 
+        // ── 本番サーバー・Web & SMARTヘルス監視ロジック ──
+
+        // トップバー要約ヘルス表示
+        async function loadServerHealthSummary() {
+            const dot = document.getElementById('serverHealthDot');
+            const text = document.getElementById('serverHealthText');
+            if (!dot || !text) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/server-health`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    dot.style.background = '#94a3b8';
+                    text.textContent = '💻 ヘルス取得失敗';
+                    return;
+                }
+
+                const ping = data.webPing || {};
+                const health = data.health || {};
+                const storage = health.storage || {};
+                const volumes = storage.volumes || [];
+                const cVol = volumes.find(v => v.driveLetter && v.driveLetter.startsWith('C')) || volumes[0];
+
+                let webLabel = ping.reachable ? `Web: ${ping.statusCode} OK (${ping.latencyMs}ms)` : 'Web: 未疎通';
+                let diskLabel = '';
+
+                if (storage.overallStatus === 'DANGER') {
+                    dot.style.background = '#ef4444';
+                    diskLabel = '⚠️ ディスク/SMART危険';
+                } else if (storage.overallStatus === 'WARN') {
+                    dot.style.background = '#f59e0b';
+                    diskLabel = '⚠️ ディスク要注意';
+                } else if (cVol) {
+                    dot.style.background = ping.reachable ? '#10b981' : '#f59e0b';
+                    diskLabel = `SSD: 正常 (C: 空き${cVol.freeGB}GB)`;
+                } else {
+                    dot.style.background = ping.reachable ? '#10b981' : '#f59e0b';
+                    diskLabel = 'SMART: 正常';
+                }
+
+                text.textContent = `💻 ${webLabel} | 💾 ${diskLabel}`;
+
+            } catch (err) {
+                dot.style.background = '#94a3b8';
+                text.textContent = '💻 ヘルス待機中';
+            }
+        }
+
+        // 詳細ヘルスダッシュボード読み込み
+        async function loadServerHealth(forceRefresh = false) {
+            const hostNameEl = document.getElementById('healthHostName');
+            const hostMetaEl = document.getElementById('healthHostMeta');
+            const overallBadgeEl = document.getElementById('healthOverallBadge');
+            const lastUpdatedEl = document.getElementById('healthLastUpdated');
+            const btnRefresh = document.getElementById('btnRefreshHealth');
+
+            const webBadge = document.getElementById('healthWebBadge');
+            const webLatency = document.getElementById('healthWebLatency');
+            const webService = document.getElementById('healthWebService');
+
+            const smartBadge = document.getElementById('healthSmartBadge');
+            const smartPredict = document.getElementById('healthSmartPredict');
+            const smartPrimaryDrive = document.getElementById('healthSmartPrimaryDrive');
+
+            const ssdWearBadge = document.getElementById('healthSsdWearBadge');
+            const ssdWearVal = document.getElementById('healthSsdWearVal');
+            const ssdWearDetail = document.getElementById('healthSsdWearDetail');
+
+            const resBadge = document.getElementById('healthResourceBadge');
+            const memVal = document.getElementById('healthMemVal');
+            const cpuVal = document.getElementById('healthCpuVal');
+
+            const volContainer = document.getElementById('healthVolumesContainer');
+            const diskContainer = document.getElementById('healthPhysicalDisksContainer');
+            const agentBadge = document.getElementById('healthAgentStatusBadge');
+
+            if (btnRefresh) {
+                btnRefresh.disabled = true;
+                btnRefresh.textContent = '⏳ 更新中...';
+            }
+
+            try {
+                const url = `${API_BASE}/api/server-health${forceRefresh ? '?refresh=1' : ''}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (btnRefresh) {
+                    btnRefresh.disabled = false;
+                    btnRefresh.textContent = '🔄 最新情報を強制更新';
+                }
+
+                if (!data.success) {
+                    overallBadgeEl.className = 'diag-badge ng';
+                    overallBadgeEl.textContent = '取得エラー';
+                    return;
+                }
+
+                const ping = data.webPing || {};
+                const health = data.health || {};
+                const host = health.host || {};
+                const web = health.webServer || {};
+                const storage = health.storage || {};
+                const resources = health.resources || {};
+                const mem = resources.memory || {};
+                const cpu = resources.cpu || {};
+
+                // ホストヘッダー
+                hostNameEl.textContent = host.computerName ? `${host.computerName} (192.168.1.16)` : '192.168.1.16';
+                hostMetaEl.textContent = `OS: ${host.os || 'Windows'} | 連続稼働: ${host.uptimeText || '-'} | 最終起動: ${host.lastBootTime || '-'}`;
+
+                // 最終更新日時
+                if (data.fileAgeSec !== null) {
+                    const mins = Math.floor(data.fileAgeSec / 60);
+                    const ageText = mins > 0 ? `${mins}分前` : `${data.fileAgeSec}秒前`;
+                    lastUpdatedEl.textContent = `🕒 収集: ${health.collectedAtFormatted || ''} (${ageText})`;
+                } else {
+                    lastUpdatedEl.textContent = `🕒 リアルタイム取得`;
+                }
+
+                // 総合ステータスバッジ
+                if (!ping.reachable || storage.overallStatus === 'DANGER' || mem.status === 'DANGER') {
+                    overallBadgeEl.className = 'diag-badge ng';
+                    overallBadgeEl.textContent = '✕ 異常あり';
+                } else if (storage.overallStatus === 'WARN' || mem.status === 'WARN' || data.isStale) {
+                    overallBadgeEl.className = 'diag-badge warn';
+                    overallBadgeEl.textContent = '⚠️ 注意';
+                } else {
+                    overallBadgeEl.className = 'diag-badge ok';
+                    overallBadgeEl.textContent = '● すべて健全';
+                }
+
+                // 1. Webサーバー KPI
+                if (ping.reachable) {
+                    webBadge.className = 'diag-badge ok';
+                    webBadge.textContent = `${ping.statusCode} OK`;
+                    webLatency.textContent = `${ping.latencyMs} ms`;
+                    webLatency.style.color = '#1d4ed8';
+                    webService.textContent = `${web.serviceName || 'Apache2.4'} (${web.serviceStatus || 'Running'}) / ポート80待機OK`;
+                } else {
+                    webBadge.className = 'diag-badge ng';
+                    webBadge.textContent = '未疎通';
+                    webLatency.textContent = '応答なし';
+                    webLatency.style.color = '#dc2626';
+                    webService.textContent = ping.error || 'ポート80接続失敗';
+                }
+
+                // 2. ストレージ SMART 予兆
+                const pDisks = storage.physicalDisks || [];
+                const hasFail = pDisks.some(d => d.predictFailure === true || d.healthStatus !== 'Healthy');
+                if (hasFail) {
+                    smartBadge.className = 'diag-badge ng';
+                    smartBadge.textContent = '✕ 故障予兆あり';
+                    smartPredict.textContent = '交換推奨';
+                    smartPredict.style.color = '#dc2626';
+                } else if (pDisks.length > 0) {
+                    smartBadge.className = 'diag-badge ok';
+                    smartBadge.textContent = '● 予兆なし';
+                    smartPredict.textContent = '健全 (Healthy)';
+                    smartPredict.style.color = '#047857';
+                } else {
+                    smartBadge.className = 'diag-badge warn';
+                    smartBadge.textContent = '未検出';
+                    smartPredict.textContent = '情報なし';
+                }
+                smartPrimaryDrive.textContent = pDisks[0] ? `${pDisks[0].friendlyName} (${pDisks[0].mediaType})` : 'ドライブ情報待機中';
+
+                // 3. SSD 残存寿命
+                const ssdDisk = pDisks.find(d => d.mediaType === 'SSD' && d.wearRemainingPercent !== null) || pDisks[0];
+                if (ssdDisk && ssdDisk.wearRemainingPercent !== null) {
+                    const rem = ssdDisk.wearRemainingPercent;
+                    ssdWearVal.textContent = `${rem} %`;
+                    ssdWearDetail.textContent = `消耗度: ${ssdDisk.wearUsedPercent || (100 - rem)}% | 読取エラー: ${ssdDisk.readErrors || 0}`;
+                    if (rem <= 10) {
+                        ssdWearBadge.className = 'diag-badge ng';
+                        ssdWearBadge.textContent = '寿命間近';
+                        ssdWearVal.style.color = '#dc2626';
+                    } else if (rem <= 30) {
+                        ssdWearBadge.className = 'diag-badge warn';
+                        ssdWearBadge.textContent = '消耗中';
+                        ssdWearVal.style.color = '#d97706';
+                    } else {
+                        ssdWearBadge.className = 'diag-badge ok';
+                        ssdWearBadge.textContent = '良好';
+                        ssdWearVal.style.color = '#0e7490';
+                    }
+                } else {
+                    ssdWearBadge.className = 'diag-badge ok';
+                    ssdWearBadge.textContent = '正常';
+                    ssdWearVal.textContent = '正常稼働';
+                    ssdWearDetail.textContent = 'HDDまたはSMART寿命カウンタ未対応';
+                }
+
+                // 4. メモリ・CPU
+                if (mem.totalGB) {
+                    memVal.textContent = `${mem.usedGB} / ${mem.totalGB} GB (${mem.usedPercent}%)`;
+                    cpuVal.textContent = `CPU負荷: ${cpu.loadPercent !== null ? cpu.loadPercent + '%' : '軽微'} | 状態: ${mem.status === 'OK' ? '安定' : '高負荷'}`;
+                    resBadge.className = (mem.status === 'OK' && cpu.status === 'OK') ? 'diag-badge ok' : 'diag-badge warn';
+                    resBadge.textContent = (mem.status === 'OK' && cpu.status === 'OK') ? '正常' : '要注意';
+                } else {
+                    memVal.textContent = 'リソース情報待機中';
+                }
+
+                // ディスク容量ボリューム一覧の描画
+                const vols = storage.volumes || [];
+                if (vols.length === 0) {
+                    volContainer.innerHTML = '<span style="font-size:12px; color:#64748b;">ボリューム情報が取得されていません。</span>';
+                } else {
+                    volContainer.innerHTML = vols.map(v => {
+                        const barColor = (v.status === 'DANGER') ? 'danger' : ((v.status === 'WARN') ? 'warn' : 'ok');
+                        const statusPill = (v.status === 'DANGER') ? '<span class="diag-badge ng">危険 (空き容量不足)</span>' 
+                            : ((v.status === 'WARN') ? '<span class="diag-badge warn">注意</span>' : '<span class="diag-badge ok">十分な空き</span>');
+                        return `
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="font-size:13px; font-weight:700; color:#0f172a;">
+                                        <strong>${escapeHtml(v.driveLetter)}</strong> [${escapeHtml(v.label)}]
+                                    </div>
+                                    <div>${statusPill}</div>
+                                </div>
+                                <div class="progress-bar-wrap">
+                                    <div class="progress-bar-fill ${barColor}" style="width:${Math.min(100, v.usedPercent)}%;"></div>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; font-size:11.5px; color:#475569; margin-top:5px;">
+                                    <span>使用中: <strong>${v.usedGB} GB</strong> (${v.usedPercent}%)</span>
+                                    <span>空き容量: <strong style="color:${v.freeGB < 25 ? '#dc2626' : '#15803d'};">${v.freeGB} GB</strong> / 総容量 ${v.totalGB} GB</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // 物理ディスク & SMART詳細一覧の描画
+                if (pDisks.length === 0) {
+                    diskContainer.innerHTML = '<span style="font-size:12px; color:#64748b;">物理ディスク情報が取得されていません。</span>';
+                } else {
+                    diskContainer.innerHTML = pDisks.map(d => {
+                        const hClass = (d.healthStatus === 'Healthy' && !d.predictFailure) ? 'ok' : 'ng';
+                        const hLabel = (d.healthStatus === 'Healthy' && !d.predictFailure) ? '● 正常' : '✕ 故障予兆/異常';
+                        const wearText = (d.wearRemainingPercent !== null) ? `残存寿命: <strong>${d.wearRemainingPercent}%</strong> (消耗度 ${d.wearUsedPercent}%)` : '残存寿命: 計測非対応';
+                        const tempText = (d.temperature) ? `温度: <strong>${d.temperature} ℃</strong>` : '';
+
+                        return `
+                            <div class="disk-item-card">
+                                <div style="flex:1;">
+                                    <div style="font-size:12.5px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                                        <span>[Disk #${escapeHtml(d.deviceId)}] ${escapeHtml(d.friendlyName)}</span>
+                                        <span class="code-pill">${escapeHtml(d.mediaType || 'Disk')}</span>
+                                        <span class="diag-badge ${hClass}">${hLabel}</span>
+                                    </div>
+                                    <div style="font-size:11.5px; color:#475569; margin-top:3px; display:flex; gap:14px; flex-wrap:wrap;">
+                                        <span>容量: <strong>${d.sizeGB} GB</strong></span>
+                                        <span>ステータス: <strong>${escapeHtml(d.operationalStatus || 'OK')}</strong></span>
+                                        <span>${wearText}</span>
+                                        ${tempText ? `<span>${tempText}</span>` : ''}
+                                        <span>読取エラー: <strong>${d.readErrors || 0}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // エージェント連携ステータス
+                if (data.isStale) {
+                    agentBadge.className = 'diag-badge warn';
+                    agentBadge.textContent = '⚠️ 15分以上更新なし';
+                } else if (data.hasData) {
+                    agentBadge.className = 'diag-badge ok';
+                    agentBadge.textContent = '● 定期更新 正常';
+                } else {
+                    agentBadge.className = 'diag-badge warn';
+                    agentBadge.textContent = '未生成 (初回実行待ち)';
+                }
+
+                // 要約ステータスも更新
+                loadServerHealthSummary();
+
+            } catch (err) {
+                if (btnRefresh) {
+                    btnRefresh.disabled = false;
+                    btnRefresh.textContent = '🔄 最新情報を強制更新';
+                }
+                overallBadgeEl.className = 'diag-badge ng';
+                overallBadgeEl.textContent = '通信失敗';
+            }
+        }
+
         // システム選択
         function selectSystem(sysName) {
             currentSystem = sysName;
+            const sysObj = systemsMap[sysName];
+            const displayLabel = sysObj ? (sysObj.displayName || sysObj.name) : sysName;
             document.querySelectorAll('.sys-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent.trim() === sysName);
+                btn.classList.toggle('active', btn.dataset.sys === sysName);
             });
-            log(`対象システムを [${sysName}] に切り替えました。差分スキャンを開始します...`, 'info');
+            log(`対象システムを [${displayLabel}] に切り替えました。差分スキャンを開始します...`, 'info');
             rescanDiff();
         }
 
@@ -1216,54 +1844,106 @@
         async function rescanDiff() {
             if (!currentSystem) return;
             const tbody = document.getElementById('diffTableBody');
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">スキャン中...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">スキャン中...</td></tr>`;
 
             try {
                 const res = await fetch(`${API_BASE}/api/diff?system=${encodeURIComponent(currentSystem)}`);
                 const data = await res.json();
                 if (!data.success) {
-                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#dc2626;">スキャン失敗: ${data.message}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#dc2626;">スキャン失敗: ${data.message}</td></tr>`;
                     log(`スキャン失敗: ${data.message}`, 'err');
                     return;
                 }
 
-                document.getElementById('statModified').textContent = data.stats.modified;
-                document.getElementById('statNew').textContent = data.stats.new;
-                document.getElementById('statSame').textContent = data.stats.same;
+                document.getElementById('statModified').textContent = data.stats.modified || 0;
+                document.getElementById('statNew').textContent = data.stats.new || 0;
+                document.getElementById('statSame').textContent = data.stats.same || 0;
+                document.getElementById('statExcluded').textContent = data.stats.excluded || 0;
+                currentExcludedCount = data.stats.excluded || 0;
+
+                const btnToggle = document.getElementById('btnToggleExcluded');
+                if (btnToggle) {
+                    btnToggle.textContent = showExcluded ? '🙈 除外ファイルを非表示' : `👁️ 除外ファイルを表示 (${currentExcludedCount})`;
+                }
 
                 currentDiffs = data.diffs || [];
                 renderDiffTable(currentDiffs);
-                log(`[${currentSystem}] スキャン完了: 変更 ${data.stats.modified} 件, 新規 ${data.stats.new} 件, 一致 ${data.stats.same} 件 (全 ${data.totalLocalFiles} ファイル)`, 'success');
+                log(`[${currentSystem}] スキャン完了: 変更 ${data.stats.modified || 0} 件, 新規 ${data.stats.new || 0} 件, 一致 ${data.stats.same || 0} 件, 除外 ${data.stats.excluded || 0} 件 (全 ${data.totalLocalFiles} ファイル)`, 'success');
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#dc2626;">通信エラー: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#dc2626;">通信エラー: ${err.message}</td></tr>`;
                 log('差分スキャン通信エラー: ' + err.message, 'err');
             }
+        }
+
+        // 除外ファイルの表示／非表示切替
+        function toggleShowExcluded() {
+            showExcluded = !showExcluded;
+            const btnToggle = document.getElementById('btnToggleExcluded');
+            if (btnToggle) {
+                btnToggle.textContent = showExcluded ? '🙈 除外ファイルを非表示' : `👁️ 除外ファイルを表示 (${currentExcludedCount})`;
+            }
+            renderDiffTable(currentDiffs);
         }
 
         // 差分テーブル描画
         function renderDiffTable(diffs) {
             const tbody = document.getElementById('diffTableBody');
-            if (diffs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#15803d; font-weight:bold;">🎉 すべてのファイルが本番サーバーと完全一致しています（差分なし）</td></tr>`;
+            const activeDiffs = diffs.filter(d => !d.isExcluded);
+            const excludedDiffs = diffs.filter(d => d.isExcluded);
+
+            if (!showExcluded && activeDiffs.length === 0) {
+                if (excludedDiffs.length > 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:36px; color:#15803d; font-weight:bold;">
+                                <div>🎉 配布対象の差分はありません（本番と完全一致）</div>
+                                <div style="font-size:12px; color:#7e22ce; margin-top:8px; font-weight:normal;">
+                                    ※現在 ${excludedDiffs.length} 件のファイルが除外設定により保護されています。「除外ファイルを表示」ボタンで確認できます。
+                                </div>
+                            </td>
+                        </tr>`;
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:#15803d; font-weight:bold;">🎉 すべてのファイルが本番サーバーと完全一致しています（差分なし）</td></tr>`;
+                }
+                updateSelectedCount();
+                return;
+            }
+
+            if (showExcluded && diffs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:#15803d; font-weight:bold;">🎉 ファイル差分・除外ファイルはありません</td></tr>`;
                 updateSelectedCount();
                 return;
             }
 
             let html = '';
-            diffs.forEach((d, idx) => {
+            diffs.forEach((d) => {
+                const isEx = !!d.isExcluded;
+                if (!showExcluded && isEx) return;
+
                 const sizeFmt = (d.localSize / 1024).toFixed(1) + ' KB';
+                const rowClass = isEx ? 'row-excluded' : '';
+                const chkAttr = isEx ? 'disabled' : 'checked';
+                const statusHtml = isEx
+                    ? `<span class="status-pill EXCLUDED" title="除外ルール: ${escapeHtml(d.excludeRule)} (${d.excludeScope === 'global' ? '全体共通' : '個別'})">🚫 除外 (${d.status})</span>`
+                    : `<span class="status-pill ${d.status}">${d.status}</span>`;
+                const actionHtml = isEx
+                    ? `<button type="button" class="btn btn-outline" style="font-size:11px; padding:2px 8px; color:#15803d; border-color:#bbf7d0; background:#f0fdf4;" onclick="quickRemoveExclude('${escapeHtml(d.path)}', '${escapeHtml(d.excludeRule)}', '${escapeHtml(d.excludeScope)}')">↩️ 除外解除</button>`
+                    : `<button type="button" class="btn btn-outline" style="font-size:11px; padding:2px 8px; color:#7e22ce; border-color:#e9d5ff; background:#faf5ff;" onclick="openQuickExcludeModal('${escapeHtml(d.path)}')">🚫 除外に追加</button>`;
+
                 html += `
-                    <tr>
+                    <tr class="${rowClass}">
                         <td style="text-align:center;">
-                            <input type="checkbox" class="file-chk" value="${escapeHtml(d.path)}" checked onchange="updateSelectedCount()">
+                            <input type="checkbox" class="file-chk" value="${escapeHtml(d.path)}" ${chkAttr} onchange="updateSelectedCount()">
                         </td>
-                        <td style="text-align:center;">
-                            <span class="status-pill ${d.status}">${d.status}</span>
+                        <td style="text-align:center;">${statusHtml}</td>
+                        <td>
+                            <span class="file-path">${escapeHtml(d.path)}</span>
+                            ${isEx ? `<div style="font-size:10.5px; color:#7e22ce; margin-top:2px;">一致ルール: <code>${escapeHtml(d.excludeRule)}</code> (${d.excludeScope === 'global' ? '全システム共通' : 'システム個別'})</div>` : ''}
                         </td>
-                        <td><span class="file-path">${escapeHtml(d.path)}</span></td>
                         <td><span class="time-text">${d.localMtime || '-'}</span></td>
                         <td><span class="time-text">${d.prodMtime || '<span style="color:#15803d;">(新規)</span>'}</span></td>
                         <td style="text-align:right; font-family:monospace;">${sizeFmt}</td>
+                        <td style="text-align:center;">${actionHtml}</td>
                     </tr>
                 `;
             });
@@ -1272,9 +1952,9 @@
             updateSelectedCount();
         }
 
-        // 選択制御
+        // 選択制御 (除外ファイル以外のチェックを連動)
         function selectAll(checked) {
-            document.querySelectorAll('.file-chk').forEach(c => c.checked = checked);
+            document.querySelectorAll('.file-chk:not(:disabled)').forEach(c => c.checked = checked);
             document.getElementById('chkHeaderAll').checked = checked;
             updateSelectedCount();
         }
@@ -1284,11 +1964,250 @@
         }
 
         function updateSelectedCount() {
-            const selected = document.querySelectorAll('.file-chk:checked');
-            document.getElementById('selectedCountText').textContent = `選択中: ${selected.length} / ${currentDiffs.length} 件`;
+            const selected = document.querySelectorAll('.file-chk:checked:not(:disabled)');
+            const totalActionable = currentDiffs.filter(d => !d.isExcluded).length;
+            document.getElementById('selectedCountText').textContent = `選択中: ${selected.length} / ${totalActionable} 件`;
             const btn = document.getElementById('btnExecuteDeploy');
             btn.disabled = (selected.length === 0);
             btn.style.opacity = (selected.length === 0) ? '0.5' : '1';
+        }
+
+        // ── クイック除外モーダル制御 ──
+        function openQuickExcludeModal(relPath) {
+            quickTargetRelPath = relPath;
+            document.getElementById('quickExcludeFilePath').textContent = `[${currentSystem}] ${relPath}`;
+            
+            // パターン候補を自動計算
+            const filename = relPath.split('/').pop();
+            const extMatch = filename.match(/\.([a-zA-Z0-9_\-]+)$/);
+            const ext = extMatch ? extMatch[1] : '';
+
+            document.getElementById('previewFileOnlyRule').textContent = `対象システム専用ルール: "${relPath}"`;
+            document.getElementById('previewExtRule').textContent = ext ? `対象システム専用ルール: "*.${ext}"` : '拡張子なし (利用不可)';
+            document.getElementById('previewGlobalRule').textContent = `全システム共通ルール: "${filename}"`;
+
+            // ラジオボタン初期化
+            document.getElementById('radioQuickFileOnly').checked = true;
+            document.getElementById('radioQuickExt').disabled = !ext;
+            updateQuickRulePreview();
+
+            document.getElementById('quickExcludeModal').classList.add('active');
+        }
+
+        function closeQuickExcludeModal() {
+            document.getElementById('quickExcludeModal').classList.remove('active');
+        }
+
+        function updateQuickRulePreview() {
+            const relPath = quickTargetRelPath;
+            const filename = relPath.split('/').pop();
+            const extMatch = filename.match(/\.([a-zA-Z0-9_\-]+)$/);
+            const ext = extMatch ? extMatch[1] : '';
+
+            const type = document.querySelector('input[name="quickExcludeType"]:checked').value;
+            const input = document.getElementById('inputQuickRuleText');
+
+            if (type === 'file') {
+                input.value = relPath;
+            } else if (type === 'ext') {
+                input.value = ext ? `*.${ext}` : filename;
+            } else if (type === 'global') {
+                input.value = filename;
+            }
+        }
+
+        async function submitQuickExclude() {
+            const rule = document.getElementById('inputQuickRuleText').value.trim();
+            if (!rule) {
+                alert('除外ルールを入力してください');
+                return;
+            }
+            const type = document.querySelector('input[name="quickExcludeType"]:checked').value;
+            const scope = (type === 'global') ? 'global' : 'system';
+
+            const btn = document.getElementById('btnSubmitQuickExclude');
+            btn.disabled = true;
+            btn.textContent = '⏳ 登録中...';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/exclude-rules/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ system: currentSystem, rule, scope })
+                });
+                const data = await res.json();
+                closeQuickExcludeModal();
+                if (data.success) {
+                    log(`🚫 除外ルール「${rule}」を保持しました (${scope === 'global' ? '全体共通' : currentSystem})`, 'success');
+                    rescanDiff();
+                } else {
+                    alert('登録失敗: ' + data.message);
+                }
+            } catch (err) {
+                alert('通信エラー: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚫</span> 除外リストに登録して保持';
+            }
+        }
+
+        // クイック除外解除
+        async function quickRemoveExclude(relPath, rule, scope) {
+            const targetRule = rule || relPath;
+            const targetScope = scope || 'system';
+            const ok = confirm(`除外ルール「${targetRule}」(${targetScope === 'global' ? '全体共通' : currentSystem}) を解除し、通常配布対象に戻しますか？`);
+            if (!ok) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/exclude-rules/remove`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ system: currentSystem, rule: targetRule, scope: targetScope })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    log(`↩️ 除外解除完了: ${targetRule}`, 'success');
+                    rescanDiff();
+                } else {
+                    alert('解除失敗: ' + data.message);
+                }
+            } catch (err) {
+                alert('通信エラー: ' + err.message);
+            }
+        }
+
+        // ── 除外ルール統合管理モーダル制御 ──
+        async function openExcludeRulesModal() {
+            document.getElementById('labelCurrentSystemRules').textContent = currentSystem;
+            document.getElementById('excludeRulesModal').classList.add('active');
+            await loadExcludeRules();
+        }
+
+        function closeExcludeRulesModal() {
+            document.getElementById('excludeRulesModal').classList.remove('active');
+            rescanDiff();
+        }
+
+        async function loadExcludeRules() {
+            const container = document.getElementById('rulesListContainer');
+            container.innerHTML = '<span style="font-size:12px; color:#64748b;">ルールを読み込み中...</span>';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/exclude-rules?system=${encodeURIComponent(currentSystem)}`);
+                const data = await res.json();
+                if (data.success) {
+                    currentExcludeConfig = {
+                        globalRules: data.globalRules || [],
+                        systemRules: data.systemRules || []
+                    };
+                    document.getElementById('countSystemRules').textContent = currentExcludeConfig.systemRules.length;
+                    document.getElementById('countGlobalRules').textContent = currentExcludeConfig.globalRules.length;
+                    renderRulesList();
+                } else {
+                    container.innerHTML = `<span style="font-size:12px; color:#dc2626;">取得エラー: ${data.message}</span>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<span style="font-size:12px; color:#dc2626;">通信エラー: ${err.message}</span>`;
+            }
+        }
+
+        function switchRuleTab(tab) {
+            activeRuleTab = tab;
+            document.getElementById('tabBtnRuleSystem').classList.toggle('active', tab === 'system');
+            document.getElementById('tabBtnRuleGlobal').classList.toggle('active', tab === 'global');
+            renderRulesList();
+        }
+
+        function renderRulesList() {
+            const container = document.getElementById('rulesListContainer');
+            const rules = (activeRuleTab === 'global') ? currentExcludeConfig.globalRules : currentExcludeConfig.systemRules;
+            const scopeLabel = (activeRuleTab === 'global') ? '全システム共通' : `[${currentSystem}] 専用`;
+
+            document.getElementById('rulesListHeader').textContent = `${scopeLabel} ルール一覧 (${rules.length} 件)`;
+
+            if (rules.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:24px; color:#64748b; font-size:12px;">登録されている除外ルールはありません</div>`;
+                return;
+            }
+
+            let html = '';
+            rules.forEach(rule => {
+                let badgeType = '完全一致';
+                let badgeColor = '#2563eb';
+                if (rule.endsWith('/**') || rule.endsWith('/*') || rule.endsWith('/')) {
+                    badgeType = 'フォルダ配下一括';
+                    badgeColor = '#0f766e';
+                } else if (rule.includes('*') || rule.includes('?')) {
+                    badgeType = 'ワイルドカード';
+                    badgeColor = '#7e22ce';
+                }
+
+                html += `
+                    <div class="rule-item-row">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <code style="font-size:12.5px; font-weight:700; color:#0f172a;">${escapeHtml(rule)}</code>
+                            <span style="font-size:10.5px; padding:1px 6px; border-radius:4px; background:#f1f5f9; color:${badgeColor}; font-weight:700; border:1px solid #cbd5e1;">${badgeType}</span>
+                        </div>
+                        <button type="button" class="btn btn-outline" style="font-size:11px; padding:2px 8px; color:#dc2626; border-color:#fca5a5;" onclick="deleteRule('${escapeHtml(rule)}')">
+                            🗑️ 削除
+                        </button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function addNewRuleFromModal() {
+            const input = document.getElementById('inputNewRule');
+            const rule = input.value.trim();
+            if (!rule) {
+                alert('除外ルールを入力してください');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/exclude-rules/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ system: currentSystem, rule, scope: activeRuleTab })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    input.value = '';
+                    log(`除外ルール追加: ${rule} (${activeRuleTab})`, 'success');
+                    await loadExcludeRules();
+                } else {
+                    alert('追加失敗: ' + data.message);
+                }
+            } catch (err) {
+                alert('通信エラー: ' + err.message);
+            }
+        }
+
+        function quickAddPreset(presetRule) {
+            document.getElementById('inputNewRule').value = presetRule;
+        }
+
+        async function deleteRule(rule) {
+            const ok = confirm(`除外ルール「${rule}」を削除しますか？`);
+            if (!ok) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/exclude-rules/remove`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ system: currentSystem, rule, scope: activeRuleTab })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    log(`除外ルール削除: ${rule} (${activeRuleTab})`, 'warn');
+                    await loadExcludeRules();
+                } else {
+                    alert('削除失敗: ' + data.message);
+                }
+            } catch (err) {
+                alert('通信エラー: ' + err.message);
+            }
         }
 
         // デプロイモーダル開閉
@@ -1299,8 +2218,11 @@
                 return;
             }
 
+            const sysObj = systemsMap[currentSystem];
+            const displayLabel = sysObj ? (sysObj.displayName || sysObj.name) : currentSystem;
+
             document.getElementById('modalFileCount').textContent = selected.length;
-            document.getElementById('modalSystemName').textContent = currentSystem;
+            document.getElementById('modalSystemName').textContent = displayLabel;
             document.getElementById('deployConfirmModal').classList.add('active');
         }
 
@@ -1317,7 +2239,10 @@
             btnConfirm.disabled = true;
             btnConfirm.textContent = '⏳ デプロイ処理中...';
 
-            log(`[${currentSystem}] 本番デプロイを開始します... (対象: ${selected.length} 件)`, 'warn');
+            const sysObj = systemsMap[currentSystem];
+            const displayLabel = sysObj ? (sysObj.displayName || sysObj.name) : currentSystem;
+
+            log(`[${displayLabel}] 本番デプロイを開始します... (対象: ${selected.length} 件)`, 'warn');
 
             try {
                 const res = await fetch(`${API_BASE}/api/deploy`, {
@@ -1386,10 +2311,12 @@
 
         // ロールバック実行
         async function rollbackToBackup(zipFilename) {
-            const ok = confirm(`⚠️ 警告: 本当に本番サーバーの「${currentSystem}」をこのバックアップ（${zipFilename}）の状態にロールバック（復元上書き）しますか？\n\n※現在の本番ファイルがZIPの内容で上書きされます。`);
+            const sysObj = systemsMap[currentSystem];
+            const displayLabel = sysObj ? (sysObj.displayName || sysObj.name) : currentSystem;
+            const ok = confirm(`⚠️ 警告: 本当に本番サーバーの「${displayLabel}」をこのバックアップ（${zipFilename}）の状態にロールバック（復元上書き）しますか？\n\n※現在の本番ファイルがZIPの内容で上書きされます。`);
             if (!ok) return;
 
-            log(`[${currentSystem}] ロールバック処理を開始します: ${zipFilename}...`, 'warn');
+            log(`[${displayLabel}] ロールバック処理を開始します: ${zipFilename}...`, 'warn');
 
             try {
                 const res = await fetch(`${API_BASE}/api/rollback`, {

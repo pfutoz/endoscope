@@ -71,6 +71,9 @@
  *   - タイル表現カスタマイズ（枠なしタイルの白背景・医師検査非表示化、削除データの警告赤背景・目立つ表示化、検査バッジのスレートグレー統一、パネル部の検査別カラフルパレット適用）
  *   - ツールバーUI全面刷新（枠フィルターのトグルボタン化・枠色連動、伏字〜未割当のトグルボタン化・機能カラー連動、再描画タイマーのホーム左移設・5分/10分/15分セグメント＆進捗バー化、簡略表示ボタン撤去、削除データ色をサーモンコーラルへ最適化）
  * 
+ * 修正 (2026-10-09):
+ *   - 【医師予定表連携 (yotei API)】一番左の日付列（fixed-date-col）に医師の休診・不在予定（🙅🏼医師名 概要）をコンパクトバッジとして表示（month_schedule.php と統一）
+ *   - かわらばん情報や小野会全体会日程は除外し、医師個人の休診・不在予定のみを表示。ホバーで詳細ツールチップ展開、医院休診日は非表示
  */
 ini_set('display_errors', "1"); 
 error_reporting(E_ALL); 
@@ -240,6 +243,19 @@ $stmt_memo = $pdo->prepare("
 ");
 $stmt_memo->execute([':dept' => $dept, ':start_date' => $start_date, ':end_date' => $end_date]);
 $slot_master_cache['daily_memo'] = $stmt_memo->fetchAll(PDO::FETCH_KEY_PAIR);
+
+// 医師予定プリフェッチ（yotei連携: 全期間一括取得、かわらばん・全体会除外）
+$slot_master_cache['doctor_events'] = [];
+$raw_doctor_events = fetchDoctorEventsFromYotei($start_date, $end_date);
+foreach ($raw_doctor_events as $ev) {
+    if (empty($ev['doctor']) || empty($ev['doctor']['id'])) continue;
+    $ev_type = $ev['event_type'] ?? '';
+    if ($ev_type === 'meeting' || $ev_type === 'memo') continue;
+    $d_key = $ev['date'] ?? $ev['start_date'] ?? '';
+    if ($d_key !== '') {
+        $slot_master_cache['doctor_events'][$d_key][] = formatDoctorEventSummary($ev);
+    }
+}
 
 $stmt_att = $pdo->prepare("
     SELECT doctor_name, target_date::text AS target_date, gif_slots, echo_slots, tcf_slots, reason, pattern_name
@@ -774,6 +790,45 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
         .matrix-table td.fixed-date-col.past { background-color: #d1d5db !important; opacity: 0.8; color: #6b7280; }
         .matrix-table td.fixed-date-col.has-negative { border-left: 3px solid #dc2626 !important; }
         .matrix-table td.fixed-date-col.has-reservation-on-closed { border: 2px solid #dc2626 !important; }
+
+        /* ── 医師予定バッジ (yotei連携: 一番左列) ── */
+        .cal-doctor-events { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 3px 0; padding: 0 1px; }
+        .cal-doctor-event-badge {
+            display: block;
+            font-size: 8.5px;
+            font-weight: 700;
+            line-height: 1.35;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            border-radius: 3px;
+            padding: 1px 3px;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: help;
+            box-sizing: border-box;
+            transition: all 0.15s ease;
+        }
+        .cal-doctor-event-badge:hover {
+            background-color: #fee2e2;
+            border-color: #f87171;
+            color: #7f1d1d;
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.15);
+        }
+        .cal-doctor-event-badge.more {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #cbd5e1;
+            text-align: center;
+            font-size: 8px;
+            padding: 0 2px;
+        }
+        .cal-doctor-event-badge.more:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
 
         .matrix-table td {
             border-right: 1px solid #cbd5e1;

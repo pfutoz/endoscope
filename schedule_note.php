@@ -19,6 +19,7 @@
  *     - 画面ナビゲーションボタンにショートカットキーガイド（<kbd>）を表示
  *     - 日付ピッカー（date-picker-input）の大型化（15px/太字/淡色背景・青枠線強調・クリック領域拡大）
  *   - 2026-09-29: 【アセット統合・ファイル名正規化】month_schedule2.js から統合版 assets/js/month_schedule.js へ更新。CSSも assets/css/month_schedule.css に正規化
+ *   - 2026-10-09: 【日別メモ 診療科完全独立 ＆ 振り分けメンテ連携】ツールバーおよび日別メモ編集モーダル内に振り分けメンテ画面（furiwake_daymemo.php）への直通リンクを新設
  * 特徴:
  *   - 月間カレンダー計算・空き枠速報等を完全排除し、瞬時の高速表示を実現 (<30ms)
  *   - 使い慣れた紙ベースのノート感覚で閲覧・管理できる全幅一覧表示
@@ -37,6 +38,7 @@ require_once __DIR__ . '/lib/slot_helper.php';
 require_once __DIR__ . '/lib/patient_helper.php';
 require_once __DIR__ . '/lib/audit_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
+require_once __DIR__ . '/lib/calendar_helper.php';
 require_once __DIR__ . '/calendar_helper_onokai.php';
 
 $pdo = getDbConnection();
@@ -457,6 +459,13 @@ try {
     $selected_day_memo = trim((string)$stmt->fetchColumn());
 } catch (Exception $e) {}
 
+// 選択日の大腸CF件数（胃腸科・肛門科・TCF/W/ポリペク内訳）を取得（部屋・下剤一括ホバーサマリ用）
+$cf_counts = getDailyCfCounts($pdo, $selected_date);
+$cf_tooltip_plain = "【" . date('n/j', strtotime($selected_date)) . " 大腸CF件数】全体: {$cf_counts['total_cf']}件\n"
+    . "・🔵 胃腸科: {$cf_counts['gastro']['total']}件 (TCF: {$cf_counts['gastro']['tcf']}, W: {$cf_counts['gastro']['w']}, ポリペク: {$cf_counts['gastro']['polypep']})\n"
+    . "・🟢 肛門科: {$cf_counts['proct']['total']}件 (TCF: {$cf_counts['proct']['tcf']}, W: {$cf_counts['proct']['w']}, ポリペク: {$cf_counts['proct']['polypep']})\n"
+    . "※クリックで部屋割り・下剤の一括設定画面を開きます";
+
 // ── 日付計算 ──
 $sel_ts   = strtotime($selected_date);
 $sel_w    = (int)date('w', $sel_ts);
@@ -784,6 +793,9 @@ $is_today = ($selected_date === $today_date);
             <button type="button" onclick="openMedicalAlertScanModal({date: '<?=$selected_date?>', dept: '<?=$dept?>'})" class="nav-btn nav-btn-alert-scan" title="抗血栓薬・アレルギー・感染症・風邪アラートスキャン">
                 <span>🛡️</span> アラートスキャン
             </button>
+            <a href="furiwake_daymemo.php" class="nav-btn" style="background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; font-weight: 700;" title="日別メモの診療科振り分けメンテナンス（データ整理）">
+                <span>📝</span> メモ振分
+            </a>
         </div>
     </div>
 
@@ -879,9 +891,70 @@ $is_today = ($selected_date === $today_date);
                 <button type="button" id="show_tcf" class="btn-slot-toggle btn-slot-tcf active" onclick="toggleSlotFilterBtn('TCF', this)" title="TCF(大腸)枠の表示切替">TCF</button>
             </div>
             
-            <button type="button" onclick="openBulkPrepRoomModal('<?= $dept ?>', '<?= $selected_date ?>')" class="summary-btn-modern" style="background:#0d9488;" title="当日の部屋割り・下剤を一括設定">
-                🚪 部屋・下剤一括
-            </button>
+            <!-- 部屋・下剤一括設定ボタン（ホバーで胃腸科・肛門科CF件数を表示） -->
+            <div class="bulk-prep-btn-container">
+                <button type="button" onclick="openBulkPrepRoomModal('<?= $dept ?>', '<?= $selected_date ?>')" class="summary-btn-modern" style="background:#0d9488;" aria-label="当日の部屋割り・下剤を一括設定">
+                    🚪 部屋・下剤一括
+                    <?php if ($cf_counts['total_cf'] > 0): ?>
+                        <span class="cf-mini-pill"><?= $cf_counts['total_cf'] ?></span>
+                    <?php endif; ?>
+                </button>
+
+                <!-- ホバーで表示されるリッチカード -->
+                <div class="cf-hover-card" role="tooltip">
+                    <div class="cf-hover-header">
+                        <div class="cf-hover-title">
+                            <span>🚪 大腸CF件数サマリ</span>
+                            <span class="cf-hover-date"><?= date('n/j', $sel_ts) ?>(<?= $day_str ?>)</span>
+                        </div>
+                        <div class="cf-hover-total-badge">
+                            全体計 <strong class="cf-total-num"><?= $cf_counts['total_cf'] ?></strong> 件
+                        </div>
+                    </div>
+                    
+                    <div class="cf-hover-body">
+                        <table class="cf-hover-table">
+                            <thead>
+                                <tr>
+                                    <th class="th-dept">診療科</th>
+                                    <th class="th-total">CF合計</th>
+                                    <th class="th-detail">TCF</th>
+                                    <th class="th-detail">W</th>
+                                    <th class="th-detail">ポリペク</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="row-gastro">
+                                    <td class="td-dept">
+                                        <strong>🔵 胃腸科</strong>
+                                    </td>
+                                    <td class="td-total">
+                                        <span class="count-badge count-gastro"><?= $cf_counts['gastro']['total'] ?>件</span>
+                                    </td>
+                                    <td class="td-detail <?= $cf_counts['gastro']['tcf'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['gastro']['tcf'] ?></td>
+                                    <td class="td-detail <?= $cf_counts['gastro']['w'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['gastro']['w'] ?></td>
+                                    <td class="td-detail <?= $cf_counts['gastro']['polypep'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['gastro']['polypep'] ?></td>
+                                </tr>
+                                <tr class="row-proct">
+                                    <td class="td-dept">
+                                        <strong>🟢 肛門科</strong>
+                                    </td>
+                                    <td class="td-total">
+                                        <span class="count-badge count-proct"><?= $cf_counts['proct']['total'] ?>件</span>
+                                    </td>
+                                    <td class="td-detail <?= $cf_counts['proct']['tcf'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['proct']['tcf'] ?></td>
+                                    <td class="td-detail <?= $cf_counts['proct']['w'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['proct']['w'] ?></td>
+                                    <td class="td-detail <?= $cf_counts['proct']['polypep'] > 0 ? 'has-count' : 'is-zero' ?>"><?= $cf_counts['proct']['polypep'] ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="cf-hover-footer">
+                        <span>※CF対象（TCF+W+ポリペク）の前処置・部屋割</span>
+                        <span style="font-size:10.5px; color:#0f766e; font-weight:700;">クリックで開く ➔</span>
+                    </div>
+                </div>
+            </div>
 
             <button type="button" onclick="openSlotSummary('<?= $dept ?>', '<?= $selected_date ?>')" class="summary-btn-modern" title="当日の時間枠と医師供給枠のバランスサマリを別画面で表示">
                 📊 枠・供給サマリ
@@ -941,7 +1014,7 @@ $is_today = ($selected_date === $today_date);
                     <th style="width:34px; text-align:center;" title="枠なし設定・復帰">🚫</th>
                     <th style="width:30px; text-align:center;" title="編集・削除">✏️</th>
                     <th style="width:115px;">時間枠</th>
-                    <th style="width:90px; text-align:center;">カルテNO</th>
+                    <th style="width:90px; text-align:center;">患者No</th>
                     <th style="width:220px;">患者名</th>
                     <th style="width:95px; text-align:center;">担当 / 種別</th>
                     <th style="width:68px; text-align:center;">部屋</th>
@@ -1094,7 +1167,7 @@ $is_today = ($selected_date === $today_date);
                         <?php endif; ?>
                     </td>
                     
-                    <!-- 5列目: カルテNO -->
+                    <!-- 5列目: 患者No -->
                     <td style="text-align:center;">
                         <?php if ($is_empty || $is_no_waku || empty($p_id_str) || $p_id_str === '---'): ?>
                             <?= ($is_empty || $is_no_waku) ? '' : '---' ?>
@@ -1239,6 +1312,12 @@ $is_today = ($selected_date === $today_date);
                     💾 保存する
                 </button>
             </div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 11px; color: #64748b;">※ メモは診療科（<?= $dept === 'PROCT' ? '🟢 肛門科' : '🔵 胃腸科' ?>）ごとに独立管理されます</span>
+            <a href="furiwake_daymemo.php" target="_blank" style="font-size: 11.5px; color: #0284c7; text-decoration: none; font-weight: 700;">
+                🔧 メモ科振分メンテ ➔
+            </a>
         </div>
     </div>
 </dialog>

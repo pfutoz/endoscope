@@ -306,7 +306,7 @@ if ($has_keyword) {
             <input type="hidden" name="debug" value="1">
         <?php endif; ?>
         <div class="search-row">
-            <label for="patient_no">カルテNo</label>
+            <label for="patient_no">患者No</label>
             <input type="text" name="patient_no" id="patient_no" class="id-input"
                    value="<?=htmlspecialchars($patient_no, ENT_QUOTES, 'UTF-8')?>" 
                    placeholder="例: 50000（完全一致）">
@@ -365,7 +365,7 @@ if ($has_keyword) {
             <table>
                 <thead>
                     <tr>
-                        <th style="width:12%;">カルテNo</th>
+                        <th style="width:12%;">患者No</th>
                         <th style="width:18%;">氏名</th>
                         <th style="width:15%;">カナ</th>
                         <th style="width:15%;">生年月日</th>

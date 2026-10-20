@@ -10,6 +10,7 @@
  *   - 2026-09-28: カレンダー折りたたみ用スタイル (.calendar-wrapper.collapsed) に !important 適用
  *   - 2026-09-29: カレンダー内包コマンドパレット (.calendar-wrapper .filters-compact) のスタイル最適化および .calendar-section 追加
  *   - 2026-09-29: ファイル名を month_schedule.css に正規化・一本化
+ *   - 2026-10-09: 【医師予定表連携】カレンダー各日セル内に表示する医師休診・不在バッジ (.cal-doctor-events, .cal-doctor-event-badge) のスタイルを追加。セル崩れ防止のコンパクト化とホバー視認性を最適化
  */
 /* ── Modern Web スクロールバー標準設定 ── */
         :root {
@@ -161,7 +162,7 @@
 
         .cal-table th, .cal-table td { box-sizing: border-box; border: 1px solid #cbd5e1; text-align: center; vertical-align: top; }
         .cal-table th { background: #f8fafc; font-weight: 800; font-size: 11.5px; padding: 5px; color: #0f172a; }
-        .cal-table .day-cell { cursor: pointer; min-height: 85px; height: 95px; overflow: hidden; background: #ffffff; }
+        .cal-table .day-cell { cursor: pointer; min-height: 90px; height: auto; overflow: hidden; background: #ffffff; }
         .cal-table .day-cell:hover { background: #f8fafc; }
         .cal-table .day-cell.has-available { background-color: #fefce8 !important; }
         .cal-table .day-cell.past { background-color: #f1f5f9 !important; opacity: 0.85; color: #64748b; cursor: not-allowed; }
@@ -189,6 +190,45 @@
 
         .date-num-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 21px; height: 21px; box-sizing: border-box; }
         .date-num-badge.has-exception { width: 23px; height: 23px; border: 2px solid #2563eb; background-color: #eff6ff; color: #1d4ed8 !important; border-radius: 50%; font-weight: 800; }
+
+        /* ── 医師予定バッジ (yotei連携) ── */
+        .cal-doctor-events { display: flex; flex-direction: column; gap: 2px; margin: 1px 0 3px 0; padding: 0 1px; }
+        .cal-doctor-event-badge {
+            display: block;
+            font-size: 9.5px;
+            font-weight: 700;
+            line-height: 1.35;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            border-radius: 3px;
+            padding: 1px 4px;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: help;
+            box-sizing: border-box;
+            transition: all 0.15s ease;
+        }
+        .cal-doctor-event-badge:hover {
+            background-color: #fee2e2;
+            border-color: #f87171;
+            color: #7f1d1d;
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.15);
+        }
+        .cal-doctor-event-badge.more {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #cbd5e1;
+            text-align: center;
+            font-size: 8.5px;
+            padding: 0 2px;
+        }
+        .cal-doctor-event-badge.more:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
 
         .cal-table .day-cell .day-slots { line-height: 1.4; text-align: left; padding: 2px; max-height: 56px; overflow-y: auto; }
         .cal-table .day-cell .doctor-slot-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; padding: 1px 0; border-bottom: 1px dashed #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -729,4 +769,219 @@
 .med-subtitle-text,
 .urgent-subtitle-text {
     color: #cbd5e1 !important;
+}
+
+/* ── 部屋・下剤一括ボタン ホバーCF件数カード ── */
+.bulk-prep-btn-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.bulk-prep-btn-container .cf-mini-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #0f766e;
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border-radius: 9999px;
+    margin-left: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    line-height: 1;
+    border: 1px solid rgba(13, 148, 136, 0.25);
+}
+
+.bulk-prep-btn-container .cf-hover-card {
+    position: absolute;
+    top: calc(100% + 9px);
+    left: 0;
+    z-index: 9999;
+    width: 350px;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 14px 30px -4px rgba(15, 23, 42, 0.25), 0 6px 12px -2px rgba(15, 23, 42, 0.12);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+    pointer-events: none;
+    text-align: left;
+    font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+    overflow: hidden;
+}
+
+/* 上部三角矢印 */
+.bulk-prep-btn-container .cf-hover-card::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 28px;
+    width: 10px;
+    height: 10px;
+    background: #0f172a;
+    border-left: 1.5px solid #0f172a;
+    border-top: 1.5px solid #0f172a;
+    transform: rotate(45deg);
+    z-index: 10;
+}
+
+/* ホバー時にスムーズに展開 */
+.bulk-prep-btn-container:hover .cf-hover-card {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.cf-hover-header {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #ffffff;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #334155;
+}
+
+.cf-hover-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+}
+
+.cf-hover-date {
+    background: rgba(255, 255, 255, 0.18);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+.cf-hover-total-badge {
+    font-size: 11px;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    white-space: nowrap;
+}
+
+.cf-hover-total-badge .cf-total-num {
+    font-size: 14px;
+    font-weight: 800;
+    color: #38bdf8;
+    margin: 0 1px;
+}
+
+.cf-hover-body {
+    padding: 8px 10px;
+    background: #ffffff;
+}
+
+.cf-hover-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+}
+
+.cf-hover-table th {
+    background: #f1f5f9;
+    color: #475569;
+    font-weight: 700;
+    padding: 6px 4px;
+    border-bottom: 1.5px solid #cbd5e1;
+    text-align: center;
+    font-size: 11px;
+}
+.cf-hover-table th.th-dept {
+    text-align: left;
+    padding-left: 8px;
+    width: 85px;
+}
+.cf-hover-table th.th-total {
+    width: 65px;
+}
+.cf-hover-table th.th-detail {
+    width: 60px;
+}
+
+.cf-hover-table td {
+    padding: 7px 4px;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: center;
+    color: #334155;
+}
+
+.cf-hover-table td.td-dept {
+    text-align: left;
+    padding-left: 8px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.cf-hover-table tr.row-gastro td.td-dept {
+    color: #1d4ed8;
+}
+
+.cf-hover-table tr.row-proct td.td-dept {
+    color: #047857;
+}
+
+.cf-hover-table .count-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.count-badge.count-gastro {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.count-badge.count-proct {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.cf-hover-table td.td-detail {
+    font-family: Consolas, Monaco, "Courier New", monospace;
+    font-size: 12.5px;
+}
+
+.cf-hover-table td.td-detail.has-count {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.cf-hover-table td.td-detail.is-zero {
+    color: #cbd5e1;
+    font-weight: 500;
+}
+
+.cf-hover-footer {
+    padding: 6px 12px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    font-size: 10.5px;
+    color: #64748b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
