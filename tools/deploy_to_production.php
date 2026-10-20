@@ -16,6 +16,11 @@ if (!is_dir($prodBase)) {
 }
 
 $filesToDeploy = [
+    'print_schedule_daily.php',
+    'help.php',
+    'help.html',
+    '仕様書/2026-10-20works.html',
+    '仕様書/specdoc.html',
     'lib/calendar_helper.php',
     'assets/css/month_schedule.css',
     'furiwake_daymemo.php',
@@ -23,7 +28,6 @@ $filesToDeploy = [
     'month_schedule.php',
     'schedule_note.php',
     '仕様書/2026-10-9works.html',
-    '仕様書/specdoc.html',
 ];
 
 $timestamp = date('Ymd_His');
