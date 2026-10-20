@@ -8,6 +8,7 @@
  * 修正履歴:
  *   - 2026-09-18: 枠数パターンの横持ち入力を縦持ちテーブルへ確実にするUPSERT処理、出勤例外タブ復元
  *   - 2026-09-29: 検査枠マスタ変更履歴（t_master_audit_log）の自動差分記録、ワンクリックUndo（復元）、履歴一括削除パネルを新設
+ *   - 2026-10-20: 特大Flatpickr（小野会カレンダー・公休日色分け）日付ピッカー導入
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -587,6 +588,11 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
             });
         });
     </script>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 
@@ -935,7 +941,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 <input type="hidden" name="year" value="<?= $year ?>">
                 
                 <label>日付:</label>
-                <input type="date" name="target_date" class="input-date" required>
+                <input type="text" name="target_date" id="target_date" class="input-date onokai-date-picker" required autocomplete="off" placeholder="クリックして選択" style="width: 140px;">
                 
                 <label>医師:</label>
                 <select name="doctor_name" class="input-text" style="width:120px;" required>
@@ -1062,5 +1068,18 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
 
 </div>
 
+
+<script>
+function initSlotMasterDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('#target_date');
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSlotMasterDatePicker);
+} else {
+    initSlotMasterDatePicker();
+}
+</script>
 </body>
 </html>

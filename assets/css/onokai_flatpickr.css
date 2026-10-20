@@ -1,0 +1,200 @@
+/**
+ * assets/css/onokai_flatpickr.css
+ * 医療法人小野会 特大Flatpickr共通スタイルシート
+ * 生成日時: 2026-10-20 23:15
+ * 
+ * 特徴:
+ *   - 画面デザイン・ツライチを保護する入力コントロールラッパー
+ *   - 横幅440px / 日付文字18px / マス目52px の押し間違いゼロ特大カレンダー
+ *   - 小野会公休（日曜・祝日）: 赤色（薄赤背景・赤文字）※最優先
+ *   - 木曜日: 青色（水色背景・濃青文字）
+ */
+
+/* ── Flatpickr 特大カレンダー共通デザイン ── */
+.flatpickr-calendar {
+    width: 440px !important;
+    max-width: 95vw !important;
+    background: #ffffff !important;
+    border: 2px solid #2563eb !important;
+    border-radius: 12px !important;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.25) !important;
+    padding: 8px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, sans-serif !important;
+    z-index: 9999999 !important;
+}
+
+.flatpickr-months {
+    height: 48px !important;
+    align-items: center !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding-bottom: 4px !important;
+}
+
+.flatpickr-current-month {
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    padding: 4px 0 !important;
+}
+
+.flatpickr-current-month .cur-month {
+    font-weight: 800 !important;
+}
+
+.flatpickr-monthDropdown-months {
+    font-size: 17px !important;
+    font-weight: 800 !important;
+}
+
+.flatpickr-current-month input.cur-year {
+    font-size: 18px !important;
+    font-weight: 800 !important;
+}
+
+.flatpickr-prev-month, .flatpickr-next-month {
+    padding: 8px 12px !important;
+}
+
+.flatpickr-prev-month svg, .flatpickr-next-month svg {
+    width: 18px !important;
+    height: 18px !important;
+    fill: #2563eb !important;
+}
+
+.flatpickr-weekdays {
+    height: 38px !important;
+    margin-top: 4px !important;
+}
+
+span.flatpickr-weekday {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    color: #475569 !important;
+}
+
+/* 曜日ヘッダーカラー（日: 赤、木: 青、土: 青） */
+span.flatpickr-weekday:first-child { color: #dc2626 !important; }
+span.flatpickr-weekday:nth-child(5) { color: #2563eb !important; }
+span.flatpickr-weekday:last-child { color: #2563eb !important; }
+
+.flatpickr-days {
+    width: 100% !important;
+}
+
+.dayContainer {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    justify-content: space-around !important;
+}
+
+.flatpickr-day {
+    height: 52px !important;
+    line-height: 50px !important;
+    max-width: 56px !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    border-radius: 8px !important;
+    margin: 2px 1px !important;
+    border: 1px solid transparent !important;
+    transition: all 0.15s ease !important;
+}
+
+.flatpickr-day:hover {
+    background: #e0f2fe !important;
+    border-color: #38bdf8 !important;
+}
+
+/* 💡 小野会公休（日曜・祝日）: 赤（最優先） */
+.flatpickr-day.onokai-holiday {
+    background: #ffe6e6 !important;
+    color: #d9383a !important;
+    border-color: #fca5a5 !important;
+}
+.flatpickr-day.onokai-holiday:hover {
+    background: #fecaca !important;
+}
+
+/* 💡 木曜: 青 */
+.flatpickr-day.onokai-thursday {
+    background: #e6f2ff !important;
+    color: #2471a3 !important;
+    border-color: #bfdbfe !important;
+}
+.flatpickr-day.onokai-thursday:hover {
+    background: #dbeafe !important;
+}
+
+/* 💡 選択中の日付 */
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #1d4ed8 !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4) !important;
+}
+
+/* 💡 本日（今日）枠線強調 */
+.flatpickr-day.today:not(.selected) {
+    border-color: #0284c7 !important;
+    background: #f0f9ff !important;
+}
+
+.flatpickr-current-month .onokai-header-wareki {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #2563eb !important;
+    margin-left: 4px;
+}
+
+/* ── フォーム内デザイン崩れ防止ラッパー ── */
+.onokai-datepicker-wrapper {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+.onokai-datepicker-input,
+.onokai-date-picker {
+    cursor: pointer !important;
+    font-weight: 600;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%231e40af' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 8px center !important;
+    background-color: #ffffff !important;
+    padding-right: 32px !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.onokai-datepicker-input:hover,
+.onokai-date-picker:hover {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+}
+
+.onokai-datepicker-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    cursor: pointer;
+    pointer-events: none;
+    user-select: none;
+    color: #1e40af;
+}
+
+/* ── カレンダー下部 リアルタイム和暦・曜日情報バー ── */
+.onokai-fp-footer {
+    border-top: 1px solid #e2e8f0;
+    margin-top: 8px;
+    padding-top: 8px;
+    padding-bottom: 2px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+

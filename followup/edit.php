@@ -36,6 +36,7 @@
  *   - 2026-08-25: month_schedule.php からのGET引継ぎ対応
  *   - 2026-08-25: 新規登録時にF/U項目のデフォルト行を表示しないよう修正
  *   - 2026-08-25: 次回来院日 簡易入力ボタンを追加（1週間後/2週間後/1か月後/2か月後/3か月後/1年後/2年後/3年後）
+ *   - 2026-10-20: 生年月日・次回来院日・発行日の入力に特大Flatpickr（小野会カレンダー・公休日色分け）導入
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -717,6 +718,11 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
             .quick-date-btn { font-size: 10px; padding: 3px 8px; }
         }
     </style>
+    <link rel="stylesheet" href="../assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="../assets/css/onokai_flatpickr.css">
+    <script src="../assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="../assets/vendor/flatpickr/ja.js"></script>
+    <script src="../assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 
@@ -781,7 +787,7 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
                 </div>
                 <div class="field">
                     <label>生年月日</label>
-                    <input type="date" name="birthday" id="f_birthday"
+                    <input type="text" name="birthday" id="f_birthday" class="onokai-date-picker" autocomplete="off"
                            value="<?= htmlspecialchars($data['birthday'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
                 </div>
                 <div class="field">
@@ -989,7 +995,7 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
                     <!-- 日付ピッカー（exact / after） -->
                     <div id="datePickerArea">
                         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;">
-                            <input type="date" name="next_visit_date" id="f_next_date"
+                            <input type="text" name="next_visit_date" id="f_next_date" class="onokai-date-picker" autocomplete="off"
                                    value="<?= htmlspecialchars($data['next_visit_date'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                                    style="padding:8px 12px; border:1px solid #d0d8e3; border-radius:8px; font-size:14px; width:auto;">
                             <span id="dateSuffix" style="font-size:13px; color:#64748b; margin-left:6px;"></span>
@@ -1078,7 +1084,7 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
                 </div>
                 <div class="field">
                     <label>発行日</label>
-                    <input type="date" name="issued_date" value="<?= htmlspecialchars($data['issued_date'] ?? date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="text" name="issued_date" class="onokai-date-picker" autocomplete="off" value="<?= htmlspecialchars($data['issued_date'] ?? date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
                     <span class="hint">デフォルトは今日の日付です</span>
                 </div>
                 <div class="field">
@@ -1501,5 +1507,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
+<script>
+function initFollowupEditDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('#f_birthday');
+        OnokaiDatePicker.attach('#f_next_date');
+        OnokaiDatePicker.attach('input[name="issued_date"]');
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFollowupEditDatePicker);
+} else {
+    initFollowupEditDatePicker();
+}
+</script>
 </body>
 </html>

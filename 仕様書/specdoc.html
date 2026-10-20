@@ -378,11 +378,11 @@
     <!-- ── 関連ドキュメントナビゲーション ── -->
     <div style="background: #f1f5f9; padding: 10px 36px; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; color: #475569; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
         <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
+        <a href="2026-10-20works.html" style="color: #0284c7; text-decoration: none; font-weight: bold;">📄 本日改修報告書 (2026-10-20works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
         <a href="plan.html" style="color: #2563eb; text-decoration: none;">📋 中長期開発計画書 (plan.html)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-9works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-10-9works.html / ver1009)</a>
-        <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-5works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-10-5works.html)</a>
+        <a href="2026-10-9works.html" style="color: #059669; text-decoration: none;">📄 前回改修報告書 (2026-10-9works.html)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="../furiwake_daymemo.php" style="color: #d97706; text-decoration: none;">📝 メモ科振分メンテ (furiwake_daymemo.php)</a>
         <span style="color: #cbd5e1;">|</span>
@@ -413,6 +413,8 @@
             <li><a href="#cat-ward-admission">16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">ver1004新設</span></a></li>
             <li><a href="#cat-holiday-exception">17. 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-05新設</span></a></li>
             <li><a href="#cat-daymemo-furiwake">18. 日別メモ診療科完全独立 ＆ 振り分けメンテツール系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-09新設</span></a></li>
+            <li><a href="#cat-print-daily-renewal">19. 日別予約一覧印刷 A4縦最適化 ＆ 2ページ分割 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-20改修</span></a></li>
+            <li><a href="#cat-flatpickr-onokai">20. 特大Flatpickr共通日付コントロール（小野会カレンダー） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-20新設</span></a></li>
         </ul>
     </nav>
 
@@ -1703,6 +1705,45 @@
                         <li><strong>左右クリアランス極小化:</strong> セルパディングを 2.5px 2px に圧縮。固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）を最小幅・折り返し禁止（nowrap）にし、患者名・備考欄の横幅を確保。</li>
                         <li><strong>備考欄の印刷 ON / OFF トグル:</strong> 上部操作バーのチェックボックスから列ごと瞬時に非表示化。行高さが劇的に圧縮され省ページ化を実現（localStorageで設定維持）。</li>
                         <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-20works.html</code> に完全仕様と検証記録を収録。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        20. 医療法人小野会 特大Flatpickr共通日付コントロール (2026-10-20新設)
+        ============================================================ -->
+        <section class="spec-section" id="cat-flatpickr-onokai">
+            <h2 class="category-title">20. 医療法人小野会 特大Flatpickr共通日付コントロール（小野会カレンダー・公休日色分け・西暦/和暦切替） <span class="badge badge-success" style="font-size:11px;">2026-10-20 新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📅 特大Flatpickr共通日付コントロール ＆ 小野会カレンダーシステム</span>
+                        <span class="screen-file">assets/vendor/flatpickr/ / assets/css/onokai_flatpickr.css / assets/js/onokai_flatpickr.js</span>
+                    </div>
+                    <span class="badge badge-primary">共通UIコンポーネント ＆ UX刷新</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        院内端末（ブラウザ標準日付ピッカーの操作性差異や文字サイズの小ささ）による日付選択の押し間違い・ストレスを解消するため、完全オフライン動作する <strong>特大Flatpickr（横幅440px / 文字18px / マス目52px）</strong> を独自構築。全画面の日付入力コントロールへ一括導入しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様詳細</div>
+                    <ul class="feature-list">
+                        <li><strong>押し間違いゼロの特大カレンダー:</strong> 横幅440px、日付セル52px×48pxのゆったり設計。タッチパネル・マウス双方で極めて快適に選択可能。</li>
+                        <li><strong>小野会公休日（日曜・祝日・年末年始）の自動判定 ＆ 赤色強調:</strong> オフラインJavaScriptにて国民の祝日（春分/秋分計算、振替休日等）およびクリニック公休（日曜、12/30〜1/3）を完全判定し、最優先で赤色（薄赤背景・赤文字）表示。</li>
+                        <li><strong>木曜日の青色判定:</strong> 院内カレンダー規則に準拠し、木曜日を青色表示。</li>
+                        <li><strong>和暦元号バッジ ＆ 選択情報バー:</strong> カレンダー上部に「令和〇年」バッジを常時掲示。下部には選択した日付の「和暦・曜日・公休理由」をリアルタイム表示。</li>
+                        <li><strong>画面デザイン・ツライチ寸法の完全保護:</strong> 既存の入力フォームやツールバーの幅・高さを1pxも狂わせないラッパー設計。</li>
+                        <li><strong>デイリーノート (schedule_note.php) 独自機能:</strong>
+                            <ul style="margin-top:4px;">
+                                <li><strong>西暦／和暦ワンクリック切替:</strong> 日付テキスト部分をクリックすると「2026/10/20 (火)」⇔「令和8年10/20 (火)」が瞬時に切り替わり、localStorageで自動記憶。</li>
+                                <li><strong>誤爆防止カレンダートリガー:</strong> 📅アイコンクリック時のみカレンダーが展開。キーボードショートカット（←→移動）との競合も防止。</li>
+                            </ul>
+                        </li>
+                        <li><strong>全画面一括適用済:</strong>
+                            <code>schedule_note.php</code>（デイリーノート）、<code>modal_edit.php</code>（予約登録・編集）、<code>slot_master_maintenance.php</code>（枠マスタ保守）、<code>slot_search.php</code>（空き枠検索）、<code>stats.php</code>（検査数集計）、<code>furiwake_daymemo.php</code>（日別メモ振分）、<code>followup/index.php</code> ＆ <code>followup/edit.php</code>（フォローアップ機能）。
+                        </li>
                     </ul>
                 </div>
             </div>

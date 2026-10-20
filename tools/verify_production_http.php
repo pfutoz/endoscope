@@ -5,12 +5,19 @@
  */
 
 $urls = [
-    'http://192.168.1.16/endoscope/furiwake_daymemo.php',
     'http://192.168.1.16/endoscope/index.php',
-    'http://192.168.1.16/endoscope/month_schedule.php?dept=PROCT',
-    'http://192.168.1.16/endoscope/month_schedule.php?dept=GASTRO',
     'http://192.168.1.16/endoscope/schedule_note.php?dept=PROCT',
-    'http://192.168.1.16/endoscope/仕様書/2026-10-9works.html',
+    'http://192.168.1.16/endoscope/schedule_note.php?dept=GASTRO',
+    'http://192.168.1.16/endoscope/slot_master_maintenance.php',
+    'http://192.168.1.16/endoscope/slot_search.php',
+    'http://192.168.1.16/endoscope/stats.php',
+    'http://192.168.1.16/endoscope/furiwake_daymemo.php',
+    'http://192.168.1.16/endoscope/followup/index.php',
+    'http://192.168.1.16/endoscope/print_schedule_daily.php',
+    'http://192.168.1.16/endoscope/assets/css/onokai_flatpickr.css',
+    'http://192.168.1.16/endoscope/assets/js/onokai_flatpickr.js',
+    'http://192.168.1.16/endoscope/assets/vendor/flatpickr/flatpickr.min.js',
+    'http://192.168.1.16/endoscope/仕様書/2026-10-20works.html',
     'http://192.168.1.16/endoscope/仕様書/specdoc.html'
 ];
 

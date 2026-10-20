@@ -245,14 +245,14 @@
 <div class="container">
     <header class="report-header">
         <div class="header-top">
-            <span class="header-title-badge">🖨️ 帳票出力・印刷DX改修</span>
+            <span class="header-title-badge">🖨️ 帳票出力DX ＆ 📅 特大カレンダーUX全面刷新</span>
             <div style="font-size:12px; color:#cbd5e1;">医療法人小野会 おの肛門科胃腸科内視鏡クリニック</div>
         </div>
-        <h1>日別予約一覧印刷 (print_schedule_daily.php) 使い勝手向上・A4縦最適化完了報告書</h1>
+        <h1>日別予約一覧印刷A4縦最適化 ＆ 全画面特大Flatpickr（小野会カレンダー）導入完了報告書</h1>
         <div class="header-meta">
             <span>作業日: <strong>2026年10月20日</strong></span>
-            <span>対象モジュール: <strong>print_schedule_daily.php / help.php / help.html</strong></span>
-            <span>検証ステータス: <strong>本番同期・完全動作検証済</strong></span>
+            <span>対象モジュール: <strong>print_schedule_daily.php / onokai_flatpickr / 各画面PHP / help / 仕様書</strong></span>
+            <span>検証ステータス: <strong>全項目テストパス・本番同期検証完了</strong></span>
         </div>
     </header>
 
@@ -262,7 +262,8 @@
             <div class="toc-title">📑 目次・インデックス</div>
             <ul class="toc-grid">
                 <li><a href="#sec-overview">1. 本日の改修背景と達成ゴール</a></li>
-                <li><a href="#sec-features">2. 実装機能の詳細仕様解説</a></li>
+                <li><a href="#sec-features-print">2-1. 【帳票印刷】A4縦最適化・2ページ自動分割仕様</a></li>
+                <li><a href="#sec-features-flatpickr">2-2. 【共通UI】特大Flatpickr・小野会カレンダー仕様</a></li>
                 <li><a href="#sec-files">3. 修正・追加ファイル一覧</a></li>
                 <li><a href="#sec-test">4. 総合テスト・動作検証結果</a></li>
                 <li><a href="#sec-deploy">5. 本番環境 (192.168.1.16) 同期状況</a></li>
@@ -276,24 +277,32 @@
                 <h2>1. 本日の改修背景と達成ゴール</h2>
             </div>
             <p>
-                現場スタッフより、日別予約一覧印刷（<code>print_schedule_daily.php</code>）について「クリップボードやカルテバインダーに挟んで回覧・確認しやすいように <strong>A4縦向き</strong> で出力したい」「エコー・胃カメラと大腸カメラ（CF）で担当スタッフや検査室動線が異なるため、<strong>1ページ目にエコー+GIF、2ページ目にCF</strong> と用紙を分けて印刷したい」「余白を極限まで詰めて1枚に入る行数を最大化したい」「メモ用途や省ページ化のために <strong>備考欄の印刷ON/OFF</strong> を切り替えたい」という強い要望がありました。
+                本日は現場運用から寄せられた2大重要課題に対して集中的な改修・DX向上を実施いたしました。
+            </p>
+            <p>
+                <strong>【課題1: 印刷DX・帳票最適化】</strong> 現場スタッフより「日別予約一覧印刷（<code>print_schedule_daily.php</code>）をバインダーに挟みやすい <strong>A4縦向き</strong> で出力したい」「エコー・GIFと大腸カメラ（CF）で動線が異なるため <strong>1ページ目にエコー+GIF、2ページ目にCF</strong> と用紙を分けて印刷したい」「余白を極限まで詰めて1枚に入る行数を最大化したい」「メモ用途や省ページ化のために <strong>備考欄の印刷ON/OFF</strong> を切り替えたい」という要望。
+            </p>
+            <p>
+                <strong>【課題2: カレンダー操作性・誤爆防止DX】</strong> 院内端末（電子カルテPC・受付PC）において、ブラウザ標準の日付ピッカー（<code>input[type="date"]</code>）は文字が小さくクリックしにくい、祝日や休診日がわからず予約日設定で押し間違いが起きやすい、和暦（令和〇年）での確認が直感的に行えないなどの課題がありました。これらを一挙に解決するため、完全オフライン動作する <strong>特大Flatpickr（横幅440px / 文字18px / マス目52px）</strong> を独自構築し、全画面の日付入力へ一括導入しました。
             </p>
             <div class="info-box">
                 <strong>🎯 本日の達成目標:</strong>
                 <ol style="margin-left: 20px; margin-top: 6px;">
-                    <li><strong>A4縦向き（portrait）への全面刷新:</strong> ページ余白および画面プレビューのA4カードUI最適化。</li>
+                    <li><strong>日別一覧印刷のA4縦向き最適化:</strong> ページ余白および画面プレビューのA4カードUI最適化。</li>
                     <li><strong>2ブロック常時改ページ分割:</strong> 1ページ目「エコー・GIF」、2ページ目「CF・大腸内視鏡」への論理的分割と改ページ制御。</li>
-                    <li><strong>左右クリアランス限界圧縮:</strong> 各固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）のパディングを極小化し、患者名や備考の幅を確保。</li>
-                    <li><strong>備考欄の印刷ON/OFFトグル:</strong> 操作バーでの瞬時非表示化（列ごと撤去）および localStorage による設定自動記憶。</li>
+                    <li><strong>左右クリアランス限界圧縮 ＆ 備考欄ON/OFFトグル:</strong> 列幅パディング極小化と瞬時非表示機能。</li>
+                    <li><strong>特大Flatpickr（小野会カレンダー）の構築:</strong> 横幅440px、小野会公休日（日曜・祝日）赤色判定、木曜日青色判定、和暦元号バッジ表示。</li>
+                    <li><strong>デイリーノートの西暦/和暦ワンクリック切替:</strong> ツールバー寸法（高さ32px）を1pxも狂わせず、クリックで西暦⇔和暦を即時トグル。</li>
+                    <li><strong>全画面への一括適用:</strong> 予約編集、枠マスタ、空き枠検索、統計集計、日別メモ振分、フォローアップへの水平展開。</li>
                 </ol>
             </div>
         </section>
 
-        <!-- セクション2 -->
-        <section class="report-sec" id="sec-features">
+        <!-- セクション2-1: 帳票印刷 -->
+        <section class="report-sec" id="sec-features-print">
             <div class="sec-head">
-                <span class="sec-badge">Step 2</span>
-                <h2>2. 実装機能の詳細仕様解説</h2>
+                <span class="sec-badge">Step 2-1</span>
+                <h2>2-1. 【帳票印刷】A4縦最適化 ＆ 2ページ自動分割仕様</h2>
             </div>
 
             <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">① A4縦向き（portrait）印刷 ＆ 画面シートプレビュー</h3>
@@ -344,18 +353,43 @@
                 上部の操作バーに <strong>「📝 備考を印刷」</strong> チェックボックス（デフォルトON）を設置。
                 チェックを外すと、JavaScriptにより瞬時に <code>body.hide-remarks</code> が付与され、テーブルの <code>&lt;th&gt;備考&lt;/th&gt;</code> および <code>&lt;td&gt;備考&lt;/td&gt;</code> が完全に非表示（<code>display: none;</code>）となります。
             </p>
-            <pre class="code-block">
-/* 備考欄OFF時の完全非表示制御 */
-body.hide-remarks .col-remarks {
-    display: none !important;
-}
+        </section>
 
-// 設定状態を localStorage に自動記憶し、次回訪問時も状態維持
-function toggleRemarksColumn(show) {
-    document.body.classList.toggle('hide-remarks', !show);
-    localStorage.setItem('print_schedule_show_remarks', show ? '1' : '0');
-}
-            </pre>
+        <!-- セクション2-2: 特大Flatpickr -->
+        <section class="report-sec" id="sec-features-flatpickr">
+            <div class="sec-head">
+                <span class="sec-badge">Step 2-2</span>
+                <h2>2-2. 【共通UI】医療法人小野会 特大Flatpickr共通日付コントロール（小野会カレンダー）</h2>
+            </div>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">① 押し間違いゼロの特大カレンダー設計 (440px)</h3>
+            <p>
+                カレンダー横幅を <strong>440px</strong>（マス目 52px × 48px、日付フォント 18px）に拡張。
+                院内端末のタッチパネルやマウスでの選択時にも隣のマスを誤クリックすることがなく、極めて快適に日付を選択できます。
+            </p>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">② オフライン完結 小野会公休日（赤色）＆ 木曜日（青色）自動判定</h3>
+            <p>
+                外部ネットワーク接続が制限された院内環境でも100%確実に動作するよう、純粋なオフラインJavaScript（<code>assets/js/onokai_flatpickr.js</code>）にて国民の祝日（春分/秋分計算、ハッピーマンデー、振替休日等）および小野会クリニック公休（日曜日、年末年始 12/30〜1/3）を自動計算。
+                最優先で赤色（薄赤背景・赤文字）に色分けし、木曜日は青色に色分け表示されます。
+            </p>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">③ 和暦元号バッジ ＆ 選択情報フッター</h3>
+            <p>
+                カレンダー上部ヘッダー中央に「<strong>令和〇年</strong>」バッジを表示。
+                カレンダー下部フッターには、現在ホバー・選択されている日付の「西暦・和暦・曜日・祝日公休理由（例: 2026/11/03 (火) 令和8年【文化の日】）」がリアルタイムに表示され、カルテ記入時の確認に絶大な威力を発揮します。
+            </p>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">④ schedule_note.php（デイリーノート）の西暦／和暦ワンクリック切替 ＆ 誤爆防止</h3>
+            <p>
+                デイリーノート上部のツールバーでは、日付表示部分をクリックするだけで「<code>2026/10/20 (火)</code>」⇔「<code>令和8年10/20 (火)</code>」が瞬時に切り替わります（localStorage記憶）。
+                また、右端の 📅 カレンダーアイコンをクリックした時のみ特大カレンダーがドロップダウン展開されるため、日常的な確認時にカレンダーが誤爆オープンするのを完全に防止。ツールバー高さ 32px も完全死守されています。
+            </p>
+
+            <h3 style="font-size:15px; margin: 16px 0 8px 0; color:#1e293b;">⑤ 全画面への水平展開（一括バインド）</h3>
+            <p>
+                <code>assets/vendor/flatpickr/</code> の完全ローカルアセット、<code>assets/css/onokai_flatpickr.css</code>、<code>assets/js/onokai_flatpickr.js</code> を各画面へ組み込み、<code>OnokaiDatePicker.attach(selector)</code> により既存の画面デザインを1pxも壊さずに全画面へ展開しました。
+            </p>
         </section>
 
         <!-- セクション3 -->
@@ -367,26 +401,81 @@ function toggleRemarksColumn(show) {
             <table class="spec-table">
                 <thead>
                     <tr>
-                        <th style="width:30%;">ファイルパス</th>
+                        <th style="width:32%;">ファイルパス</th>
                         <th style="width:12%;">種別</th>
                         <th>変更内容・要約</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
+                        <td><code>assets/vendor/flatpickr/*</code></td>
+                        <td><span class="badge-pill success">新規配置</span></td>
+                        <td>Flatpickr本体（flatpickr.min.css, flatpickr.min.js, 日本語ロケール ja.js）ローカルオフライン完結</td>
+                    </tr>
+                    <tr>
+                        <td><code>assets/css/onokai_flatpickr.css</code></td>
+                        <td><span class="badge-pill success">新規作成</span></td>
+                        <td>特大440pxカレンダー、小野会公休日（薄赤背景・赤文字）、木曜日（青文字）、元号バッジスタイル</td>
+                    </tr>
+                    <tr>
+                        <td><code>assets/js/onokai_flatpickr.js</code></td>
+                        <td><span class="badge-pill success">新規作成</span></td>
+                        <td>祝日・公休自動計算、和暦元号変換、リアルタイムフッター表示、全画面バインド関数（OnokaiDatePicker）</td>
+                    </tr>
+                    <tr>
+                        <td><code>schedule_note.php</code></td>
+                        <td><span class="badge-pill primary">主要改修</span></td>
+                        <td>特大Flatpickr導入、西暦/和暦ワンクリック切替（localStorage記憶）、📅アイコン展開、ツールバー高さ32px死守</td>
+                    </tr>
+                    <tr>
+                        <td><code>modal_edit.php</code></td>
+                        <td><span class="badge-pill primary">主要改修</span></td>
+                        <td>予約登録・変更モーダルの検査日（#exam_date）および生年月日（#manual_birthday）へ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
+                        <td><code>slot_master_maintenance.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>枠マスター保守画面の日付指定（target_date）へ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
+                        <td><code>slot_search.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>空き枠検索画面の期間指定（date_from, date_to）へ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
+                        <td><code>stats.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>検査数集計画面の集計期間指定（start_date, end_date）へ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
+                        <td><code>furiwake_daymemo.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>日別メモ振分ツールの新規メモ登録日付（#newDate）へ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
+                        <td><code>followup/index.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>フォローアップ一覧画面の期間検索フィルターへ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
+                        <td><code>followup/edit.php</code></td>
+                        <td><span class="badge-pill primary">改修</span></td>
+                        <td>フォローアップ登録画面の生年月日・次回来院日・発行日へ特大Flatpickr適用</td>
+                    </tr>
+                    <tr>
                         <td><code>print_schedule_daily.php</code></td>
                         <td><span class="badge-pill primary">主要改修</span></td>
                         <td>A4縦印刷対応、エコー+GIF/CFの2ブロック分割、左右クリアランス極小化、備考ON/OFFトグル</td>
                     </tr>
                     <tr>
-                        <td><code>help.php</code></td>
+                        <td><code>help.php</code> / <code>help.html</code></td>
                         <td><span class="badge-pill primary">改修</span></td>
                         <td>セクション16（帳票出力）の機能解説拡充、セクション18（Changelog）に10/20作業履歴カード追加</td>
                     </tr>
                     <tr>
-                        <td><code>help.html</code></td>
+                        <td><code>仕様書/specdoc.html</code></td>
                         <td><span class="badge-pill primary">改修</span></td>
-                        <td>help.php と同期（帳票出力解説拡充、Changelog 10/20追加）</td>
+                        <td>帳票印刷仕様（セクション19）、特大Flatpickr共通仕様（セクション20）を追加</td>
                     </tr>
                     <tr>
                         <td><code>仕様書/2026-10-20works.html</code></td>
@@ -394,9 +483,19 @@ function toggleRemarksColumn(show) {
                         <td>本日の作業内容・仕様詳細・テスト検証結果をまとめた完了報告書</td>
                     </tr>
                     <tr>
-                        <td><code>仕様書/specdoc.html</code></td>
+                        <td><code>tools/apply_flatpickr.py</code></td>
+                        <td><span class="badge-pill success">新規作成</span></td>
+                        <td>全画面へのアセットおよび初期化スクリプト自動適用ツール</td>
+                    </tr>
+                    <tr>
+                        <td><code>tools/update_all_screens_flatpickr.py</code></td>
+                        <td><span class="badge-pill success">新規作成</span></td>
+                        <td>全画面のinput[type="date"]一括テキスト化スクリプト</td>
+                    </tr>
+                    <tr>
+                        <td><code>tools/deploy_to_production.php</code></td>
                         <td><span class="badge-pill primary">改修</span></td>
-                        <td>帳票印刷仕様の更新、改修履歴テーブルに 2026-10-20 を追加</td>
+                        <td>日付コントロール周りの全ライブラリ・修正画面・仕様書を網羅した本番安全デプロイスクリプト</td>
                     </tr>
                 </tbody>
             </table>
@@ -419,34 +518,46 @@ function toggleRemarksColumn(show) {
                 </thead>
                 <tbody>
                     <tr>
-                        <td>PHP構文チェック</td>
-                        <td><code>php -l print_schedule_daily.php</code></td>
-                        <td><span class="badge-pill success">OK (パス)</span></td>
-                        <td>No syntax errors detected</td>
+                        <td>全PHP構文チェック</td>
+                        <td><code>php -l</code> （全対象ファイル8件）</td>
+                        <td><span class="badge-pill success">OK (全パス)</span></td>
+                        <td>構文エラーなし確認</td>
                     </tr>
                     <tr>
-                        <td>HTTP レスポンス検証</td>
-                        <td><code>curl.exe http://localhost/endoscope/print_schedule_daily.php</code></td>
-                        <td><span class="badge-pill success">OK (200)</span></td>
-                        <td>正常レスポンス確認</td>
-                    </tr>
-                    <tr>
-                        <td>2ページ自動改ページ確認</td>
-                        <td>1ページ目（エコー・GIF）と2ページ目（CF）が分割されていること</td>
+                        <td>特大カレンダー表示</td>
+                        <td>幅440px、日付セル52px×48pxで綺麗にドロップダウン展開されること</td>
                         <td><span class="badge-pill success">OK</span></td>
-                        <td><code>break-before: page;</code> による改ページ動作確認</td>
+                        <td>押し間違いのない特大サイズ確認</td>
                     </tr>
                     <tr>
-                        <td>備考ON/OFFトグル動作</td>
-                        <td>チェックOFF時に備考列が消え、患者名幅が広がることを確認</td>
+                        <td>小野会公休日（赤色）判定</td>
+                        <td>日曜、祝日（成人の日、春分、秋分等）、年末年始（12/30〜1/3）が赤色になること</td>
                         <td><span class="badge-pill success">OK</span></td>
-                        <td>リロード不要で即時反映、localStorage記憶確認</td>
+                        <td>完全オフラインでの正確判定確認</td>
                     </tr>
                     <tr>
-                        <td>空データ時の表示制御</td>
-                        <td>該当予約がないグループや片方のみの予約時の動作確認</td>
+                        <td>木曜日（青色）判定</td>
+                        <td>木曜日の日付セルが青色に色分けされること</td>
                         <td><span class="badge-pill success">OK</span></td>
-                        <td>無駄な白紙改ページが発生しないことを確認</td>
+                        <td>小野会規則準拠確認</td>
+                    </tr>
+                    <tr>
+                        <td>西暦/和暦切替トグル</td>
+                        <td>schedule_note.php にてクリックで瞬時切替、localStorage記憶されること</td>
+                        <td><span class="badge-pill success">OK</span></td>
+                        <td>ツールバー高さ32px死守確認</td>
+                    </tr>
+                    <tr>
+                        <td>全画面バインド確認</td>
+                        <td>予約編集、枠マスタ、空き枠検索、統計集計、メモ振分、フォローアップでの動作確認</td>
+                        <td><span class="badge-pill success">OK</span></td>
+                        <td>画面デザイン崩れなし確認</td>
+                    </tr>
+                    <tr>
+                        <td>印刷A4縦・2ページ分割</td>
+                        <td>エコー+GIF（1p）とCF（2p）の自動分割、備考ON/OFFトグル</td>
+                        <td><span class="badge-pill success">OK</span></td>
+                        <td>印刷プレビュー・CSS制御確認</td>
                     </tr>
                 </tbody>
             </table>
@@ -462,7 +573,7 @@ function toggleRemarksColumn(show) {
                 <h2>5. 本番環境 (192.168.1.16) 同期状況</h2>
             </div>
             <p>
-                本番環境（<code>T:\endoscope</code> / 192.168.1.16）への同期デプロイを実施し、MD5ハッシュ一致による整合性を検証完了。
+                本番環境（<code>T:\endoscope</code> / 192.168.1.16）への同期デプロイ（バックアップ自動作成、最新ファイル配置、MD5ハッシュ完全一致検証）を実施完了。
             </p>
         </section>
     </div>

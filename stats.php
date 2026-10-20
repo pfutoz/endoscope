@@ -10,6 +10,8 @@
  * 修正 (2026-10-05): 
  *   - 術前F ⇒ 浣腸CFへ変更（exam_type='浣腸CF'を集計、独立別枠維持）
  *   - 枠なし設定（remarks/patient_name LIKE '%枠なし%'）を集計対象から除外（◆未定◆の大量カウント防止）
+ * 修正 (2026-10-20):
+ *   - 期間選択inputに特大Flatpickr（小野会カレンダー・公休日色分け）導入
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -478,6 +480,11 @@ if (!empty($selected_months)) {
             .stats-table th, .stats-table td { padding: 3px 5px; }
         }
     </style>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 
@@ -493,11 +500,11 @@ if (!empty($selected_months)) {
         <!-- 期間 + 月ショートカット -->
         <div class="filter-row">
             <span class="filter-label" style="cursor:default;">期間 <span class="required-mark">*</span></span>
-            <input type="date" name="start_date" id="date_from" class="date-input <?= $is_month_mode ? 'disabled' : '' ?>" 
-                   value="<?= htmlspecialchars($start_date, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="start_date" id="date_from" class="date-input onokai-date-picker <?= $is_month_mode ? 'disabled' : '' ?>" 
+                   value="<?= htmlspecialchars($start_date, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off">
             <span>〜</span>
-            <input type="date" name="end_date" id="date_to" class="date-input <?= $is_month_mode ? 'disabled' : '' ?>" 
-                   value="<?= htmlspecialchars($end_date, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="end_date" id="date_to" class="date-input onokai-date-picker <?= $is_month_mode ? 'disabled' : '' ?>" 
+                   value="<?= htmlspecialchars($end_date, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off">
             
             <!-- 月ショートカット（今月から過去に遡る 12ヶ月分・西暦付き） -->
             <span style="display:flex; gap:4px; margin-left:8px; flex-wrap:wrap;">
@@ -866,5 +873,19 @@ function resetForm() {
 }
 </script>
 
+
+<script>
+function initStatsDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('#date_from');
+        OnokaiDatePicker.attach('#date_to');
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStatsDatePicker);
+} else {
+    initStatsDatePicker();
+}
+</script>
 </body>
 </html>

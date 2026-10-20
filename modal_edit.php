@@ -20,6 +20,7 @@
  *   - Firefox 115等におけるQuillエディタツールバーの表示崩れ防止CSSを強化
  *   - 2026-09-29: 【本物モーダルダイアログ連携】親画面（month_schedule/month_matrix_v2）のインページモーダル化に伴い、window.parent postMessage 連携を実装。別ウィンドウ時（window.opener）の互換性を100%維持しながら、保存・削除・閉じる時のスムーズなダイアログクローズと親画面自動リロードを実現
  *   - 2026-10-04: 【病棟管理連動】初登録前のリアルタイム表示対応（TCF/W選択時即表示、ポリペク選択時即表示＆入院予定ON、上記以外選択時入院予定OFF＆非表示化）
+ *   - 2026-10-20: 【特大Flatpickr導入】検査日・生年月日入力欄に小野会カレンダー（公休赤色・木曜青色判定）を完全バインド
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -1441,6 +1442,12 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             border-radius: 4px;
         }
     </style>
+    <!-- 🖨️ 完全ローカル・オフライン動作 特大Flatpickr -->
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 
@@ -1484,7 +1491,7 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                 <div class="panel-header">📌 基本情報</div>
                 <div class="form-row">
                     <label for="exam_date" class="form-label">検査日 <span style="color:#e11d48;" aria-hidden="true">*</span></label>
-                    <input type="date" name="exam_date" id="exam_date" class="form-control" style="flex:1;" value="<?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?>" required aria-required="true" onchange="handleDateChange()">
+                    <input type="text" name="exam_date" id="exam_date" class="form-control onokai-date-picker" style="flex:1;" value="<?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?>" required aria-required="true" autocomplete="off" onchange="handleDateChange()">
                     <span id="day_of_week_label" style="font-weight:bold; font-size:12px; width:28px; text-align:center;"></span>
                 </div>
                 <div class="form-row">
@@ -1627,7 +1634,7 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                         </div>
                         <div class="manual-field-group">
                             <label for="manual_birthday">生年月日:</label>
-                            <input type="date" id="manual_birthday" class="form-control" style="width:125px; height:27px; font-size:12px;" value="<?= htmlspecialchars($p_bday_initial, ENT_QUOTES, 'UTF-8') ?>" onchange="syncManualToHidden()">
+                            <input type="text" id="manual_birthday" class="form-control onokai-date-picker" style="width:125px; height:27px; font-size:12px;" value="<?= htmlspecialchars($p_bday_initial, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off" onchange="syncManualToHidden()">
                             <span id="manualAgeBadge"></span>
                         </div>
                     </div>
@@ -3737,5 +3744,32 @@ function escapeHtml(str) {
         </div>
     </div>
 </div>
+
+<script>
+// 🖨️ 特大Flatpickr小野会カレンダーバインド (検査日 & 生年月日)
+function initModalDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('#exam_date', {
+            onChange: function(dates, dateStr) {
+                if (typeof handleDateChange === 'function') {
+                    handleDateChange();
+                }
+            }
+        });
+        OnokaiDatePicker.attach('#manual_birthday', {
+            onChange: function(dates, dateStr) {
+                if (typeof syncManualToHidden === 'function') {
+                    syncManualToHidden();
+                }
+            }
+        });
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initModalDatePicker);
+} else {
+    initModalDatePicker();
+}
+</script>
 </body>
 </html>

@@ -20,6 +20,7 @@
  *   - 2026-08-17: ステータスフィルタを追加
  *   - 2026-08-17: 子テーブル（t_followup_items）対応
  *   - 2026-08-17: 日付表示ロジックを修正
+ *   - 2026-10-20: 検索期間指定に特大Flatpickr（小野会カレンダー・公休日色分け）導入
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -226,6 +227,11 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
             th, td { padding: 4px 5px; }
         }
     </style>
+    <link rel="stylesheet" href="../assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="../assets/css/onokai_flatpickr.css">
+    <script src="../assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="../assets/vendor/flatpickr/ja.js"></script>
+    <script src="../assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 <div class="container">
@@ -243,9 +249,9 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
             <label>患者名</label>
             <input type="text" name="name" value="<?= htmlspecialchars($search_name, ENT_QUOTES, 'UTF-8') ?>" placeholder="山田">
             <label>来院日</label>
-            <input type="date" name="date_from" value="<?= htmlspecialchars($search_date_from, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="date_from" class="onokai-date-picker" autocomplete="off" value="<?= htmlspecialchars($search_date_from, ENT_QUOTES, 'UTF-8') ?>">
             〜
-            <input type="date" name="date_to" value="<?= htmlspecialchars($search_date_to, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="date_to" class="onokai-date-picker" autocomplete="off" value="<?= htmlspecialchars($search_date_to, ENT_QUOTES, 'UTF-8') ?>">
             <label>目的</label>
             <select name="purpose">
                 <option value="">すべて</option>
@@ -357,5 +363,19 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
 
     <div class="footer">おの肛門科胃腸科内視鏡クリニック | フォローアップ管理システム v1.0</div>
 </div>
+
+<script>
+function initFollowupIndexDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('input[name="date_from"]');
+        OnokaiDatePicker.attach('input[name="date_to"]');
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFollowupIndexDatePicker);
+} else {
+    initFollowupIndexDatePicker();
+}
+</script>
 </body>
 </html>

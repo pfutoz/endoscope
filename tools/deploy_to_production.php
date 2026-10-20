@@ -3,9 +3,12 @@
  * tools/deploy_to_production.php
  * 本番環境(T:\endoscope / 192.168.1.16)への安全デプロイスクリプト
  * 
- * 1. 本番既存ファイルのバックアップ作成
+ * 1. 本番既存ファイルのバックアップ作成 (.bak_YYYYMMDD_HHMMSS)
  * 2. 最新ファイルのコピー
- * 3. 整合性チェック
+ * 3. MD5ハッシュによる整合性チェック
+ * 
+ * 修正履歴:
+ *   - 2026-10-20: 印刷DX、仕様書、および特大Flatpickr日付コントロールライブラリ周りの全ファイルをデプロイ対象に追加
  */
 
 $localBase = 'C:/Apache24/htdocs/endoscope';
@@ -16,18 +19,36 @@ if (!is_dir($prodBase)) {
 }
 
 $filesToDeploy = [
+    // 1. 日付コントロール周り（共通アセット・ライブラリ）
+    'assets/vendor/flatpickr/flatpickr.min.css',
+    'assets/vendor/flatpickr/flatpickr.min.js',
+    'assets/vendor/flatpickr/ja.js',
+    'assets/css/onokai_flatpickr.css',
+    'assets/js/onokai_flatpickr.js',
+
+    // 2. 日付コントロール適用画面
+    'schedule_note.php',
+    'modal_edit.php',
+    'slot_master_maintenance.php',
+    'slot_search.php',
+    'stats.php',
+    'furiwake_daymemo.php',
+    'followup/index.php',
+    'followup/edit.php',
+
+    // 3. 帳票印刷DX・ヘルプ
     'print_schedule_daily.php',
     'help.php',
     'help.html',
+
+    // 4. 仕様書
     '仕様書/2026-10-20works.html',
     '仕様書/specdoc.html',
-    'lib/calendar_helper.php',
-    'assets/css/month_schedule.css',
-    'furiwake_daymemo.php',
-    'index.php',
-    'month_schedule.php',
-    'schedule_note.php',
-    '仕様書/2026-10-9works.html',
+
+    // 5. ツール類
+    'tools/apply_flatpickr.py',
+    'tools/update_all_screens_flatpickr.py',
+    'tools/deploy_to_production.php',
 ];
 
 $timestamp = date('Ymd_His');

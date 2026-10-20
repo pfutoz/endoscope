@@ -3,8 +3,16 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\schedule_note.php
  * ファイル名: schedule_note.php
  * 概要: 内視鏡予約 デイリーノート表示モード (Ultra Fast Daily Note View)
- * 更新日時: 2026-09-29 16:05
+ * 更新日時: 2026-10-20 23:08
  * 修正履歴:
+ *   - 2026-10-20: 【特大Flatpickr導入・西暦/和暦切替・ツールバー寸法保護】
+ *     - ブラウザ標準日付ピッカーからオフライン特大Flatpickr（assets/vendor/flatpickr/）へ刷新
+ *     - ツールバー上のコントロール高さ（32px）と横幅（195px）を完全固定し画面デザインのツライチを絶対保護
+ *     - 日付テキストクリックで「西暦 (YYYY/MM/DD)」⇔「和暦 (令和X年M/D)」のワンクリック切替（localStorage記憶）
+ *     - 右端📅アイコンクリック時のみ横幅440pxの特大カレンダーがドロップダウン展開（誤爆防止）
+ *     - カレンダー内で小野会公休（日曜・祝日）を赤色（最優先）、木曜日を青色に色分け表示
+ *     - 日付クリックで即座に対象日のデイリーノートへ画面遷移
+ *     - Flatpickr展開中はキーボードショートカット移動を一時ガードし誤動作防止
  *   - 2026-09-29: ツールバーUI全面刷新（month_schedule.php と統一）
  *     - 重複していた上段の「🔬 種別: [全種別][GIF][エコー][TCF]」フィルターを完全撤去
  *     - 下段アクション行に「枠:」ラベル付きカプセル（GIF/エコー/TCFトグルボタン・エコー水色同期）を配置
@@ -487,6 +495,23 @@ $next_day_date  = date('Y-m-d', strtotime('+1 day', $sel_ts));
 $next_week_date = date('Y-m-d', strtotime('+7 days', $sel_ts));
 
 $is_today = ($selected_date === $today_date);
+
+// 小野会祝日・休診辞書生成（Flatpickr特大カレンダー用：前後1年分）
+$sel_year = (int)date('Y', $sel_ts);
+$holidays_map = [];
+for ($y = $sel_year - 1; $y <= $sel_year + 1; $y++) {
+    for ($m = 1; $m <= 12; $m++) {
+        $days_in_m = cal_days_in_month(CAL_GREGORIAN, $m, $y);
+        for ($d = 1; $d <= $days_in_m; $d++) {
+            $chk_date = sprintf('%04d-%02d-%02d', $y, $m, $d);
+            $chk = check_onokai_calendar($chk_date, null);
+            if ($chk['is_holiday']) {
+                $holidays_map[$chk_date] = $chk['reason'] ?? '公休';
+            }
+        }
+    }
+}
+$onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -496,6 +521,10 @@ $is_today = ($selected_date === $today_date);
     <title>📖 ノート表示: <?= htmlspecialchars($selected_date, ENT_QUOTES, 'UTF-8') ?> (<?= $day_str ?>) | 医療法人小野会</title>
     <link rel="stylesheet" href="assets/css/theme.css">
     <link rel="stylesheet" href="assets/css/month_schedule.css?v=<?= time() ?>">
+    <!-- 🖨️ 完全ローカル・オフライン動作 Flatpickr -->
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
     <style>
         /* ── ノート表示専用 スタイリング ── */
         .note-container {
@@ -600,28 +629,187 @@ $is_today = ($selected_date === $today_date);
         .status-open { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
         .status-closed { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 
-        .date-picker-input {
+        /* ── ツールバー日付ピッカー（西暦・和暦切替＋特大Flatpickr起動） ── */
+        .custom-date-control {
+            display: inline-flex;
+            align-items: center;
+            height: 32px; /* 32pxツライチ完全固定 */
+            width: 195px; /* 固定幅で西暦/和暦切替時も周囲を1ミリも押し出さない */
             border: 2px solid #3b82f6;
             border-radius: 8px;
-            padding: 5px 12px;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1e3a8a;
             background: #eff6ff;
             box-shadow: 0 1px 3px rgba(59, 130, 246, 0.15);
-            cursor: pointer;
+            user-select: none;
+            box-sizing: border-box;
             transition: all 0.2s ease-in-out;
+            vertical-align: middle;
+            position: relative;
         }
-        .date-picker-input:hover {
+        .custom-date-control:hover {
             background: #dbeafe;
             border-color: #2563eb;
             box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
         }
-        .date-picker-input:focus {
-            outline: none;
-            border-color: #1d4ed8;
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        .date-text-toggle {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            height: 100%;
+            cursor: pointer;
+            padding: 0 4px 0 8px;
+        }
+        .date-val-text {
+            font-size: 13px;
+            font-weight: 800;
+            color: #1e3a8a;
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+        .date-mode-badge {
+            font-size: 9px;
+            font-weight: 800;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background: #bfdbfe;
+            color: #1e40af;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .date-calendar-icon-btn {
+            width: 32px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            border-left: 1px solid #bfdbfe;
+            transition: background 0.15s;
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
+        }
+        .date-calendar-icon-btn:hover {
+            background: #bfdbfe;
+        }
+
+        /* ── Flatpickr 特大カレンダーカスタマイズ (横幅440px / 文字18px) ── */
+        .flatpickr-calendar {
+            width: 440px !important;
+            max-width: 95vw !important;
+            background: #ffffff !important;
+            border: 2px solid #2563eb !important;
+            border-radius: 12px !important;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.25) !important;
+            padding: 8px !important;
+            font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, sans-serif !important;
+            z-index: 999999 !important;
+        }
+        .flatpickr-months {
+            height: 48px !important;
+            align-items: center !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            padding-bottom: 4px !important;
+        }
+        .flatpickr-current-month {
+            font-size: 18px !important;
+            font-weight: 800 !important;
+            color: #0f172a !important;
+            padding: 4px 0 !important;
+        }
+        .flatpickr-current-month .cur-month {
+            font-weight: 800 !important;
+        }
+        .flatpickr-monthDropdown-months {
+            font-size: 17px !important;
+            font-weight: 800 !important;
+        }
+        .flatpickr-current-month input.cur-year {
+            font-size: 18px !important;
+            font-weight: 800 !important;
+        }
+        .flatpickr-prev-month, .flatpickr-next-month {
+            padding: 8px 12px !important;
+        }
+        .flatpickr-prev-month svg, .flatpickr-next-month svg {
+            width: 18px !important;
+            height: 18px !important;
+            fill: #2563eb !important;
+        }
+        .flatpickr-weekdays {
+            height: 38px !important;
+            margin-top: 4px !important;
+        }
+        span.flatpickr-weekday {
+            font-size: 15px !important;
+            font-weight: 800 !important;
+            color: #475569 !important;
+        }
+        /* 曜日ヘッダーカラー（日: 赤、木: 青、土: 青） */
+        span.flatpickr-weekday:first-child { color: #dc2626 !important; }
+        span.flatpickr-weekday:nth-child(5) { color: #2563eb !important; }
+        span.flatpickr-weekday:last-child { color: #2563eb !important; }
+
+        .flatpickr-days {
+            width: 100% !important;
+        }
+        .dayContainer {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            justify-content: space-around !important;
+        }
+        .flatpickr-day {
+            height: 52px !important;
+            line-height: 50px !important;
+            max-width: 56px !important;
+            font-size: 17px !important;
+            font-weight: 800 !important;
+            border-radius: 8px !important;
+            margin: 2px 1px !important;
+            border: 1px solid transparent !important;
+            transition: all 0.15s ease !important;
+        }
+        .flatpickr-day:hover {
+            background: #e0f2fe !important;
+            border-color: #38bdf8 !important;
+        }
+
+        /* 💡 小野会公休（日曜・祝日）: 赤（最優先） */
+        .flatpickr-day.onokai-holiday {
+            background: #ffe6e6 !important;
+            color: #d9383a !important;
+            border-color: #fca5a5 !important;
+        }
+        .flatpickr-day.onokai-holiday:hover {
+            background: #fecaca !important;
+        }
+
+        /* 💡 木曜: 青 */
+        .flatpickr-day.onokai-thursday {
+            background: #e6f2ff !important;
+            color: #2471a3 !important;
+            border-color: #bfdbfe !important;
+        }
+        .flatpickr-day.onokai-thursday:hover {
+            background: #dbeafe !important;
+        }
+
+        /* 💡 選択中の日付 */
+        .flatpickr-day.selected,
+        .flatpickr-day.selected:hover {
+            background: #2563eb !important;
+            color: #ffffff !important;
+            border-color: #1d4ed8 !important;
+            font-weight: 900 !important;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.4) !important;
+        }
+
+        /* 💡 本日（今日）枠線強調 */
+        .flatpickr-day.today:not(.selected) {
+            border-color: #0284c7 !important;
+            background: #f0f9ff !important;
         }
 
         .nav-kbd {
@@ -832,8 +1020,17 @@ $is_today = ($selected_date === $today_date);
                 <span class="clinic-status-badge status-open">🟢 診療日</span>
             <?php endif; ?>
 
-            <!-- 直感大型カレンダーピッカー -->
-            <input type="date" class="date-picker-input" id="mainDatePicker" value="<?=$selected_date?>" onchange="location.href='?dept=<?=$dept?>&date=' + this.value + '&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>'" title="カレンダーから任意の日付へ即座に移動">
+            <!-- 🖨️ 直感特大Flatpickr日付コントロール（西暦/和暦切替＋小野会カラー・ツールバー高さ32px完全保護） -->
+            <div class="custom-date-control" id="customDateControl" title="クリックで西暦／和暦 表示切替、📅で特大カレンダー展開">
+                <div class="date-text-toggle" id="dateTextToggle" title="クリックで西暦／和暦 表示切替">
+                    <span class="date-val-text" id="dateValText"><?= date('Y/m/d', $sel_ts) ?> (<?= $day_str ?>)</span>
+                    <span class="date-mode-badge" id="dateModeBadge">西暦</span>
+                </div>
+                <div class="date-calendar-icon-btn" id="calendarTriggerBtn" title="特大カレンダーを開く">
+                    📅
+                </div>
+                <input type="text" id="mainFlatpickr" style="display:none;" value="<?= $selected_date ?>">
+            </div>
 
             <?php if (!$is_today): ?>
                 <a href="?dept=<?=$dept?>&date=<?=$today_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="date-nav-btn btn-today" id="navToday" title="本日の予約一覧へ移動 [Tキー / Homeキー]">
@@ -1399,7 +1596,8 @@ document.addEventListener('keydown', function(e) {
         active.isContentEditable
     );
     const isModalOpen = !!document.querySelector('dialog[open]');
-    if (isInputActive || isModalOpen) {
+    const isFlatpickrOpen = !!document.querySelector('.flatpickr-calendar.open');
+    if (isInputActive || isModalOpen || isFlatpickrOpen) {
         return;
     }
 
@@ -1455,6 +1653,133 @@ document.addEventListener('keydown', function(e) {
         window.location.href = targetUrl;
     }
 });
+</script>
+
+<!-- 🖨️ 特大Flatpickr ＆ 西暦/和暦ワンクリック切替ロジック -->
+<script>
+(function() {
+    const selectedDateStr = '<?= $selected_date ?>';
+    const selDowStr = '<?= $day_str ?>';
+    const onokaiHolidays = <?= $onokai_holidays_json ?>;
+
+    const dateValText = document.getElementById('dateValText');
+    const dateModeBadge = document.getElementById('dateModeBadge');
+    const dateTextToggle = document.getElementById('dateTextToggle');
+    const calendarTriggerBtn = document.getElementById('calendarTriggerBtn');
+    const flatpickrInput = document.getElementById('mainFlatpickr');
+
+    // 和暦フォーマット関数
+    function getWarekiString(dateStr, dowStr) {
+        const parts = dateStr.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+
+        let g = '令和';
+        let gy = y - 2018;
+        if (y < 2019) {
+            g = '平成';
+            gy = y - 1988;
+        }
+        const gStr = (gy === 1) ? '元' : gy;
+        return `${g}${gStr}年${m}/${d} (${dowStr})`;
+    }
+
+    // 西暦フォーマット関数
+    function getSeirekiString(dateStr, dowStr) {
+        const parts = dateStr.split('-');
+        const y = parts[0];
+        const m = parts[1];
+        const d = parts[2];
+        return `${y}/${m}/${d} (${dowStr})`;
+    }
+
+    // 表示更新
+    let currentMode = 'seireki';
+    try {
+        currentMode = localStorage.getItem('schedule_note_date_mode') || 'seireki';
+    } catch (e) {}
+
+    function updateDateDisplay() {
+        if (!dateValText || !dateModeBadge) return;
+        if (currentMode === 'wareki') {
+            dateValText.textContent = getWarekiString(selectedDateStr, selDowStr);
+            dateModeBadge.textContent = '和暦';
+            dateModeBadge.style.background = '#fef3c7';
+            dateModeBadge.style.color = '#92400e';
+        } else {
+            dateValText.textContent = getSeirekiString(selectedDateStr, selDowStr);
+            dateModeBadge.textContent = '西暦';
+            dateModeBadge.style.background = '#bfdbfe';
+            dateModeBadge.style.color = '#1e40af';
+        }
+    }
+    updateDateDisplay();
+
+    // テキスト部分クリックで「西暦 ⇔ 和暦」ワンクリック切替
+    if (dateTextToggle) {
+        dateTextToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            currentMode = (currentMode === 'seireki') ? 'wareki' : 'seireki';
+            try {
+                localStorage.setItem('schedule_note_date_mode', currentMode);
+            } catch (e) {}
+            updateDateDisplay();
+        });
+    }
+
+    // Flatpickr初期化（特大カレンダー・小野会カラー）
+    if (typeof flatpickr !== 'undefined' && flatpickrInput) {
+        const fp = flatpickr(flatpickrInput, {
+            locale: 'ja',
+            defaultDate: selectedDateStr,
+            positionElement: document.getElementById('customDateControl'),
+            position: 'auto center',
+            monthSelectorType: 'static',
+            disableMobile: true, // モバイルUIではなく常に特大カレンダーを表示
+            onDayCreate: function(dObj, dStr, fpInstance, dayElem) {
+                const dt = dayElem.dateObj;
+                const y = dt.getFullYear();
+                const m = String(dt.getMonth() + 1).padStart(2, '0');
+                const d = String(dt.getDate()).padStart(2, '0');
+                const dateKey = `${y}-${m}-${d}`;
+                const dow = dt.getDay();
+
+                // 1. 小野会公休（日曜・祝日・年末年始公休）: 赤色（最優先）
+                if (dow === 0 || onokaiHolidays[dateKey]) {
+                    dayElem.classList.add('onokai-holiday');
+                    if (onokaiHolidays[dateKey]) {
+                        dayElem.title = onokaiHolidays[dateKey];
+                    }
+                } else if (dow === 4) {
+                    // 2. 木曜: 青色
+                    dayElem.classList.add('onokai-thursday');
+                }
+            },
+            onChange: function(selectedDates, dateStr) {
+                if (!dateStr || dateStr === selectedDateStr) return;
+                const targetUrl = '?dept=<?= urlencode($dept) ?>' +
+                    '&date=' + encodeURIComponent(dateStr) +
+                    '&doctor=<?= urlencode($filter_doctor) ?>' +
+                    '&exam=<?= urlencode($filter_exam) ?>' +
+                    '&show_empty=<?= $show_empty ? '1' : '0' ?>';
+                window.location.href = targetUrl;
+            }
+        });
+
+        // 📅 アイコンクリック時のみ特大カレンダーを展開
+        if (calendarTriggerBtn) {
+            calendarTriggerBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (fp.isOpen) {
+                    fp.close();
+                } else {
+                    fp.open();
+                }
+            });
+        }
+    }
+})();
 </script>
 <script src="assets/js/month_schedule.js?v=<?= time() ?>"></script>
 

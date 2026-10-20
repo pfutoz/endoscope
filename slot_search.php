@@ -7,6 +7,7 @@
  * 空き枠検索画面
  * 修正: 2026-08-28 ステップ1（getExamIconの重複排除・共通ライブラリ利用）
  * 修正: 2026-10-05 休診日（祝日・日曜・年末年始）判定時の出勤例外最優先ロジックの統一
+ * 修正: 2026-10-20 検索期間指定に特大Flatpickr（小野会カレンダー・公休日色分け）導入
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -927,6 +928,11 @@ function getFreeColorClass($free) {
         }
         .urgent-btn-book:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
     </style>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 
@@ -1013,12 +1019,14 @@ function getFreeColorClass($free) {
                 期間 <span style="font-size:10px; color:#94a3b8;">(必須)</span>
             </span>
             <div class="btn-group-items">
-                <input type="date" name="date_from" id="date_from" class="date-input" 
+                <input type="text" name="date_from" id="date_from" class="date-input onokai-date-picker" 
                        value="<?= htmlspecialchars($date_from, ENT_QUOTES, 'UTF-8') ?>"
+                       autocomplete="off"
                        <?= $is_month_mode ? 'disabled' : '' ?>>
                 <span>〜</span>
-                <input type="date" name="date_to" id="date_to" class="date-input" 
+                <input type="text" name="date_to" id="date_to" class="date-input onokai-date-picker" 
                        value="<?= htmlspecialchars($date_to, ENT_QUOTES, 'UTF-8') ?>"
+                       autocomplete="off"
                        <?= $is_month_mode ? 'disabled' : '' ?>>
                 
                 <span style="display:flex; gap:4px; margin-left:8px;">
@@ -1566,5 +1574,19 @@ function goToSchedule(date) {
 }
 </script>
 
+
+<script>
+function initSlotSearchDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('#date_from');
+        OnokaiDatePicker.attach('#date_to');
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSlotSearchDatePicker);
+} else {
+    initSlotSearchDatePicker();
+}
+</script>
 </body>
 </html>

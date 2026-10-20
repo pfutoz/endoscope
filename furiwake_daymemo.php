@@ -14,6 +14,7 @@
  *     - 新規メモの直接登録フォーム（日付ピッカー・科選択）
  *     - 診療科フィルター（全件 / 肛門科 / 胃腸科）、年月フィルター、キーワード絞り込み
  *     - month_schedule.php / schedule_note.php / month_matrix_v2.php へのシームレスな相互リンク
+ *   - 2026-10-20: 新規登録モーダルの日付入力に特大Flatpickr（小野会カレンダー・公休日色分け）導入
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -691,6 +692,11 @@ $w_map = ['日', '月', '火', '水', '木', '金', '土'];
             font-size: 14px;
         }
     </style>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js"></script>
 </head>
 <body>
 
@@ -755,7 +761,7 @@ $w_map = ['日', '月', '火', '水', '木', '金', '土'];
         </div>
         <form id="addMemoForm" onsubmit="submitAddMemo(event)">
             <div class="add-form-row">
-                <input type="date" id="newDate" class="form-input" required value="<?= date('Y-m-d') ?>" style="width: 150px; font-weight: bold;">
+                <input type="text" id="newDate" class="form-input onokai-date-picker" required autocomplete="off" value="<?= date('Y-m-d') ?>" style="width: 150px; font-weight: bold;">
                 <select id="newDept" class="form-select" required>
                     <option value="PROCT">🟢 肛門科 (PROCT)</option>
                     <option value="GASTRO">🔵 胃腸科 (GASTRO)</option>
@@ -1172,5 +1178,18 @@ function updateKpiCounters() {
 }
 </script>
 
+
+<script>
+function initFuriwakeDatePicker() {
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.attach('#newDate');
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFuriwakeDatePicker);
+} else {
+    initFuriwakeDatePicker();
+}
+</script>
 </body>
 </html>
