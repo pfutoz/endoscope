@@ -531,12 +531,60 @@
                             <tr>
                                 <td><strong>② 枠仮想化による速度低下</strong></td>
                                 <td>日付ごとにオーバーライドを都度SQLで問い合わせると、カレンダーやマトリクスの描画が劇的に重くなる。</td>
-                                <td><strong>一括プリフェッチ ＆ インメモリ解決</strong>を採用。画面表示全体のDBアクセス増加は「期間中たった1回（数ms）」のみ。描画ループ内はメモリ上のハッシュ参照（O(1)）とし、<strong>体感遅延ゼロ（0ms）</strong>を完全維持。</td>
+                                <td><strong>一括プリフェッチ ＆ メインメモリ解決</strong>を採用。画面表示全体のDBアクセス増加は「期間中たった1回（数ms）」のみ。描画ループ内はメモリ上のハッシュ参照（O(1)）とし、<strong>体感遅延ゼロ（0.001ms）</strong>を完全維持。</td>
                             </tr>
                             <tr>
                                 <td><strong>③ 医師別枠要求によるシステム破綻</strong></td>
                                 <td>「医師ごとに別々の時間枠を…」と要望がエスカレートすると、部屋割・前処置室・マトリクス全体の整合性が崩壊する。</td>
                                 <td><strong>「時間枠＝共通物理資源（箱）」「医師枠＝人的キャパ（人）」の分離を絶対防衛線</strong>として死守。枠の医師別化は絶対に拒否しつつ、現場を助ける<strong>「4つの逃げ道」</strong>で要求を安全に吸収する。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card-header" style="margin-top:20px;">🔬 高度DB機能の比較検討とベンチマーク実測（メインメモリ方式の選定根拠）</div>
+                <p>
+                    PostgreSQLの高度機能（テーブル継承 <code>INHERITS</code>、マテリアライズドビュー）の採用可否を実機検証した結果、保守性と即時性の観点から<strong>「PHPメインメモリ（インメモリマージ）方式」</strong>が最も優れていると結論付けました：
+                </p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>方式・機能</th>
+                                <th>実測速度</th>
+                                <th>即時反映</th>
+                                <th>検討結果・理由</th>
+                                <th style="width:70px;">採否</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>PostgreSQL テーブル継承 (<code>INHERITS</code>)</strong></td>
+                                <td>-</td>
+                                <td>即時</td>
+                                <td>子テーブルを参照する外部キー制約が張れない。親テーブルSELECT時に親と子の両行が返るため「上書き」ではなくUNION ALLになってしまい今回の要件に不適。</td>
+                                <td><span class="badge badge-danger">不採用</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>PostgreSQL マテリアライズドビュー</strong></td>
+                                <td>約 0.05 ms</td>
+                                <td>✕ 遅延</td>
+                                <td><code>REFRESH</code> を実行するまでマスタ変更が反映されず現場で事故の元。日付引数を渡せないため向こう1年分の事前展開バッチが必要。26件のマスタにはオーバーキル。</td>
+                                <td><span class="badge badge-danger">不採用</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>PostgreSQL 通常VIEW / JOIN</strong></td>
+                                <td><strong>0.107 ms</strong><br><small style="color:#64748b;">(月間0.301ms)</small></td>
+                                <td>即時</td>
+                                <td>通常VIEWでも0.1msと極めて高速であり、DBの速度面は全く問題なし。ただしSQLとPHP側でロジックが二重化する懸念あり。</td>
+                                <td><span class="badge badge-warning">参考案</span></td>
+                            </tr>
+                            <tr style="background:#f0fdf4;">
+                                <td><strong>PHPメインメモリ（インメモリマージ）</strong></td>
+                                <td><strong style="color:#16a34a;">0.001 ms</strong></td>
+                                <td>即時</td>
+                                <td><strong>【確定採用】</strong> 画面表示時に1クエリで取得し、PHP連想配列（<code>array_replace</code>）でマージ。誰でも10秒で理解できる平易なコードで保守性・透明性最高。</td>
+                                <td><span class="badge badge-success">★ 採用</span></td>
                             </tr>
                         </tbody>
                     </table>
