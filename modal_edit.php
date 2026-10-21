@@ -1191,6 +1191,42 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
         .palette-tag-btn.tag-infection { background: #ffe4e6; color: #be123c; border-color: #fda4af; }
         .palette-tag-btn.tag-cold { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; }
 
+        /* 胃腸科専用: 特殊枠コメント（エコー検査予定） */
+        .palette-echo-box {
+            background: #f0fdf4;
+            border: 1.5px solid #86efac;
+            border-radius: 6px;
+            padding: 5px 8px;
+            margin-bottom: 6px;
+            flex-shrink: 0;
+        }
+        .palette-echo-btn {
+            background-color: #166534;
+            color: #ff4d4f;
+            font-weight: 800;
+            border: 1px solid #14532d;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
+            transition: all 0.12s ease;
+        }
+        .palette-echo-btn:hover {
+            background-color: #15803d;
+            color: #ffffff;
+            border-color: #166534;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+        }
+        .palette-echo-btn:active {
+            transform: translateY(0);
+        }
+
         .palette-list-box {
             flex: 1;
             min-height: 120px;
@@ -1846,6 +1882,24 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
         </div>
     </div>
 
+    <?php if ($dept === 'GASTRO'): ?>
+    <!-- 胃腸科専用: 特殊枠コメント挿入（エコー検査予定） -->
+    <div id="paletteEchoBox" class="palette-echo-box">
+        <div style="font-size:10px; font-weight:700; color:#166534; margin-bottom:4px; display:flex; align-items:center; gap:4px;">
+            <span>🟢 胃腸科 特殊枠コメント:</span>
+            <span style="font-size:9.5px; font-weight:normal; color:#64748b;">(※太字・赤文字・濃緑網掛け)</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <button type="button" class="palette-echo-btn" onclick="insertSpecialEchoPhrase('10：00 エコー検査予定')" title="「10：00 エコー検査予定」を太字・赤文字・濃い緑網掛けで挿入">
+                ⚡ 10：00 エコー検査予定
+            </button>
+            <button type="button" class="palette-echo-btn" onclick="insertSpecialEchoPhrase('10：30 エコー検査予定')" title="「10：30 エコー検査予定」を太字・赤文字・濃い緑網掛けで挿入">
+                ⚡ 10：30 エコー検査予定
+            </button>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- 選択中テキストのマスタ登録バー -->
     <div id="paletteSelectionBar" style="display:none; background:#eff6ff; border:1px dashed #3b82f6; border-radius:4px; padding:4px 6px; margin-bottom:6px; flex-direction:column; gap:3px; flex-shrink:0;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -2150,6 +2204,54 @@ function insertPhraseToQuill(phrase) {
     const editor = document.getElementById('quill-editor');
     if (!editor) return;
     editor.appendChild(document.createTextNode(phrase + '\n'));
+}
+
+// 胃腸科専用: 特殊枠コメント（太字・赤文字・濃い緑網掛け）挿入
+function insertSpecialEchoPhrase(phrase) {
+    if (quill && quillAvailable) {
+        try {
+            quill.focus();
+            let range = quill.getSelection();
+            if (!range) {
+                const len = quill.getLength();
+                range = { index: Math.max(0, len - 1), length: 0 };
+            }
+            const idx = range.index;
+
+            // 1. 本文を「太字・赤文字(#ff4d4f)・濃い緑網掛け(#166534)」で挿入
+            quill.insertText(idx, phrase, {
+                bold: true,
+                color: '#ff4d4f',
+                background: '#166534'
+            }, 'user');
+
+            // 2. 続く改行は書式なし（通常）に戻して挿入
+            quill.insertText(idx + phrase.length, '\n', {
+                bold: false,
+                color: false,
+                background: false
+            }, 'user');
+
+            // 3. カーソルを改行の直後に移動し、以後の入力書式をリセット
+            const nextIdx = idx + phrase.length + 1;
+            quill.setSelection(nextIdx, 0);
+            quill.format('bold', false);
+            quill.format('color', false);
+            quill.format('background', false);
+
+            showToast(`➕ 「${phrase}」を挿入しました`);
+            return;
+        } catch (e) {
+            console.warn('insertSpecialEchoPhrase error, trying fallback:', e);
+        }
+    }
+    // Quill未稼働時のフォールバック
+    const editor = document.getElementById('quill-editor');
+    if (!editor) return;
+    const p = document.createElement('p');
+    p.innerHTML = `<strong style="color: #ff4d4f; background-color: #166534; padding: 1px 4px; border-radius: 2px;">${escapeHtml(phrase)}</strong>`;
+    editor.appendChild(p);
+    showToast(`➕ 「${phrase}」を挿入しました`);
 }
 
 function filterPhrases(keyword) {
