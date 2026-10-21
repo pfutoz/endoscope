@@ -11,6 +11,7 @@
  *   - 2026-09-29: カレンダー内包コマンドパレット (.calendar-wrapper .filters-compact) のスタイル最適化および .calendar-section 追加
  *   - 2026-09-29: ファイル名を month_schedule.css に正規化・一本化
  *   - 2026-10-09: 【医師予定表連携】カレンダー各日セル内に表示する医師休診・不在バッジ (.cal-doctor-events, .cal-doctor-event-badge) のスタイルを追加。セル崩れ防止のコンパクト化とホバー視認性を最適化
+ *   - 2026-10-21: 【担当未定ハイライト機能】未定ボタントグル（.btn-undecided）、カレンダー未定強調（.has-undecided-selected, .not-undecided-dimmed, .undecided-cal-badge）、詳細一覧の未定行ハイライト（.row-undecided-highlight）、医師未定警告バッジ（.badge-undecided）のスタイルを追加
  */
 /* ── Modern Web スクロールバー標準設定 ── */
         :root {
@@ -985,3 +986,87 @@
     justify-content: space-between;
     align-items: center;
 }
+
+/* ============================================================
+   担当未定（--担当未定--）ハイライトスタイル (2026-10-21)
+   ============================================================ */
+
+/* ── 担当未定フィルターボタンスタイル ── */
+.filter-toggle.btn-undecided {
+    border-color: #fcd34d;
+    background: #fffbeb;
+    color: #b45309;
+    font-weight: 700;
+}
+.filter-toggle.btn-undecided:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+.filter-toggle.btn-undecided.active {
+    background: #ea580c !important;
+    border-color: #c2410c !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(234, 88, 12, 0.35);
+}
+.filter-toggle.btn-undecided.active .badge {
+    background: rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+}
+
+/* ── 担当未定ハイライト（カレンダーセル & バッジ） ── */
+.cal-table .day-cell.has-undecided {
+    border-left: 3.5px solid #f59e0b !important;
+}
+.cal-table .day-cell.has-undecided-selected {
+    background: #fffbeb !important;
+    border: 2.5px solid #f59e0b !important;
+    box-shadow: inset 0 0 0 1px #d97706;
+    position: relative;
+    z-index: 5;
+}
+.cal-table .day-cell.not-undecided-dimmed {
+    opacity: 0.42;
+    filter: grayscale(40%);
+    background-color: #f8fafc !important;
+}
+.undecided-cal-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 9.5px;
+    font-weight: 800;
+    background: #ea580c;
+    color: #ffffff;
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin-top: 2px;
+    box-shadow: 0 1px 2px rgba(234, 88, 12, 0.25);
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ── 担当未定行ハイライト（下部詳細一覧） ── */
+tr.row-undecided-highlight td {
+    background-color: #fef9c3 !important;
+    border-bottom-color: #fde047 !important;
+}
+tr.row-undecided-highlight:hover td {
+    background-color: #fef08a !important;
+}
+.doc-icon-badge.badge-undecided {
+    background-color: #ea580c;
+    color: #ffffff;
+    width: auto;
+    height: 18px;
+    min-width: 28px;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    border: 1px solid #c2410c;
+    box-shadow: 0 1px 2px rgba(234, 88, 12, 0.3);
+    letter-spacing: -0.5px;
+}
+

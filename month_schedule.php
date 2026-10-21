@@ -13,6 +13,12 @@
  *   - 【CSS Content-Visibility 最適化】カレンダー週行・予約テーブル行の描画負荷を低減する `content-visibility: auto` と `contain-intrinsic-size` を最適化
  *   - 【CSS :has() セレクタ】重複部屋やアラート行の動的スタイリングを CSS `:has()` で宣言的に実装
  *   - 【Modern JS】非同期通信を `async/await` に統一し、堅牢なエラーハンドリングを実装
+ * 修正履歴 (2026-10-21):
+ *   - 【担当未定ハイライト機能】医師未割当（--担当未定--）予約の早期発見・割り振り支援
+ *       1. 上部「👨‍⚕️ 医師:」フィルターに「⚠️ 未定 (N件)」ボタンを追加（選択中種別フィルター連動集計）
+ *       2. カレンダー月間マス目のハイライト（未定選択時は該当日の枠線＆背景強調・未定バッジ表示、未定なし日のフェード表示）
+ *       3. 通常表示時もマス目内に担当未定バッジ（⚠️未定:N）を表示し、見落としを防止
+ *       4. 下部「当日予約詳細一覧」テーブルで担当未定行を黄色背景（#fef9c3）でハイライト表示＆未定選択時は未定のみに絞り込み
  * 
  * 修正履歴 (2026-09-28):
  *   - 【モジュール分離・高速化】巨大PHPから CSS (assets/css/month_schedule2.css) および JS (assets/js/month_schedule2.js) を独立分離し、表示速度と保守性を大幅改善
@@ -82,6 +88,9 @@ if (isset($_GET['date']) && is_string($_GET['date']) && preg_match('/^(\d{4})-(\
     $selected_date = date('Y-m-d');
 }
 $filter_doctor = isset($_GET['doctor']) && is_string($_GET['doctor']) ? trim($_GET['doctor']) : 'all';
+if ($filter_doctor === '--担当未定--' || $filter_doctor === '未定') {
+    $filter_doctor = 'undecided';
+}
 $filter_exam   = isset($_GET['exam']) && is_string($_GET['exam']) ? trim($_GET['exam']) : 'all';
 $sheet_single  = isset($_GET['sheet_single']) ? (int)$_GET['sheet_single'] : 0;
 $display_mode  = isset($_GET['display_mode']) && is_string($_GET['display_mode']) ? $_GET['display_mode'] : 'use_max';
@@ -436,6 +445,67 @@ while ($row = $stmt_pref->fetch(PDO::FETCH_ASSOC)) {
     $month_reserved_cache[$d][$doc][$etype] = $cnt;
 }
 
+// 1.5 月間担当未定予約データプリフェッチ
+$stmt_undecided = $pdo->prepare("
+    SELECT 
+        exam_date::text AS exam_date,
+        COALESCE(exam_type, 'その他') AS exam_type,
+        COUNT(*) AS cnt
+    FROM t_endoscopy_schedule
+    WHERE department_code = :dept
+      AND exam_date >= :start_date
+      AND exam_date <= :end_date
+      AND is_canceled = FALSE
+      AND (remarks IS NULL OR remarks != '＊＊＊🚫枠なし🚫＊＊＊')
+      AND (doctor_name IS NULL OR doctor_name = '' OR doctor_name = '◆未定◆' OR doctor_name = '--担当未定--')
+    GROUP BY exam_date, exam_type
+");
+$stmt_undecided->execute([
+    ':dept' => $dept,
+    ':start_date' => $start_date_month,
+    ':end_date' => $end_date_month
+]);
+
+$month_undecided_cache = [];
+while ($row = $stmt_undecided->fetch(PDO::FETCH_ASSOC)) {
+    $d = (string)$row['exam_date'];
+    $etype = (string)($row['exam_type'] ?? 'その他');
+    if (!isset($month_undecided_cache[$d])) { $month_undecided_cache[$d] = []; }
+    $month_undecided_cache[$d][$etype] = (int)$row['cnt'];
+}
+
+/**
+ * 種別フィルターに応じた特定日付の担当未定件数を算出
+ */
+function getDayUndecidedCount(string $date_str, array $undecided_cache, string $filter_exam = 'all'): int {
+    if (!isset($undecided_cache[$date_str])) return 0;
+    $day_cache = $undecided_cache[$date_str];
+    if ($filter_exam === 'all') {
+        return array_sum($day_cache);
+    }
+    $gif_group = ['GIF', '◆胃がん検診◆', '胃がん検診'];
+    $echo_group = ['ECHO', 'エコー'];
+    $tcf_group = ['TCF', 'W', 'ポリペク'];
+
+    $target_group = [];
+    if ($filter_exam === 'GIF') $target_group = $gif_group;
+    elseif ($filter_exam === 'ECHO') $target_group = $echo_group;
+    elseif ($filter_exam === 'TCF') $target_group = $tcf_group;
+    else $target_group = [$filter_exam];
+
+    $c = 0;
+    foreach ($target_group as $etype) {
+        $c += (int)($day_cache[$etype] ?? 0);
+    }
+    return $c;
+}
+
+// 選択中種別（または全体）の月間未定合計件数
+$month_undecided_total = 0;
+foreach (array_keys($month_undecided_cache) as $d_key) {
+    $month_undecided_total += getDayUndecidedCount($d_key, $month_undecided_cache, $filter_exam);
+}
+
 // 2. 月間未割当予約データ
 $stmt_unassigned = $pdo->prepare("
     SELECT 
@@ -677,8 +747,8 @@ foreach ($raw_doctor_events as $ev) {
 
 function getDoctorBadgeHTML(string $doctor_name): string {
     $name = trim($doctor_name);
-    if ($name === '' || $name === '◆未定◆') {
-        return '<span class="doc-icon-badge default" title="担当未定">医</span>';
+    if ($name === '' || $name === '◆未定◆' || $name === '--担当未定--') {
+        return '<span class="doc-icon-badge badge-undecided" title="担当未定">⚠️未</span>';
     }
     $char = mb_substr($name, 0, 1, 'UTF-8');
     $color_map = [
@@ -1336,6 +1406,12 @@ foreach ($list_data as $r_item) {
                                 <?=htmlspecialchars($doc_str, ENT_QUOTES, 'UTF-8')?> <span class="badge"><?=(int)($doctor_counts[$doc_str] ?? 0)?></span>
                             </a>
                         <?php endforeach; ?>
+                        <?php $is_undecided_active = ($filter_doctor === 'undecided'); ?>
+                        <a href="?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&doctor=undecided&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" 
+                           class="filter-toggle btn-undecided <?=$is_undecided_active ? 'active' : ''?>" 
+                           title="担当未定の予約がある日をハイライト表示">
+                            ⚠️ 未定 <span class="badge" style="<?=$month_undecided_total > 0 ? 'background:#ef4444; color:#fff;' : ''?>"><?=$month_undecided_total?></span>
+                        </a>
                     </div>
 
                     <div class="filter-group-inline" style="margin-left: 8px;">
@@ -1454,6 +1530,10 @@ foreach ($list_data as $r_item) {
                     $has_total_negative = (!$is_closed && $tot_max_check > 0 && $tot_used_check > $tot_max_check);
                     $has_total_exact = (!$is_closed && $tot_max_check > 0 && $tot_used_check === $tot_max_check && !$has_total_negative);
 
+                    // 担当未定ハイライト判定
+                    $day_undecided_cnt = getDayUndecidedCount($date_str, $month_undecided_cache, $filter_exam);
+                    $has_undecided = ($day_undecided_cnt > 0);
+
                     $cell_class = 'day-cell';
                     if ($is_selected) $cell_class .= ' selected';
                     if ($is_today) $cell_class .= ' today';
@@ -1470,6 +1550,16 @@ foreach ($list_data as $r_item) {
                     if (isset($has_available) && $has_available && !$is_past && !$is_closed) $cell_class .= ' has-available';
                     if ($has_reservation_on_closed) {
                         $cell_class .= ' has-reservation-on-closed';
+                    }
+
+                    if ($filter_doctor === 'undecided') {
+                        if ($has_undecided) {
+                            $cell_class .= ' has-undecided-selected';
+                        } else {
+                            $cell_class .= ' not-undecided-dimmed';
+                        }
+                    } elseif ($has_undecided) {
+                        $cell_class .= ' has-undecided';
                     }
 
                     $unassigned_html = isset($month_unassigned_cache[$date_str]) ? renderUnassignedBadgeHTML($month_unassigned_cache[$date_str]) : '';
@@ -1576,6 +1666,11 @@ foreach ($list_data as $r_item) {
                     $exception_badge_class = $has_exception ? 'date-num-badge has-exception' : 'date-num-badge';
                     $exception_title = $has_exception ? ' title="出勤例外設定あり"' : '';
                     echo "<div class='day-number' style='{$day_style}'><span class='{$exception_badge_class}'{$exception_title}>{$day}</span>{$memo_badge_html}</div>";
+
+                    // 担当未定バッジ表示
+                    if ($has_undecided) {
+                        echo "<div class='undecided-cal-badge' title='担当未定の確定予約が {$day_undecided_cnt} 件あります'>⚠️ 未定:{$day_undecided_cnt}</div>";
+                    }
 
                     // 医師予定バッジ（yotei連携: 医院休診日は非表示、セル崩れを防ぐため最大2件＋超過時は件数バッジ）
                     if (!$is_closed && !empty($month_doctor_events_cache[$date_str])) {
@@ -1727,6 +1822,9 @@ foreach ($list_data as $r_item) {
                 <?php if ($display_mode === 'empty'): ?>
                     <span style="font-size:11px; color:#8b5cf6; font-weight:bold; margin-left:8px;">［空き枠表示モード］</span>
                 <?php endif; ?>
+                <?php if ($filter_doctor === 'undecided'): ?>
+                    <span style="font-size:11px; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; border-radius:4px; padding:2px 6px; font-weight:bold; margin-left:8px;">⚠️ 担当未定のみ表示中</span>
+                <?php endif; ?>
             </div>
             <div class="list-actions">
                 <!-- 空き枠表示トグルボタン -->
@@ -1863,7 +1961,9 @@ foreach ($list_data as $r_item) {
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($list_data as $row): 
+                <?php 
+                $undecided_rendered_count = 0;
+                foreach ($list_data as $row): 
                     $exam = (string)($row['exam_type'] ?? '');
                     $cls = 'other';
                     $row_exam_category = 'OTHER';
@@ -1888,6 +1988,30 @@ foreach ($list_data as $r_item) {
                     
                     // ★ 備考欄が「＊＊＊🚫枠なし🚫＊＊＊」と完全一致する場合のみ枠なしとする
                     $is_no_waku = (!$is_empty && trim($remarks_str) === '＊＊＊🚫枠なし🚫＊＊＊');
+
+                    // 担当未定の判定（確定予約かつ医師名が未設定）
+                    $row_doc = trim((string)($row['doctor_name'] ?? ''));
+                    $is_undecided_doc = ($row_doc === '' || $row_doc === '◆未定◆' || $row_doc === '--担当未定--');
+                    $is_undecided_candidate = (!$is_empty && !$is_no_waku && $is_undecided_doc);
+
+                    $is_exam_match = false;
+                    if ($filter_exam === 'all') {
+                        $is_exam_match = true;
+                    } elseif ($filter_exam === 'GIF') {
+                        $is_exam_match = ($row_exam_category === 'GIF');
+                    } elseif ($filter_exam === 'TCF') {
+                        $is_exam_match = ($row_exam_category === 'TCF');
+                    } elseif ($filter_exam === 'ECHO') {
+                        $is_exam_match = ($row_exam_category === 'ECHO');
+                    }
+
+                    $is_row_undecided = ($is_undecided_candidate && $is_exam_match);
+
+                    // doctor=undecided 選択時は未定行（種別合致）のみ表示
+                    if ($filter_doctor === 'undecided' && !$is_row_undecided) {
+                        continue;
+                    }
+                    $undecided_rendered_count++;
 
                     $filter_category = $row_exam_category !== 'OTHER' ? $row_exam_category : $group_code;
                     $can_sheet = ($exam !== 'エコー' && $exam !== 'ECHO' && !$is_empty && !$is_no_waku);
@@ -1927,6 +2051,9 @@ foreach ($list_data as $r_item) {
                     $row_class = '';
                     if ($is_mismatch) {
                         $row_class = 'mismatch-row';
+                    }
+                    if ($is_row_undecided) {
+                        $row_class .= ($row_class !== '' ? ' ' : '') . 'row-undecided-highlight';
                     }
 
                     $age_int = null;
@@ -2124,6 +2251,13 @@ foreach ($list_data as $r_item) {
                         </td>
                     </tr>
                 <?php endforeach; ?>
+                <?php if ($filter_doctor === 'undecided' && $undecided_rendered_count === 0): ?>
+                    <tr>
+                        <td colspan="12" style="text-align:center; padding:35px; color:#b45309; background:#fffbeb; font-weight:bold; font-size:13px; border:1px dashed #fde68a;">
+                            ⚠️ この日（<?= htmlspecialchars($selected_date, ENT_QUOTES, 'UTF-8') ?>）に該当する担当未定の予約はありません
+                        </td>
+                    </tr>
+                <?php endif; ?>
                 </tbody>
             </table>
         <?php endif; ?>

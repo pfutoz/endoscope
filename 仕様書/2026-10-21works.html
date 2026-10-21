@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-21)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(14, 165, 233, 0.3);
+            color: #7dd3fc;
+            border: 1px solid rgba(125, 211, 252, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        nav.toc-nav {
+            background: #f1f5f9;
+            padding: 16px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 8px 16px;
+        }
+
+        .toc-link {
+            color: var(--primary-dark);
+            text-decoration: none;
+            font-size: 12.5px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-link:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        main.content {
+            padding: 36px;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        h2.section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3.sub-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 14px;
+            color: #334155;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .card-header {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }
+
+        table.data-table th, table.data-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.data-table th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        table.data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        table.data-table tr:hover td {
+            background-color: #f1f5f9;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge-success { background: #dcfce7; color: #15803d; }
+        .badge-info { background: #e0f2fe; color: #0369a1; }
+        .badge-warning { background: #fef3c7; color: #b45309; }
+        .badge-danger { background: #fee2e2; color: #b91c1c; }
+
+        pre.code-block {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        footer.report-footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">2026-10-21 日次改修完了報告書</span>
+        </div>
+        <h1>📋 内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="header-meta">
+            <span>作業日: <strong>2026年10月21日</strong></span>
+            <span>対象モジュール: <strong>month_schedule.php, print_schedule_daily.php, bulk_edit_prep_room.php</strong></span>
+            <span>ステータス: <strong>全項目完了・検証済</strong></span>
+        </div>
+    </header>
+
+    <nav class="toc-nav">
+        <div class="toc-title">目次 / INDEX</div>
+        <div class="toc-grid">
+            <a href="#summary" class="toc-link">1. 本日の改修作業サマリ</a>
+            <a href="#undecided" class="toc-link">2. ⚠️ 月間担当未定ハイライト機能 (month_schedule)</a>
+            <a href="#print-sort" class="toc-link">3. 🖨️ A4印刷 部屋ソート降順＆空行 (print_schedule_daily)</a>
+            <a href="#bulk-prep" class="toc-link">4. 🚪 下剤未設定ワーニング適正化 (bulk_edit_prep_room)</a>
+            <a href="#files" class="toc-link">5. 変更ファイル一覧</a>
+            <a href="#test" class="toc-link">6. 検証結果と動作確認エビデンス</a>
+        </div>
+    </nav>
+
+    <main class="content">
+        <!-- 1. 本日の改修作業サマリ -->
+        <section id="summary">
+            <h2 class="section-title">1. 本日の改修作業サマリ</h2>
+            <p>
+                本日（2026年10月21日）は、内視鏡予約システムの現場運用における利便性と安全性向上を目的として、以下の3件の機能追加・改修を実施しました。
+            </p>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>対象画面・ファイル</th>
+                            <th>改修内容</th>
+                            <th>ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1</strong></td>
+                            <td><code>month_schedule.php</code><br><code>assets/css/month_schedule.css</code></td>
+                            <td><strong>「--担当未定--」ハイライト ＆ 絞り込み機能</strong><br>医師未定予約の早期発見のため、「⚠️ 未定 (N件)」ボタントグル新設、カレンダー月間マス目のアンバー強調、予約一覧テーブルの黄色ハイライトおよび「⚠️未」バッジ表示、未定予約のみへの絞り込み表示を実装。</td>
+                            <td><span class="badge badge-success">完了・検証済</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>2</strong></td>
+                            <td><code>print_schedule_daily.php</code></td>
+                            <td><strong>A4一覧印刷 部屋ソート（降順）トグル ＆ 境界空行挿入</strong><br>部屋名降順（部屋未指定先頭、番号降順）による並び替えトグルスイッチを追加。標準ソート時は診療科境界、部屋ソート時は部屋1文字目境界に高さ10pxのスペーサー空行を自動挿入。</td>
+                            <td><span class="badge badge-success">完了・検証済</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>3</strong></td>
+                            <td><code>bulk_edit_prep_room.php</code></td>
+                            <td><strong>70歳以上下剤未設定ワーニングの検査種別適正化</strong><br>GIF（胃カメラ）や胃がん検診等の下剤不要検査において、下剤未設定時の70歳以上確認ワーニングポップアップを表示しないよう除外ロジックを追加。</td>
+                            <td><span class="badge badge-success">完了・検証済</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 2. ⚠️ 月間担当未定ハイライト機能 -->
+        <section id="undecided">
+            <h2 class="section-title">2. ⚠️ 月間担当未定ハイライト機能 (month_schedule.php)</h2>
+            <div class="card">
+                <div class="card-header">🎯 機能概要と目的</div>
+                <p>
+                    月間予約カレンダーにおいて、予約登録後に担当医師が決定していない確定予約（<code>doctor_name</code> が空欄、<code>◆未定◆</code>、<code>--担当未定--</code>）が埋もれてしまい、検査直前まで担当医の割当が漏れてしまうリスクを根絶するため、ワンクリックで担当未定のある日・予約をハイライト・絞り込みできる機能を構築しました。
+                </p>
+                <div class="card-header" style="margin-top:16px;">✨ 主な仕様詳細</div>
+                <ul style="padding-left: 20px; line-height: 1.8;">
+                    <li><strong>上部「👨‍⚕️ 医師:」フィルターへの「⚠️ 未定 (N件)」ボタン追加:</strong>
+                        <ul>
+                            <li>月内の未定件数をリアルタイム集計（<code>$month_undecided_total</code>）。0件時はグレー、1件以上の場合は赤色バッジで視覚的に警告。</li>
+                            <li>クリックで <code>doctor=undecided</code> に切り替わり、未定予約に特化したダッシュボード表示へ移行。</li>
+                        </ul>
+                    </li>
+                    <li><strong>カレンダー月間マス目（日付セル）の視覚的強調:</strong>
+                        <ul>
+                            <li><strong><code>doctor=undecided</code> 選択時:</strong> 担当未定がある日を <strong>濃いアンバー色枠線（2.5px solid #f59e0b）</strong> ＋ <strong>薄黄背景（#fffbeb）</strong> で強力に強調。セル内に <code>⚠️ 未定:N</code> バッジを表示。未定がない日は半透明（opacity: 0.42）に減光し、未定のある日が一目で判別可能。</li>
+                            <li><strong>通常表示時（<code>doctor=all</code> 等）:</strong> 担当未定がある日にはセルの左端にアンバー境界線（3.5px solid #f59e0b）および「⚠️ 未定:N」バッジを表示し、見落としを防止。</li>
+                        </ul>
+                    </li>
+                    <li><strong>下部「当日予約詳細一覧」テーブルの連動ハイライト ＆ 絞り込み:</strong>
+                        <ul>
+                            <li>未定予約行の背景色を <strong>黄色（#fef9c3）</strong> で強調表示。</li>
+                            <li>医師名列に目立つ <code>⚠️未</code> アイコンバッジ（アンバー色・角丸ピル）を表示。</li>
+                            <li><strong><code>doctor=undecided</code> 選択時:</strong> 一覧テーブル内も確定予約の「担当未定のみ」に自動絞り込み（空枠・決定済予約・枠なしを非表示化）。該当日に未定がない場合は「⚠️ この日（YYYY-MM-DD）に該当する担当未定の予約はありません」を親切に表示。</li>
+                        </ul>
+                    </li>
+                    <li><strong>種別フィルター完全連動:</strong>
+                        <ul>
+                            <li>全種別（<code>all</code>）のほか、<code>GIF</code> 選択時はGIF・胃がん検診のみ、<code>TCF</code> 選択時はTCF・W・ポリペクのみ、<code>ECHO</code> 選択時はエコーのみの未定を集計・ハイライト。</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 3. 🖨️ A4印刷 部屋ソート降順＆空行 -->
+        <section id="print-sort">
+            <h2 class="section-title">3. 🖨️ A4印刷 部屋ソート降順＆空行 (print_schedule_daily.php)</h2>
+            <div class="card">
+                <div class="card-header">🎯 機能概要と目的</div>
+                <p>
+                    A4当日一覧印刷において、部屋ごとの患者動線を把握しやすくするため、上部バーに「🚪 部屋ソート（降順）」トグルスイッチを新設。再読み込みなしで瞬時に並び替えが行えるようにしました。さらに、診療科や部屋番号の1文字目が変わるグループ境界に高さ10pxの空行（罫線なし）を自動挿入し、視覚的な区分けを明確にしました。
+                </p>
+                <div class="card-header" style="margin-top:16px;">✨ 主な仕様詳細</div>
+                <ul style="padding-left: 20px; line-height: 1.8;">
+                    <li><strong>部屋ソート（降順）トグル:</strong> 「📝 備考を印刷」と同様に即時切り替え可能（localStorageで記憶）。トグルON時は印刷用紙ヘッダーに <code>［部屋降順］</code> バッジが表示。</li>
+                    <li><strong>並び替えルール:</strong> 部屋未指定（空欄、「-」）を先頭に配置し、部屋番号ありは自然順降順（例: ﾏ207 → ﾏ101 → ｺ207 等）で並び替え。同一部屋内・未指定同士は標準時間順を維持。</li>
+                    <li><strong>境界空行（高さ10px）の挿入ルール:</strong>
+                        <ul>
+                            <li><strong>標準ソート時:</strong> 診療科（肛門科 ⇔ 胃腸科）が切り替わる境界に挿入。</li>
+                            <li><strong>部屋ソート時:</strong> 部屋未指定から部屋ありへの切り替わり、および部屋名称の先頭1文字（例: <code>ﾏ</code> ⇔ <code>ｺ</code>）が変わる境界に挿入。</li>
+                            <li>空行によるストライプ配色（row-even）の崩れを防止するクラス制御を完備。</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 4. 🚪 下剤未設定ワーニング適正化 -->
+        <section id="bulk-prep">
+            <h2 class="section-title">4. 🚪 下剤未設定ワーニング適正化 (bulk_edit_prep_room.php)</h2>
+            <div class="card">
+                <div class="card-header">🎯 機能概要と目的</div>
+                <p>
+                    部屋・下剤一括設定画面において、70歳以上の高齢患者に対して下剤誤処方を防ぐ安全機能として「下剤未設定警告」が実装されていましたが、GIF（胃カメラ）や胃がん検診などの本来下剤が不要な検査の患者に対しても警告ダイアログが表示されてしまう課題がありました。
+                </p>
+                <div class="card-header" style="margin-top:16px;">✨ 改修内容</div>
+                <ul style="padding-left: 20px; line-height: 1.8;">
+                    <li>保存時チェック処理において、検査種別（<code>exam_type</code>）が <code>GIF</code> または <code>◆胃がん検診◆</code>（胃がん検診）の場合は、下剤が未設定であっても70歳以上警告の対象から除外。</li>
+                    <li>TCF、W、ポリペク等の大腸内視鏡検査のみを対象として正確に下剤未設定警告が発動するように改善。不要なダイアログを撲滅し、スムーズな保存業務を実現。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 5. 変更ファイル一覧 -->
+        <section id="files">
+            <h2 class="section-title">5. 変更ファイル一覧</h2>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ファイルパス</th>
+                            <th>変更種別</th>
+                            <th>主な変更内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>month_schedule.php</code></td>
+                            <td>更新</td>
+                            <td>月間未定集計（$month_undecided_cache）、医師フィルターへの未定ボタントグル追加、カレンダーマス目の未定クラス・バッジ出力、詳細一覧の未定行ハイライトおよび絞り込みスキップ処理、医師未定警告バッジ（⚠️未）出力。</td>
+                        </tr>
+                        <tr>
+                            <td><code>assets/css/month_schedule.css</code></td>
+                            <td>更新</td>
+                            <td>未定ボタン（.btn-undecided）、カレンダー未定強調（.has-undecided-selected, .not-undecided-dimmed, .undecided-cal-badge）、詳細一覧の未定行黄色ハイライト（.row-undecided-highlight）、医師未定警告バッジ（.badge-undecided）のスタイル追加。</td>
+                        </tr>
+                        <tr>
+                            <td><code>print_schedule_daily.php</code></td>
+                            <td>更新</td>
+                            <td>部屋ソートトグルスイッチ新設、部屋番号自然順降順ソートロジック、標準ソート（科境界）および部屋ソート（1文字目境界）の高さ10pxスペーサー空行挿入処理、ストライプ色補正。</td>
+                        </tr>
+                        <tr>
+                            <td><code>bulk_edit_prep_room.php</code></td>
+                            <td>更新</td>
+                            <td>保存時JSチェックにおいて、GIF・胃がん検診の下剤不要検査を70歳以上下剤未設定ワーニング対象から除外。</td>
+                        </tr>
+                        <tr>
+                            <td><code>仕様書/specdoc.html</code></td>
+                            <td>更新</td>
+                            <td>各画面の機能仕様一覧、新設機能章（第21章）に担当未定ハイライト機能、印刷部屋ソート、下剤ワーニング適正化の仕様を反映。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 6. 検証結果と動作確認エビデンス -->
+        <section id="test">
+            <h2 class="section-title">6. 検証結果と動作確認エビデンス</h2>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>テスト項目</th>
+                            <th>検証内容</th>
+                            <th>結果</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>PHP構文チェック</td>
+                            <td><code>php -l month_schedule.php</code><br><code>php -l print_schedule_daily.php</code><br><code>php -l bulk_edit_prep_room.php</code></td>
+                            <td><span class="badge badge-success">OK (No syntax errors detected)</span></td>
+                        </tr>
+                        <tr>
+                            <td>HTTPレスポンス検証</td>
+                            <td><code>curl.exe</code> によるローカルApacheアクセス（デフォルト表示 / <code>doctor=undecided</code>）</td>
+                            <td><span class="badge badge-success">OK (HTTP 200 返却正常)</span></td>
+                        </tr>
+                        <tr>
+                            <td>未定ハイライト出力検証</td>
+                            <td><code>doctor=undecided</code> 選択時のカレンダーセル強調（<code>has-undecided-selected</code> / <code>not-undecided-dimmed</code>）、ボタン件数バッジ集計（3件正常検出）の確認</td>
+                            <td><span class="badge badge-success">OK (全項目合致)</span></td>
+                        </tr>
+                        <tr>
+                            <td>詳細予約一覧ハイライト検証</td>
+                            <td>未定のある日付（2026-10-07, 10-21, 10-23）での行ハイライト（<code>row-undecided-highlight</code>）およびバッジ（<code>badge-undecided</code>「⚠️未」）の正常出力を確認</td>
+                            <td><span class="badge badge-success">OK (期待通りハイライト)</span></td>
+                        </tr>
+                        <tr>
+                            <td>未定0件メッセージ検証</td>
+                            <td>未定のない日（2026-10-20等）を選択した際の案内メッセージ（「該当する担当未定の予約はありません」）出力を確認</td>
+                            <td><span class="badge badge-success">OK (正常表示)</span></td>
+                        </tr>
+                        <tr>
+                            <td>通常モード（doctor=all）検証</td>
+                            <td>通常表示時でも未定予約行が黄色ハイライトされ、医師欄に「⚠️未」警告が表示されることを確認</td>
+                            <td><span class="badge badge-success">OK (見落とし防止機能正常)</span></td>
+                        </tr>
+                        <tr>
+                            <td>印刷ソート＆空行検証</td>
+                            <td>Node.js による降順ソート、未指定先頭配置、1文字目境界空行挿入の単体テスト</td>
+                            <td><span class="badge badge-success">OK (全ケース期待通り)</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="report-footer">
+        <div>医療法人小野会 おの肛門科胃腸科内視鏡クリニック 内視鏡システム開発チーム</div>
+        <div>報告書作成日: 2026-10-21</div>
+    </footer>
+</div>
+
+</body>
+</html>

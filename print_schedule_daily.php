@@ -5,6 +5,13 @@
  * 概要: 日別内視鏡予約一覧 印刷専用モジュール (A4縦向き印刷対応)
  * 生成日時: 2026-10-20 22:35
  * 修正履歴:
+ *   - 2026-10-21: ソート機能および区切り空行仕様の改修
+ *       1. 上部バーに「部屋ソート（降順）」トグルスイッチ追加（即時DOM並び替え＋localStorage記憶対応）
+ *       2. 部屋ソート（降順）の並び順ルール実装（未指定を先頭、部屋名を自然順降順、同部屋内は標準ソート順）
+ *       3. 意味の変わる境界に行間空行（spacer-row, 高さ10px）の挿入機能追加
+ *          - 標準ソート時: 診療科（PROCT/GASTRO）が変わる境界
+ *          - 部屋ソート時: 部屋未指定⇔部屋あり、および部屋名称先頭1文字（ﾏ⇔ｺ等）が変わる境界
+ *       4. 印刷用紙ヘッダーの「［部屋降順］」バッジ表示のトグル連動
  *   - 2026-10-20: A4縦印刷対応・使い勝手向上改修
  *       1. A4縦向き印刷に変更 (@page size: A4 portrait, 余白 8mm 6mm)
  *       2. 検査種別による2ブロック常時改ページ分割
@@ -315,23 +322,9 @@ foreach ($raw_data as $row) {
     }
 }
 
-// 並び替え処理用クロージャ
-$sortFunc = function ($a, $b) {
-    $roomA = trim((string)($a['room_number'] ?? ''));
-    $roomB = trim((string)($b['room_number'] ?? ''));
+// 並び替え処理：初期HTMLは常に標準ソート順（時間枠・表示順）で出力し、
+// クライアント側JavaScriptで即時トグル（標準ソート ⇔ 部屋ソート降順）およびlocalStorage記憶を実行
 
-    if ($roomA === '' && $roomB !== '') return 1;
-    if ($roomA !== '' && $roomB === '') return -1;
-    if ($roomA !== $roomB) {
-        return strnatcasecmp($roomA, $roomB);
-    }
-    return strnatcasecmp((string)($a['scheduled_time'] ?? ''), (string)($b['scheduled_time'] ?? ''));
-};
-
-if ($sort_by === 'room') {
-    usort($rows_echo_gif, $sortFunc);
-    usort($rows_cf, $sortFunc);
-}
 
 /**
  * 予約テーブルHTML描画関数
@@ -354,7 +347,9 @@ function renderScheduleTable(array $rows, string $date_str, array $room_counts):
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($rows as $row): 
+            <?php 
+            $prev_dept = null;
+            foreach ($rows as $idx => $row): 
                 $is_empty = isset($row['is_empty']) && $row['is_empty'] === true;
                 $is_mismatch = isset($row['is_mismatch']) && $row['is_mismatch'] === true;
                 
@@ -404,8 +399,11 @@ function renderScheduleTable(array $rows, string $date_str, array $room_counts):
 
                 // 部屋設定＆重複判定
                 $room_val = trim((string)($row['room_number'] ?? ''));
+                $clean_room = ($room_val === '-' || $room_val === '未指定') ? '' : $room_val;
+                $room_first_char = ($clean_room !== '') ? mb_substr($clean_room, 0, 1, 'UTF-8') : '';
+
                 $is_room_duplicate = false;
-                if (!$is_empty && $room_val !== '' && $room_val !== '未指定' && $room_val !== '-') {
+                if (!$is_empty && $clean_room !== '') {
                     if (isset($room_counts[$room_val]) && $room_counts[$room_val] > 1) {
                         $is_room_duplicate = true;
                     }
@@ -421,8 +419,19 @@ function renderScheduleTable(array $rows, string $date_str, array $room_counts):
                 } elseif ($prep_val === 'ニフ') {
                     $prep_cls = 'prep-nif';
                 }
+
+                // 【標準ソート時】診療科が変わる境界にわずかな空行（高さ10px）を挿入
+                if ($idx > 0 && $prev_dept !== null && $prev_dept !== $row_dept) {
+                    echo '<tr class="spacer-row"><td colspan="9"></td></tr>';
+                }
+                $prev_dept = $row_dept;
             ?>
-                <tr <?= $is_mismatch ? 'style="background-color:#fee2e2 !important;"' : ($is_empty ? 'style="color:#64748b;"' : '') ?>>
+                <tr class="schedule-row <?= ($idx % 2 === 1) ? 'row-even' : '' ?>"
+                    data-standard-idx="<?= $idx ?>"
+                    data-dept="<?= htmlspecialchars($row_dept, ENT_QUOTES, 'UTF-8') ?>"
+                    data-room="<?= htmlspecialchars($clean_room, ENT_QUOTES, 'UTF-8') ?>"
+                    data-room-first="<?= htmlspecialchars($room_first_char, ENT_QUOTES, 'UTF-8') ?>"
+                    <?= $is_mismatch ? 'style="background-color:#fee2e2 !important;"' : ($is_empty ? 'style="color:#64748b;"' : '') ?>>
                     <!-- 時間枠 -->
                     <td class="col-time">
                         <span class="dept-icon-badge <?= $dept_badge_cls ?>"><?= $dept_char ?></span>
@@ -620,8 +629,19 @@ function renderScheduleTable(array $rows, string $date_str, array $room_counts):
             white-space: nowrap;
             padding: 4px 2px;
         }
-        table.schedule-table tr:nth-child(even) td {
+        table.schedule-table tr.schedule-row.row-even td {
             background-color: #fafafa;
+        }
+
+        /* 境界の空行（わずかな空行：高さ10px・罫線なし） */
+        tr.spacer-row td {
+            height: 10px !important;
+            padding: 0 !important;
+            border-top: none !important;
+            border-bottom: none !important;
+            border-left: none !important;
+            border-right: none !important;
+            background: transparent !important;
         }
 
         /* 列幅とアライメントの最適化（クリアランス限界圧縮） */
@@ -850,18 +870,17 @@ function renderScheduleTable(array $rows, string $date_str, array $room_counts):
                 </select>
             </label>
 
-            <label>並び順:
-                <select name="sort" onchange="this.form.submit()">
-                    <option value="time" <?= $sort_by === 'time' ? 'selected' : '' ?>>時間枠順</option>
-                    <option value="room" <?= $sort_by === 'room' ? 'selected' : '' ?>>🚪 部屋番号順</option>
-                </select>
-            </label>
-
             <label style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; user-select:none;">
                 <input type="checkbox" name="show_empty" value="1" <?= $show_empty ? 'checked' : '' ?> onchange="this.form.submit()">
                 空き枠を含む
             </label>
         </form>
+
+        <!-- 部屋ソート（降順）トグルスイッチ -->
+        <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:bold; background:#334155; padding:3px 8px; border-radius:4px; user-select:none; margin-left:4px;">
+            <input type="checkbox" id="toggleRoomSort" onchange="toggleRoomSort(this.checked)">
+            <span>🚪 部屋ソート（降順）</span>
+        </label>
 
         <!-- 備考印刷ON/OFFスイッチ -->
         <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:bold; background:#334155; padding:3px 8px; border-radius:4px; user-select:none; margin-left:4px;">
@@ -911,7 +930,7 @@ $has_cf       = !empty($rows_cf);
                     <div class="sheet-meta">
                         対象日: <strong><?= date('Y年m月d日', strtotime($date_str)) ?></strong>
                         （<?= count($rows_echo_gif) ?> 件）
-                        <?= $sort_by === 'room' ? '<span style="color:#2563eb; margin-left:4px;">［部屋順］</span>' : '' ?>
+                        <span class="room-sort-badge" style="color:#2563eb; margin-left:4px; display:none;">［部屋降順］</span>
                     </div>
                 </div>
                 <?php renderScheduleTable($rows_echo_gif, $date_str, $room_counts); ?>
@@ -932,7 +951,7 @@ $has_cf       = !empty($rows_cf);
                     <div class="sheet-meta">
                         対象日: <strong><?= date('Y年m月d日', strtotime($date_str)) ?></strong>
                         （<?= count($rows_cf) ?> 件）
-                        <?= $sort_by === 'room' ? '<span style="color:#2563eb; margin-left:4px;">［部屋順］</span>' : '' ?>
+                        <span class="room-sort-badge" style="color:#2563eb; margin-left:4px; display:none;">［部屋降順］</span>
                     </div>
                 </div>
                 <?php renderScheduleTable($rows_cf, $date_str, $room_counts); ?>
@@ -959,17 +978,158 @@ function toggleRemarksColumn(show) {
     }
 }
 
+/**
+ * 部屋ソート（降順）トグル制御（即時DOM並び替え＋空行挿入＋localStorage記憶対応）
+ */
+function toggleRoomSort(isRoomSort) {
+    try {
+        localStorage.setItem('print_schedule_room_sort', isRoomSort ? '1' : '0');
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+
+    // ヘッダーの［部屋降順］バッジ表示切り替え
+    document.querySelectorAll('.room-sort-badge').forEach(function(badge) {
+        badge.style.display = isRoomSort ? 'inline' : 'none';
+    });
+
+    // 各テーブルの並び替え & スペーサー行（空行）の再構築
+    document.querySelectorAll('table.schedule-table').forEach(function(table) {
+        var tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        // 既存のスペーサー行をすべて削除
+        tbody.querySelectorAll('tr.spacer-row').forEach(function(row) {
+            row.remove();
+        });
+
+        // データ行（.schedule-row）を取得
+        var rows = Array.from(tbody.querySelectorAll('tr.schedule-row'));
+        if (rows.length === 0) return;
+
+        if (!isRoomSort) {
+            // 【標準ソート】：元の出力順（data-standard-idx 昇順）
+            rows.sort(function(a, b) {
+                var idxA = parseInt(a.dataset.standardIdx, 10);
+                var idxB = parseInt(b.dataset.standardIdx, 10);
+                return idxA - idxB;
+            });
+        } else {
+            // 【部屋ソート（降順）】：
+            // 1. 部屋未指定（空欄、-、未指定）を先頭
+            // 2. 部屋名を自然順降順
+            // 3. 同部屋内は標準ソート順
+            rows.sort(function(a, b) {
+                var roomA = (a.dataset.room || '').trim();
+                var roomB = (b.dataset.room || '').trim();
+                if (roomA === '-' || roomA === '未指定') roomA = '';
+                if (roomB === '-' || roomB === '未指定') roomB = '';
+
+                var emptyA = (roomA === '');
+                var emptyB = (roomB === '');
+
+                // 部屋なし（空文字）を先頭に
+                if (emptyA && !emptyB) return -1;
+                if (!emptyA && emptyB) return 1;
+
+                var idxA = parseInt(a.dataset.standardIdx, 10);
+                var idxB = parseInt(b.dataset.standardIdx, 10);
+
+                if (emptyA && emptyB) {
+                    return idxA - idxB;
+                }
+
+                // 部屋名の自然順降順
+                var cmp = roomB.localeCompare(roomA, 'ja', { numeric: true, sensitivity: 'base' });
+                if (cmp !== 0) return cmp;
+
+                return idxA - idxB;
+            });
+        }
+
+        // DOM再配置 & 空行挿入 & ストライプ更新
+        tbody.innerHTML = '';
+        var prevDept = null;
+        var prevRoomClean = null;
+        var prevRoomFirst = null;
+
+        rows.forEach(function(row, idx) {
+            var currDept = (row.dataset.dept || '').trim();
+            var currRoom = (row.dataset.room || '').trim();
+            if (currRoom === '-' || currRoom === '未指定') currRoom = '';
+            var currRoomFirst = (row.dataset.roomFirst || '').trim();
+
+            var needSpacer = false;
+
+            if (idx > 0) {
+                if (!isRoomSort) {
+                    // 標準ソート：診療科が変わる境界
+                    if (prevDept !== null && currDept !== prevDept) {
+                        needSpacer = true;
+                    }
+                } else {
+                    // 部屋ソート：
+                    // ① 部屋未指定から部屋ありへの切り替わり
+                    if (prevRoomClean === '' && currRoom !== '') {
+                        needSpacer = true;
+                    }
+                    // ② 部屋あり同士で、部屋名称の先頭1文字（例：ﾏ⇔ｺ）が変わる境界
+                    else if (prevRoomClean !== '' && currRoom !== '' && prevRoomFirst !== currRoomFirst) {
+                        needSpacer = true;
+                    }
+                }
+            }
+
+            if (needSpacer) {
+                var spacer = document.createElement('tr');
+                spacer.className = 'spacer-row';
+                spacer.innerHTML = '<td colspan="9"></td>';
+                tbody.appendChild(spacer);
+            }
+
+            // ストライプクラスの再適用
+            row.classList.remove('row-even');
+            if (idx % 2 === 1) {
+                row.classList.add('row-even');
+            }
+
+            tbody.appendChild(row);
+
+            prevDept = currDept;
+            prevRoomClean = currRoom;
+            prevRoomFirst = currRoomFirst;
+        });
+    });
+}
+
 // 初期ロード時にユーザーの前回設定を復元
 document.addEventListener('DOMContentLoaded', function() {
+    // 備考欄の前回設定復元
     try {
-        var saved = localStorage.getItem('print_schedule_show_remarks');
-        if (saved === '0') {
-            var chk = document.getElementById('toggleRemarks');
-            if (chk) {
-                chk.checked = false;
+        var savedRemarks = localStorage.getItem('print_schedule_show_remarks');
+        if (savedRemarks === '0') {
+            var chkRemarks = document.getElementById('toggleRemarks');
+            if (chkRemarks) {
+                chkRemarks.checked = false;
                 toggleRemarksColumn(false);
             }
         }
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+
+    // 部屋ソートの前回設定復元（URL引数 sort=room も考慮）
+    try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var urlSortRoom = (urlParams.get('sort') === 'room');
+        var savedRoomSort = localStorage.getItem('print_schedule_room_sort');
+        var isRoomSort = urlSortRoom || (savedRoomSort === '1');
+
+        var chkRoomSort = document.getElementById('toggleRoomSort');
+        if (chkRoomSort) {
+            chkRoomSort.checked = isRoomSort;
+        }
+        toggleRoomSort(isRoomSort);
     } catch (e) {
         console.warn('localStorage access failed:', e);
     }

@@ -378,11 +378,11 @@
     <!-- ── 関連ドキュメントナビゲーション ── -->
     <div style="background: #f1f5f9; padding: 10px 36px; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; color: #475569; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
         <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
-        <a href="2026-10-20works.html" style="color: #0284c7; text-decoration: none; font-weight: bold;">📄 本日改修報告書 (2026-10-20works.html)</a>
+        <a href="2026-10-21works.html" style="color: #0284c7; text-decoration: none; font-weight: bold;">📄 本日改修報告書 (2026-10-21works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-10-20works.html" style="color: #0369a1; text-decoration: none;">📄 前回改修報告書 (2026-10-20works.html)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="plan.html" style="color: #2563eb; text-decoration: none;">📋 中長期開発計画書 (plan.html)</a>
-        <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-9works.html" style="color: #059669; text-decoration: none;">📄 前回改修報告書 (2026-10-9works.html)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="../furiwake_daymemo.php" style="color: #d97706; text-decoration: none;">📝 メモ科振分メンテ (furiwake_daymemo.php)</a>
         <span style="color: #cbd5e1;">|</span>
@@ -413,7 +413,7 @@
             <li><a href="#cat-ward-admission">16. 病棟管理システム連動（入院予定）即時制御 ＆ DB完全同期 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">ver1004新設</span></a></li>
             <li><a href="#cat-holiday-exception">17. 空き枠検索・直近速報 休診判定 ＆ 出勤例外最優先ロジック <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-05新設</span></a></li>
             <li><a href="#cat-daymemo-furiwake">18. 日別メモ診療科完全独立 ＆ 振り分けメンテツール系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-09新設</span></a></li>
-            <li><a href="#cat-print-daily-renewal">19. 日別予約一覧印刷 A4縦最適化 ＆ 2ページ分割 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-20改修</span></a></li>
+            <li><a href="#cat-print-daily-renewal">19. 日別予約一覧印刷 A4縦最適化 ＆ 部屋降順ソート ＆ 境界空行 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-21改修</span></a></li>
             <li><a href="#cat-flatpickr-onokai">20. 特大Flatpickr共通日付コントロール（小野会カレンダー） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-20新設</span></a></li>
         </ul>
     </nav>
@@ -634,6 +634,7 @@
                         <li><strong>上下レイアウト入れ替え:</strong> カレンダーと予約一覧の上下配置を反転（localStorage保持）。</li>
                         <li><strong>【v0927新設】患者名横の医療安全アラートバッジ表示:</strong> 予約一覧の患者名横にカラーバッジ（💊抗血栓、⚠️局麻注意、🔴感染症、😷風邪）を表示。クリックで個別のアラート確認・変更モーダルが起動。</li>
                         <li><strong>【v0927新設】操作履歴復元（Undo）＆ アラート一括スキャン:</strong> ヘッダーに「🕒 操作履歴・復元」「🛡️ アラートスキャン」ボタンを常備。</li>
+                        <li><strong>【2026-10-21新設】担当未定（--担当未定--）ハイライト ＆ 絞り込み機能:</strong> 医師が未割り当ての予約（未定・空文字・--担当未定--）を迅速に発見・解消するため、上部ツールバーに「⚠️ 未定 (N件)」ボタントグルを新設。月内の未定件数をリアルタイム集計。クリックで未定のある日のみカレンダーで強力ハイライト（アンバー色枠線・薄黄背景・未定件数バッジ）し、未定のない日を半透明化。さらに選択日予約一覧でも未定行を黄色（<code>#fef9c3</code>）で強調し、医師名列に「⚠️未」警告バッジを表示。未定フィルター選択時は確定予約の担当未定のみに一覧を自動絞り込み。種別フィルター（GIF/TCF/ECHO）とも完全連動。</li>
                     </ul>
                 </div>
             </div>
@@ -708,6 +709,7 @@
                         <li><strong>ドロップダウンによる一括変更:</strong> 各患者の部屋番号（1〜4号室等）と下剤種別を選択。</li>
                         <li><strong>リアルタイム部屋重複アラート:</strong> 同一の部屋番号を複数人に割り当てた際にハイライト警告。</li>
                         <li><strong>ツールバーボタン ホバー大腸CF件数サマリ:</strong> カレンダー（<code>month_schedule.php</code>）およびデイリーノート（<code>schedule_note.php</code>）の「🚪 部屋・下剤一括」ボタンにマウスオーバーした際、選択日の大腸内視鏡（CF: TCF+W+ポリペク）件数を診療科別（🔵 胃腸科 / 🟢 肛門科）および種別内訳テーブルで即座にフロート表示。前処置室・部屋割りの事前見通しを瞬時に判断可能。</li>
+                        <li><strong>【2026-10-21改修】70歳以上下剤未設定ワーニングの検査種別適正化:</strong> GIF（胃カメラ）・胃がん検診等の下剤不要検査については、70歳以上かつ下剤未設定であっても保存前確認ワーニングの対象から自動除外。TCF/W/ポリペク等の大腸検査のみを対象として誤警告・不要な確認ダイアログを防止。</li>
                     </ul>
                 </div>
             </div>
@@ -1681,30 +1683,44 @@
         </section>
 
         <!-- ============================================================
-        19. 日別予約一覧印刷 A4縦最適化 ＆ 2ページ分割 ＆ 備考印刷ON/OFF (2026-10-20改修)
+        19. 日別予約一覧印刷 A4縦最適化 ＆ 部屋ソート（降順）＆ 境界空行 ＆ 備考印刷ON/OFF (2026-10-21改修)
         ============================================================ -->
         <section class="spec-section" id="cat-print-daily-renewal">
-            <h2 class="category-title">19. 日別予約一覧印刷 A4縦最適化 ＆ 2ページ分割 ＆ 備考印刷ON/OFF <span class="badge badge-success" style="font-size:11px;">2026-10-20 改修</span></h2>
+            <h2 class="category-title">19. 日別予約一覧印刷 A4縦最適化 ＆ 部屋ソート（降順）＆ 境界空行 ＆ 備考印刷ON/OFF <span class="badge badge-success" style="font-size:11px;">2026-10-21 改修</span></h2>
 
             <div class="screen-card">
                 <div class="screen-header">
                     <div class="screen-title-group">
-                        <span class="screen-title">🖨️ 日別予約一覧印刷 A4縦最適化 ＆ 検査種別2ブロック自動改ページ</span>
+                        <span class="screen-title">🖨️ 日別予約一覧印刷 A4縦最適化 ＆ 部屋ソート（降順）トグル ＆ 境界空行</span>
                         <span class="screen-file">print_schedule_daily.php</span>
                     </div>
-                    <span class="badge badge-primary">印刷DX ＆ 用紙最適化</span>
+                    <span class="badge badge-primary">印刷DX ＆ ソート・視認性向上</span>
                 </div>
                 <div class="screen-body">
                     <p class="screen-desc">
-                        日別予約一覧印刷（<code>print_schedule_daily.php</code>）を現場運用に合わせてA4縦向きに刷新し、エコー・胃カメラ（1ページ目）と大腸カメラ（2ページ目）の用紙分離、左右パディング極小化、および備考欄の印刷ON/OFF切り替え機能を実装しました。
+                        日別予約一覧印刷（<code>print_schedule_daily.php</code>）を現場運用に合わせてA4縦向きに刷新し、エコー・胃カメラ（1ページ目）と大腸カメラ（2ページ目）の用紙分離、左右パディング極小化、および備考欄の印刷ON/OFF切り替え機能に加え、<strong>部屋ソート（降順）即時トグル機能</strong>および<strong>意味の変わる境界へのわずかな空行（高さ10px）挿入機能</strong>を追加実装しました。
                     </p>
                     <div class="feature-title">📌 主な機能 ＆ 仕様詳細</div>
                     <ul class="feature-list">
                         <li><strong>A4縦向き（portrait）印刷 ＆ 画面プレビュー:</strong> <code>@page { size: A4 portrait; margin: 8mm 6mm; }</code> に変更。画面上でもA4用紙カードプレビューを表示。</li>
                         <li><strong>2ブロック自動改ページ（エコー+GIF / CF）:</strong> 1ページ目を「エコー・GIF」、2ページ目を「CF・大腸内視鏡」に強制改ページ分離。各ページに検査種別タイトル・theadヘッダー繰り返しを完備。</li>
+                        <li><strong>部屋ソート（降順）即時トグル ＆ localStorage記憶 (2026-10-21追加):</strong>
+                            <ul style="margin-top:4px;">
+                                <li>上部バーの「🚪 部屋ソート（降順）」トグルスイッチにより、ページ再読み込みなしで即時に並び替え（標準ソート ⇔ 部屋ソート）。設定状態はブラウザに自動記憶。</li>
+                                <li><strong>並び順ルール:</strong> 部屋未指定（空欄や「-」）を先頭にまとめ、部屋番号ありは自然順降順（例: ﾏ207 → ﾏ101 → ｺ207 等）で配置。同一部屋内・未指定同士は時間順（標準ソート順）を維持。</li>
+                                <li>トグルON時は印刷用紙ヘッダーに <code>［部屋降順］</code> バッジが連動表示。</li>
+                            </ul>
+                        </li>
+                        <li><strong>境界へのわずかな空行（高さ10px）の自動挿入 (2026-10-21追加):</strong>
+                            <ul style="margin-top:4px;">
+                                <li><strong>標準ソート時:</strong> 診療科（肛門科 ⇔ 胃腸科）が切り替わる境界に高さ10pxのスペーサー行（罫線なし）を挿入。</li>
+                                <li><strong>部屋ソート時:</strong> 部屋なしから部屋ありへの切り替わり境界、および部屋名称の先頭1文字（例: <code>ﾏ</code> ⇔ <code>ｺ</code>）が変わる境界にスペーサー行を挿入。</li>
+                                <li>スペーサー行によるストライプ配色（row-even）の崩れを防止するクラス制御を完備。</li>
+                            </ul>
+                        </li>
                         <li><strong>左右クリアランス極小化:</strong> セルパディングを 2.5px 2px に圧縮。固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）を最小幅・折り返し禁止（nowrap）にし、患者名・備考欄の横幅を確保。</li>
                         <li><strong>備考欄の印刷 ON / OFF トグル:</strong> 上部操作バーのチェックボックスから列ごと瞬時に非表示化。行高さが劇的に圧縮され省ページ化を実現（localStorageで設定維持）。</li>
-                        <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-20works.html</code> に完全仕様と検証記録を収録。</li>
+                        <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-21works.html</code> および <code>仕様書/2026-10-20works.html</code> に完全仕様と検証記録を収録。</li>
                     </ul>
                 </div>
             </div>
@@ -1744,6 +1760,56 @@
                         <li><strong>全画面一括適用済:</strong>
                             <code>schedule_note.php</code>（デイリーノート）、<code>modal_edit.php</code>（予約登録・編集）、<code>slot_master_maintenance.php</code>（枠マスタ保守）、<code>slot_search.php</code>（空き枠検索）、<code>stats.php</code>（検査数集計）、<code>furiwake_daymemo.php</code>（日別メモ振分）、<code>followup/index.php</code> ＆ <code>followup/edit.php</code>（フォローアップ機能）。
                         </li>
+                    </ul>
+                </div>
+        </section>
+
+        <!-- ============================================================
+        21. 月間カレンダー 担当未定（--担当未定--）ハイライト ＆ 絞り込み機能 (2026-10-21新設)
+        ============================================================ -->
+        <section class="spec-section" id="cat-undecided-highlight">
+            <h2 class="category-title">21. 月間カレンダー 担当未定（--担当未定--）ハイライト ＆ 絞り込み機能 <span class="badge badge-success" style="font-size:11px;">2026-10-21 新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">⚠️ 月間カレンダー 担当未定予約ハイライト ＆ 絞り込み機能</span>
+                        <span class="screen-file">month_schedule.php / assets/css/month_schedule.css</span>
+                    </div>
+                    <span class="badge badge-warning">運用効率化 ＆ 割当漏れ防止</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        月間予約カレンダー（<code>month_schedule.php</code>）において、医師がまだ割り当てられていない確定予約（担当未定）を迅速に発見し、割り振り作業を効率的に行えるようにするための <strong>「--担当未定--」ハイライト ＆ 絞り込み機能</strong> を実装しました。
+                    </p>
+                    <div class="feature-title">📌 主な機能 ＆ 仕様詳細</div>
+                    <ul class="feature-list">
+                        <li><strong>上部「👨‍⚕️ 医師:」フィルターへの「⚠️ 未定 (N件)」ボタントグル新設:</strong>
+                            <ul style="margin-top:4px;">
+                                <li>「全医師」「義智」「哲也」… の並びに <strong>「⚠️ 未定 (N件)」</strong> ボタンを配置。月内に存在する担当未定件数をリアルタイム集計してバッジ表示（0件時はグレー、1件以上で赤色警告）。</li>
+                                <li>クリックすると <code>doctor=undecided</code> で即座に切り替わり、カレンダーおよび詳細一覧が未定予約に特化したハイライト・絞り込み表示に移行。</li>
+                            </ul>
+                        </li>
+                        <li><strong>カレンダー月間マス目（日付セル）の視覚的強調:</strong>
+                            <ul style="margin-top:4px;">
+                                <li><strong><code>doctor=undecided</code> 選択時:</strong> 担当未定がある日を <strong>濃いアンバー色枠線（2.5px solid #f59e0b）</strong> ＋ <strong>薄黄背景（#fffbeb）</strong> で強力にハイライトし、セル内に目立つ <code>⚠️ 未定:N</code> バッジを表示。未定がない日は半透明グレーアウト（opacity: 0.42）し、未定のある日が一目で判別可能。</li>
+                                <li><strong>通常表示時（<code>doctor=all</code> 等）:</strong> 担当未定がある日にはセルの左端にアンバー境界線（3.5px solid #f59e0b）および「⚠️ 未定:N」バッジを表示し、通常業務中の見落としを防止。</li>
+                            </ul>
+                        </li>
+                        <li><strong>下部「当日予約詳細一覧」テーブルの連動ハイライト ＆ 絞り込み:</strong>
+                            <ul style="margin-top:4px;">
+                                <li>担当未定の予約行の背景色を <strong>黄色（#fef9c3）</strong> で強調表示。</li>
+                                <li>医師名列に目立つ <code>⚠️未</code> アイコンバッジ（アンバー色・角丸ピル）を表示。</li>
+                                <li><strong><code>doctor=undecided</code> 選択時:</strong> 一覧テーブル内も確定予約の「担当未定のみ」に自動絞り込み（空き枠や決定済予約を非表示化）。該当日に未定がない場合は「⚠️ この日に該当する担当未定の予約はありません」を親切に表示。</li>
+                            </ul>
+                        </li>
+                        <li><strong>担当未定の判定ルール ＆ 種別フィルター完全連動:</strong>
+                            <ul style="margin-top:4px;">
+                                <li>確定予約（<code>is_canceled = FALSE</code> かつ <code>remarks != '＊＊＊🚫枠なし🚫＊＊＊'</code>）のうち、<code>doctor_name</code> が空文字、NULL、<code>◆未定◆</code>、<code>--担当未定--</code> のものを対象。</li>
+                                <li><strong>種別フィルター連動:</strong> 全種別（<code>all</code>）のほか、<code>GIF</code> 選択時はGIF・胃がん検診のみ、<code>TCF</code> 選択時はTCF・W・ポリペクのみ、<code>ECHO</code> 選択時はエコーのみの未定を集計・ハイライト。</li>
+                            </ul>
+                        </li>
+                        <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-21works.html</code> に完全仕様と検証記録を収録。</li>
                     </ul>
                 </div>
             </div>

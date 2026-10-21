@@ -3,8 +3,9 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\bulk_edit_prep_room.php
  * ファイル名: bulk_edit_prep_room.php
  * 概要: 当日予約の「マイトイレ部屋番号」「下剤」一括編集・保存画面 (m_input_master連携版)
- * 修正: 2026-09-10
- *   - 【下剤一括設定の絞り込み】下剤一括設定ボタンの対象を「下部内視鏡（TCF / ポリペク / W）」の予約行のみに限定
+ * 修正履歴:
+ *   - 2026-10-21: GIFなど下剤不要検査において、下剤未設定時の70歳以上ワーニング判定を除外
+ *   - 2026-09-10: 【下剤一括設定の絞り込み】下剤一括設定ボタンの対象を「下部内視鏡（TCF / ポリペク / W）」の予約行のみに限定
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -545,6 +546,14 @@ function handleSaveClick() {
                 const prepSelect = row.querySelector('.prep-select');
                 const pName = row.getAttribute('data-patient-name') || '患者';
                 const currentPrep = prepSelect ? prepSelect.value : '';
+
+                // ★ GIF（上部）・エコー等、下剤不要検査で未設定（空欄）の場合はワーニング不要
+                const examType = (row.getAttribute('data-exam-type') || '').trim();
+                const isGif = (examType === 'GIF' || examType.toUpperCase().includes('GIF') || examType.includes('胃'));
+                const isEcho = (examType === 'ECHO' || examType.toUpperCase().includes('ECHO') || examType.includes('エコー'));
+                if ((isGif || isEcho) && currentPrep === '') {
+                    return;
+                }
 
                 if (currentPrep !== 'マグP') {
                     const prepDisp = currentPrep === '' ? '未指定' : currentPrep;

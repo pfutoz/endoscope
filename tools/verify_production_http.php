@@ -14,10 +14,15 @@ $urls = [
     'http://192.168.1.16/endoscope/furiwake_daymemo.php',
     'http://192.168.1.16/endoscope/followup/index.php',
     'http://192.168.1.16/endoscope/print_schedule_daily.php',
+    'http://192.168.1.16/endoscope/month_schedule.php',
+    'http://192.168.1.16/endoscope/month_schedule.php?doctor=undecided',
+    'http://192.168.1.16/endoscope/bulk_edit_prep_room.php',
+    'http://192.168.1.16/endoscope/assets/css/month_schedule.css',
     'http://192.168.1.16/endoscope/assets/css/onokai_flatpickr.css',
     'http://192.168.1.16/endoscope/assets/js/onokai_flatpickr.js',
     'http://192.168.1.16/endoscope/assets/vendor/flatpickr/flatpickr.min.js',
     'http://192.168.1.16/endoscope/仕様書/2026-10-20works.html',
+    'http://192.168.1.16/endoscope/仕様書/2026-10-21works.html',
     'http://192.168.1.16/endoscope/仕様書/specdoc.html'
 ];
 

@@ -36,19 +36,24 @@ $filesToDeploy = [
     'followup/index.php',
     'followup/edit.php',
 
-    // 3. 帳票印刷DX・ヘルプ
+    // 3. 帳票印刷DX・ヘルプ・予約管理
     'print_schedule_daily.php',
+    'month_schedule.php',
+    'assets/css/month_schedule.css',
+    'bulk_edit_prep_room.php',
     'help.php',
     'help.html',
 
     // 4. 仕様書
     '仕様書/2026-10-20works.html',
+    '仕様書/2026-10-21works.html',
     '仕様書/specdoc.html',
 
     // 5. ツール類
     'tools/apply_flatpickr.py',
     'tools/update_all_screens_flatpickr.py',
     'tools/deploy_to_production.php',
+    'tools/verify_production_http.php',
 ];
 
 $timestamp = date('Ymd_His');
