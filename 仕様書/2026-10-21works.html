@@ -281,6 +281,7 @@
             <a href="#bulk-prep" class="toc-link">4. 🚪 下剤未設定ワーニング適正化 (bulk_edit_prep_room)</a>
             <a href="#files" class="toc-link">5. 変更ファイル一覧</a>
             <a href="#test" class="toc-link">6. 検証結果と動作確認エビデンス</a>
+            <a href="#future-waku" class="toc-link">7. 🔮 今後の計画：時間枠マスタの柔軟化設計</a>
         </div>
     </nav>
 
@@ -495,6 +496,97 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- 7. 🔮 今後の計画：時間枠マスタの柔軟化設計 -->
+        <section id="future-waku">
+            <h2 class="section-title">7. 🔮 今後の計画・設計検討：時間枠マスタの柔軟化（日別・期間別オーバーライド構想）</h2>
+            <div class="card">
+                <div class="card-header">📋 背景と現状の課題分析</div>
+                <p>
+                    現在、検査時間枠はマスタ（<code>m2_waku</code>）で胃腸科・肛門科別に定義され全予約の基準となっていますが、以下の構造的課題を抱えています：
+                </p>
+                <ul style="padding-left: 20px; line-height: 1.8;">
+                    <li><strong>枠名称（文字列）による完全一致結合</strong>: 予約テーブル（<code>t_endoscopy_schedule</code>）の <code>waku_id</code> は全件NULLで、<code>scheduled_time</code>（文字列）がそのままマスタの <code>waku_name</code> と結合されています。そのため、マスタの枠名を変更すると過去の全予約が「🚨 迷子 (MISMATCH)」になるリスクがあります（現に全角「＃1」と半角「#1」の違いで58件の迷子が発生中）。</li>
+                    <li><strong>日付・期間の概念の欠如</strong>: マスタが全期間固定のため、「特定日だけ 9:00 を 9:30 にしたい」「来年度から枠構成を変更したい」といった一時的・段階的な変更に対応できません。</li>
+                </ul>
+
+                <div class="card-header" style="margin-top:20px;">🛡️ 3つの重要懸念事項への対策設計</div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:28%;">懸念事項</th>
+                                <th>リスク内容</th>
+                                <th>システム防衛策・解決アプローチ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>① メンテ画面の複雑化</strong></td>
+                                <td>マスタ画面に複雑な期間指定フォームを持たせると、設定ミスが頻発し誰も使えなくなる。</td>
+                                <td><strong>カレンダー直結の超シンプルUI</strong>を採用。日常の臨時変更はカレンダー画面からポップアップで1クリック設定（<code>t_daily_memo</code> と同等の体験）。マスタ画面は一覧照会・解除のみに留める。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>② 枠仮想化による速度低下</strong></td>
+                                <td>日付ごとにオーバーライドを都度SQLで問い合わせると、カレンダーやマトリクスの描画が劇的に重くなる。</td>
+                                <td><strong>一括プリフェッチ ＆ インメモリ解決</strong>を採用。画面表示全体のDBアクセス増加は「期間中たった1回（数ms）」のみ。描画ループ内はメモリ上のハッシュ参照（O(1)）とし、<strong>体感遅延ゼロ（0ms）</strong>を完全維持。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>③ 医師別枠要求によるシステム破綻</strong></td>
+                                <td>「医師ごとに別々の時間枠を…」と要望がエスカレートすると、部屋割・前処置室・マトリクス全体の整合性が崩壊する。</td>
+                                <td><strong>「時間枠＝共通物理資源（箱）」「医師枠＝人的キャパ（人）」の分離を絶対防衛線</strong>として死守。枠の医師別化は絶対に拒否しつつ、現場を助ける<strong>「4つの逃げ道」</strong>で要求を安全に吸収する。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card-header" style="margin-top:20px;">🚪 システムを壊さずに現場を逃がす「4つの逃げ道」と実運用シナリオ</div>
+                <ul style="padding-left: 20px; line-height: 1.8;">
+                    <li><strong>逃げ道①（担当医初期指定）</strong>: 枠自体は共通のまま、その日の予約登録時に担当医の初期選択肢をその先生に固定（枠を増やさない）。</li>
+                    <li><strong>逃げ道②（枠名称サフィックス）</strong>: 枠そのものを独立させず、当日の表示名に注釈を付加（例: <code>GIF9:00 [哲]</code>、<code>GIF9:00 (特)</code>）。</li>
+                    <li><strong>逃げ道③（迷子・枠外予約の許容）</strong>: イレギュラーな時間（10:15など）はエラーで弾かず、現行システムの強みである「枠外予約」として安全に収容。</li>
+                    <li><strong>逃げ道④（日別メモ）</strong>: 「〇〇先生9:30開始」など体制の特殊性は日別メモを活用。</li>
+                </ul>
+
+                <div class="card-header" style="margin-top:16px;">💡 現場の知見を活かした実践シナリオ（2027年体制移行の例）</div>
+                <p>
+                    「<code>＊＊＊🚫枠なし🚫＊＊＊</code>」が印刷物に出ることで、全スタッフが「何らかの理由で枠が減っている」と一目で納得できた成功体験をそのまま引き継ぎます：
+                </p>
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:14px; margin-top:8px; font-size:12.5px;">
+                    <strong>【2027年から胃腸科TCFを2枠増、肛門科を1枠減とする場合の運用例】</strong><br>
+                    ・<strong>移行期（2027年1月〜）</strong>:
+                    <ul style="margin:4px 0 6px 16px;">
+                        <li>胃腸科新設枠: <code>TCF16:30 (2027新設)</code>、<code>TCF13:00 (増枠分)</code> と明示し、スタッフの迷いをゼロにする。</li>
+                        <li>肛門科減枠: 枠を単に消すのではなく、システムが自動で <code>🚫 15:00［2027減枠］</code> のブロック行を出力し、スタッフ全員が納得。</li>
+                    </ul>
+                    ・<strong>定着期（2027年春頃〜）</strong>:
+                    <ul style="margin:4px 0 0 16px;">
+                        <li>全員が慣れた段階で、ラベルを通常名称（<code>TCF16:30</code>）へスマートに整える。</li>
+                        <li><strong>内部ID結合により、名称をいつ綺麗に変えても、過去の1月・2月の予約データは1件も迷子にならず安全に引き継がれる。</strong></li>
+                    </ul>
+                </div>
+
+                <div class="card-header" style="margin-top:20px;">🏗️ 推奨データ構造案：m2_waku_override</div>
+                <pre class="code-block"><code>CREATE TABLE m2_waku_override (
+    override_id SERIAL PRIMARY KEY,
+    department_code VARCHAR(10) NOT NULL,          -- 'GASTRO' または 'PROCT'
+    base_waku_id INTEGER REFERENCES m2_waku(id),   -- 紐付く基本枠ID（新規の臨時枠ならNULL可）
+    override_type VARCHAR(10) NOT NULL,            -- 'DATE' (特定日) または 'PERIOD' (期間)
+    target_date DATE,                              -- 特定日の場合 (例: '2026-11-05')
+    start_date DATE,                               -- 期間指定の開始日 (例: '2027-01-01')
+    end_date DATE,                                 -- 期間指定の終了日 (例: '2027-03-31')
+    display_waku_name VARCHAR(50) NOT NULL,        -- 上書き表示枠名 (例: 'TCF16:30(2027新設)')
+    group_code VARCHAR(10) NOT NULL,               -- 'GIF', 'TCF', 'ECHO'
+    time_start TIME,                               -- 枠開始時刻 (来院時間計算の基準)
+    time_end TIME,                                 -- 枠終了時刻
+    display_order INTEGER,                         -- 表示順上書き
+    is_suspended BOOLEAN DEFAULT FALSE,            -- TRUEの場合、その日・期間はこの枠を休止（🚫ブロック表示）
+    reason VARCHAR(100),                           -- 変更理由 (例: '2027年体制移行', '院内研修')
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);</code></pre>
             </div>
         </section>
     </main>

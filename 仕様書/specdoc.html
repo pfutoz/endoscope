@@ -415,6 +415,8 @@
             <li><a href="#cat-daymemo-furiwake">18. 日別メモ診療科完全独立 ＆ 振り分けメンテツール系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-09新設</span></a></li>
             <li><a href="#cat-print-daily-renewal">19. 日別予約一覧印刷 A4縦最適化 ＆ 部屋降順ソート ＆ 境界空行 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-21改修</span></a></li>
             <li><a href="#cat-flatpickr-onokai">20. 特大Flatpickr共通日付コントロール（小野会カレンダー） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-20新設</span></a></li>
+            <li><a href="#cat-undecided-highlight">21. 担当未定（--担当未定--）ハイライト ＆ 絞り込み機能 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-21新設</span></a></li>
+            <li><a href="#cat-future-waku-override">22. 【将来計画】時間枠マスタ柔軟化 ＆ 日別・期間別オーバーライド構想 <span class="badge badge-primary" style="font-size:10px; padding:1px 5px;">2026-10-21計画</span></a></li>
         </ul>
     </nav>
 
@@ -1810,6 +1812,67 @@
                             </ul>
                         </li>
                         <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-21works.html</code> に完全仕様と検証記録を収録。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        22. 【将来計画・アーキテクチャ構想】時間枠マスタの柔軟化 ＆ 日別・期間別枠オーバーライド設計
+        ============================================================ -->
+        <section class="spec-section" id="cat-future-waku-override">
+            <h2 class="category-title">22. 【将来計画・アーキテクチャ構想】時間枠マスタの柔軟化 ＆ 日別・期間別枠オーバーライド設計 <span class="badge badge-primary" style="font-size:11px;">2026-10-21 計画策定</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🔮 時間枠マスタ柔軟化 ＆ 日別・期間別オーバーライド構想</span>
+                        <span class="screen-file">m2_waku_override / lib/slot_helper.php / slot_master_maintenance.php</span>
+                    </div>
+                    <span class="badge badge-warning">ロードマップ・設計方針書</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">
+                        現行の静的枠マスタ（<code>m2_waku</code>）および予約データ（<code>t_endoscopy_schedule.scheduled_time</code>）の文字列完全一致結合における構造的リスクを解消し、過去予約を1件も迷子にすることなく、特定日・期間の枠名変更や枠数増減（2027年新設・減枠等）を柔軟かつ高速（0msオーバーヘッド）に実現するための将来アーキテクチャ計画です。
+                    </p>
+                    <div class="feature-title">📌 主な設計方針 ＆ 仕様詳細</div>
+                    <ul class="feature-list">
+                        <li><strong>時間枠と医師枠の分離死守（絶対防衛線）:</strong>
+                            <ul style="margin-top:4px;">
+                                <li>「時間枠（箱）＝ 医院の物理資源（部屋・機械・時間軸）」と「医師枠（人）＝ 人的キャパシティ」を明確に分離した現行設計を死守。</li>
+                                <li>「医師別の専用時間枠」はシステム全体の破綻（部屋割・マトリクスの崩壊）を招くため不可とし、以下の<strong>4つの逃げ道（運用ルール）</strong>で現場の要求を安全に吸収：
+                                    <ol style="margin-left:16px;">
+                                        <li><strong>担当医初期指定:</strong> 枠は共通のまま予約時の担当医初期選択をサジェスト・固定。</li>
+                                        <li><strong>枠名称サフィックス:</strong> 枠そのものを増やさず表示名に注釈を付与（例: <code>GIF9:00 [哲]</code>）。</li>
+                                        <li><strong>迷子・枠外予約の許容:</strong> イレギュラー時刻はエラーにせず枠外予約として安全に収容。</li>
+                                        <li><strong>日別メモ活用:</strong> 特殊な医師体制は日別メモで情報共有。</li>
+                                    </ol>
+                                </li>
+                            </ul>
+                        </li>
+                        <li><strong>表示速度を1ミリ秒も落とさない「一括プリフェッチ ＆ インメモリ解決」:</strong>
+                            <ul style="margin-top:4px;">
+                                <li>画面描画時に期間内のオーバーライド差分のみを1クエリで一括取得（DBアクセス増は画面全体で1回のみ）。</li>
+                                <li>カレンダーやマトリクスのセル描画ループ内はメモリ上のハッシュ探索（O(1)）のみで完結させ、<strong>体感遅延ゼロ（0ms）</strong>を完全保証。</li>
+                            </ul>
+                        </li>
+                        <li><strong>現場運用の成功体験を継承（「＊＊＊🚫枠なし🚫＊＊＊」の価値と2027年体制移行）:</strong>
+                            <ul style="margin-top:4px;">
+                                <li><strong>意図的減枠の可視化:</strong> 枠を単に消すのではなく、システムが自動で <code>🚫 枠休止（理由）</code> のブロック行を出力し、全スタッフが印刷物で一目で合意できる安心感を維持。手動の「＊＊＊🚫枠なし🚫＊＊＊」もそのまま共存。</li>
+                                <li><strong>体制変更時の段階的移行シナリオ（例: 2027年から胃腸科TCF+2枠、肛門科-1枠）:</strong>
+                                    <ul>
+                                        <li><strong>移行期:</strong> 新設枠に <code>TCF16:30 (2027新設)</code>、減枠に <code>🚫 15:00［2027減枠］</code> と明示し、スタッフの迷いをゼロにする。</li>
+                                        <li><strong>定着期:</strong> 慣れた段階で通常名（<code>TCF16:30</code>）にリネームしても、<strong>内部ID結合により過去の予約データは1件も迷子にならず安全に引き継がれる</strong>。</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li><strong>新設テーブル構造案（m2_waku_override）:</strong>
+                            <ul style="margin-top:4px;">
+                                <li><code>override_id</code> (PK), <code>department_code</code>, <code>base_waku_id</code>, <code>override_type</code> ('DATE' / 'PERIOD'), <code>target_date</code>, <code>start_date</code>, <code>end_date</code>, <code>display_waku_name</code>, <code>group_code</code>, <code>time_start</code>, <code>time_end</code>, <code>display_order</code>, <code>is_suspended</code>, <code>reason</code></li>
+                            </ul>
+                        </li>
+                        <li><strong>詳細設計計画書:</strong> <code>仕様書/2026-10-21works.html</code>（第7章）に完全な背景・検証・スキーマ詳細を収録。</li>
                     </ul>
                 </div>
             </div>
