@@ -1,0 +1,1234 @@
+<?php
+/**
+ * 設置パス: c:\Apache24\htdocs\endoscope\print_schedule_daily.php
+ * ファイル名: print_schedule_daily.php
+ * 概要: 日別内視鏡予約一覧 印刷専用モジュール (A4縦向き印刷対応)
+ * 生成日時: 2026-10-20 22:35
+ * 修正履歴:
+ *   - 2026-10-26: 【空き枠・枠なし仕様改修＆手書き幅微調整】
+ *       1. 「空き枠を含む」OFF時、休止枠（枠なし）も印刷一覧から完全に除外するよう変更
+ *       2. 印刷用紙ヘッダーの件数表示を、枠なし・空き枠を除外した「実検査件数」に一元化
+ *       3. 手書きメモ余白の列幅を現在の80%（width: 34%, min-width: 60mm）に最適化
+ *   - 2026-10-26: 【手書きメモ幅1.5倍調整】手書きメモ余白モード時の列幅を通常比1.5倍（width: 42%, min-width: 75mm）に拡張
+ *   - 2026-10-26: 【手書きメモ余白対応】備考欄非表示時に列を削除せず、スタッフ手書き用メモ余白（白地・適正行高・ヘッダー「手書きメモ」表示）として残す仕様へ改修
+ *   - 2026-10-26: 【バグ修正】renderScheduleTable() 内の未定義変数 $pdo 警告を解消（global $pdo 参照）
+ *   - 2026-10-26: 【検査種別グループ判定共通化】
+ *       1. 各所に点在していた exam_type のハードコード判定を撤廃
+ *       2. resolveExamGroup() および getExamTypeBadgeInfo() に一元化し、m_exam_type_group マスターと完全連動
+ *   - 2026-10-22: 【改ページなし（全件連続一覧）オプション対応】
+ *       1. 2ページ分割（エコー/CF）をデフォルトとしつつ、上部操作バーに「ページ構成」切替オプションを追加
+ *       2. 「改ページなし (全件連続)」選択時は1つの用紙コンテナに全予約を時間枠順に出力し強制改ページを抑止
+ *       3. リロード不要の即時DOM切替 ＆ localStorage記憶 ＆ URLパラメータ（page_split=0/1）連携に対応
+ *   - 2026-10-22: 【休止枠・枠なし印刷の完全互換対応】
+ *       1. 空き枠非表示（show_empty=false）時であっても、枠休止（is_suspended=true）に設定された枠を常に印刷一覧へ出力
+ *       2. 従来の「※枠なし」と100%同一の書式（来院: ---, 患者No: ---, 患者名: ※枠なし, 担当: ◆未定◆, 備考: ＊＊＊🚫枠なし［理由］＊＊＊）で出力
+ *       3. CFページ・エコーGIFページへの検査種別グループ自動仕分けを完全保証
+ *   - 2026-10-22: 【Phase 2 時間枠オーバーライド構想 画面側反映】
+ *       1. slot_helper.php の新設共通関数 getDailyReservationsWithEffectiveSlots() を全面採用
+ *       2. 重複していた複雑な WITH 句 SQL を撤廃し、インメモリ高速マージ（0.001ms）に完全移行
+ *       3. 日別・期間別オーバーライド枠および休止枠（🚫［枠休止：理由］）の描画に対応
+ *   - 2026-10-21: ソート機能および区切り空行仕様の改修
+ *       1. 上部バーに「部屋ソート（降順）」トグルスイッチ追加（即時DOM並び替え＋localStorage記憶対応）
+ *       2. 部屋ソート（降順）の並び順ルール実装（未指定を先頭、部屋名を自然順降順、同部屋内は標準ソート順）
+ *       3. 意味の変わる境界に行間空行（spacer-row, 高さ10px）の挿入機能追加
+ *          - 標準ソート時: 診療科（PROCT/GASTRO）が変わる境界
+ *          - 部屋ソート時: 部屋未指定⇔部屋あり、および部屋名称先頭1文字（ﾏ⇔ｺ等）が変わる境界
+ *       4. 印刷用紙ヘッダーの「［部屋降順］」バッジ表示のトグル連動
+ *   - 2026-10-20: A4縦印刷対応・使い勝手向上改修
+ *       1. A4縦向き印刷に変更 (@page size: A4 portrait, 余白 8mm 6mm)
+ *       2. 検査種別による2ブロック常時改ページ分割
+ *          - 1ページ目: エコー・GIF (上部・超音波検査)
+ *          - 2ページ目: CF・大腸内視鏡 (下部・ポリペク)
+ *          - 各ページに専用見出しタイトル、ヘッダー（thead）自動繰り返し
+ *       3. 各固定列（時間枠, 来院時刻, 患者No, 検査種別, 部屋, 下剤, 担当）の左右クリアランス・余白を極限まで圧縮 (padding: 3px 2px)
+ *       4. 備考欄の印刷ON/OFF切り替え機能追加 (列ごと非表示・localStorage保持・JavaScript即時トグル)
+ *   - 2026-09-08: 同一日内で部屋番号が重複している場合、部屋名称を赤太字・強調枠で警告表示
+ *   - 2026-09-08: 枠重複の警告は撤去（枠重複は許容）
+ *   - 2026-09-08: 生年月日の和暦表示化（convertToWareki）
+ *   - 2026-09-08: 年齢計算を検査日時点の満年齢に修正（70歳以上: 濃いめオレンジ、69歳以下: 青）
+ *   - 2026-09-08: 薬剤バッジ色を修正（モビ: 青、マグP: 濃いめオレンジ、ニフ: 緑）
+ *   - 2026-09-08: 備考欄のRTF/HTMLデコード描画対応
+ */
+ini_set('display_errors', "1");
+error_reporting(E_ALL);
+
+session_start();
+
+require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/slot_helper.php';
+require_once __DIR__ . '/lib/date_helper.php';
+require_once __DIR__ . '/lib/patient_helper.php';
+
+$pdo = getDbConnection();
+if (!$pdo) {
+    die("データベース接続失敗");
+}
+
+$dept        = isset($_GET['dept']) ? (string)$_GET['dept'] : 'PROCT';
+$date_str    = isset($_GET['date']) && is_string($_GET['date']) && !empty($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+$filter_exam = isset($_GET['exam']) ? trim((string)$_GET['exam']) : 'all';
+$show_empty  = isset($_GET['show_empty']) ? ((string)$_GET['show_empty'] === '1') : false;
+$sort_by     = isset($_GET['sort']) ? trim((string)$_GET['sort']) : 'time';
+$page_split  = isset($_GET['page_split']) ? ((string)$_GET['page_split'] !== '0' && (string)$_GET['page_split'] !== 'false') : true;
+
+if (!in_array($dept, ['PROCT', 'GASTRO', 'ALL'], true)) { $dept = 'PROCT'; }
+
+if ($dept === 'ALL') {
+    $dept_label = '全診療科（肛門科・胃腸科）';
+    $dept_condition_schedule = "1=1";
+    $dept_condition_waku     = "1=1";
+} else {
+    $dept_label = ($dept === 'PROCT') ? '肛門科' : '胃腸科';
+    $dept_condition_schedule = "s.department_code = '{$dept}'";
+    $dept_condition_waku     = "department_code = '{$dept}'";
+}
+
+/**
+ * MALL3 RTF構文（NoteRTF / remarks）をHTML（カラー・太字・改行）へ完全変換
+ */
+function parseRtfToHtml(?string $rtf): string {
+    if ($rtf === null || $rtf === '') return '';
+    $text = trim($rtf);
+
+    if (strpos($text, '{\\rtf') !== 0) {
+        return nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
+    }
+
+    $color_map = [0 => 'inherit'];
+    if (preg_match('/{\\\\colortbl\\s*;?(.*?)}/s', $text, $m_col)) {
+        $defs = explode(';', $m_col[1]);
+        $idx = 1;
+        foreach ($defs as $d) {
+            $d = trim($d);
+            if ($d === '') continue;
+            if (preg_match('/\\\\red(\d+)\\\\green(\d+)\\\\blue(\d+)/', $d, $rgb)) {
+                $color_map[$idx] = "rgb({$rgb[1]},{$rgb[2]},{$rgb[3]})";
+                $idx++;
+            }
+        }
+    }
+
+    $text = preg_replace('/{\\\\\\*?\\\\fonttbl.*?}/s', '', $text);
+    $text = preg_replace('/{\\\\\\*?\\\\colortbl.*?}/s', '', $text);
+    $text = preg_replace('/{\\\\\\*?\\\\stylesheet.*?}/s', '', $text);
+    $text = preg_replace('/{\\\\\\*?\\\\info.*?}/s', '', $text);
+    $text = preg_replace('/^.*?\\\\viewkind\d+\\\\uc\d+/s', '', $text);
+    $text = preg_replace('/^.*?\\\\pard/s', '', $text);
+
+    $tokens = preg_split('/(\\\\[a-zA-Z0-9_-]+(?:\\s+)?|\\\\\'[0-9a-fA-F]{2}|\\\\par|\\\\tab|[{}]|\n|\r)/', $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+    $html = '';
+    $is_bold = false;
+    $current_color = 'inherit';
+    $sjis_buffer = '';
+
+    $flush_sjis = function() use (&$sjis_buffer, &$html, &$is_bold, &$current_color) {
+        if ($sjis_buffer === '') return;
+        $utf8_str = mb_convert_encoding($sjis_buffer, 'UTF-8', 'CP932,SJIS,UTF-8');
+        $escaped = htmlspecialchars($utf8_str, ENT_QUOTES, 'UTF-8');
+
+        $style = '';
+        if ($current_color !== 'inherit') {
+            $style .= "color: {$current_color};";
+        }
+        if ($is_bold) {
+            $style .= "font-weight: bold;";
+        }
+
+        if ($style !== '') {
+            $html .= "<span style=\"{$style}\">{$escaped}</span>";
+        } else {
+            $html .= $escaped;
+        }
+        $sjis_buffer = '';
+    };
+
+    foreach ($tokens as $token) {
+        if (preg_match('/^\\\\\'([0-9a-fA-F]{2})$/', $token, $m_hex)) {
+            $sjis_buffer .= chr(hexdec($m_hex[1]));
+            continue;
+        }
+
+        $flush_sjis();
+
+        $lower_tok = strtolower(trim($token));
+
+        if ($lower_tok === '\\par' || $token === "\n" || $token === "\r") {
+            $html .= "<br>\n";
+        } elseif ($lower_tok === '\\tab') {
+            $html .= " &nbsp; &nbsp; ";
+        } elseif ($lower_tok === '\\b') {
+            $is_bold = true;
+        } elseif ($lower_tok === '\\b0') {
+            $is_bold = false;
+        } elseif (preg_match('/^\\\\cf(\d+)$/', $lower_tok, $m_cf)) {
+            $c_idx = (int)$m_cf[1];
+            $current_color = $color_map[$c_idx] ?? 'inherit';
+        } elseif ($token === '{' || $token === '}') {
+            continue;
+        } elseif (strpos($token, '\\') === 0) {
+            continue;
+        } else {
+            $style = '';
+            if ($current_color !== 'inherit') $style .= "color: {$current_color};";
+            if ($is_bold) $style .= "font-weight: bold;";
+
+            $escaped = htmlspecialchars($token, ENT_QUOTES, 'UTF-8');
+            if ($style !== '') {
+                $html .= "<span style=\"{$style}\">{$escaped}</span>";
+            } else {
+                $html .= $escaped;
+            }
+        }
+    }
+
+    $flush_sjis();
+
+    $html = preg_replace('/(?:<br>\s*)+$/i', '', trim($html));
+    $html = preg_replace('/^(?:<br>\s*)+/i', '', $html);
+
+    return $html;
+}
+
+function renderRemarksRtfHtml(?string $raw): string {
+    if ($raw === null || $raw === '') return '';
+    $trimmed = trim($raw);
+    
+    if (strpos($trimmed, '{\\rtf') === 0) {
+        return '<div class="rich-remarks">' . parseRtfToHtml($trimmed) . '</div>';
+    }
+    if (preg_match('/<(?:p|br|strong|b|em|span|ul|ol|li)[^>]*>/i', $trimmed)) {
+        $allowed = '<p><br><strong><b><em><span><ul><ol><li>';
+        return '<div class="rich-remarks">' . strip_tags($trimmed, $allowed) . '</div>';
+    }
+    return '<div class="plain-remarks">' . nl2br(htmlspecialchars($trimmed, ENT_QUOTES, 'UTF-8')) . '</div>';
+}
+
+// 予約データ取得（時間枠オーバーライド・休止枠をインメモリ反映）
+$raw_data = getDailyReservationsWithEffectiveSlots($pdo, $dept, $date_str, 'all', 'all', $show_empty);
+
+// データ仕分け：全件($rows_all)、エコー+GIF（1ページ目）と CF・大腸内視鏡（2ページ目）
+$rows_all      = [];
+$rows_echo_gif = [];
+$rows_cf       = [];
+$room_counts   = []; // 当日内の部屋重複カウント集計
+
+foreach ($raw_data as $row) {
+    $is_empty     = isset($row['is_empty']) && $row['is_empty'] === true;
+    $is_mismatch  = isset($row['is_mismatch']) && $row['is_mismatch'] === true;
+    $is_suspended = !empty($row['is_suspended']);
+    $p_name       = (string)($row['patient_name'] ?? '');
+    $is_no_waku   = ($is_suspended && empty($row['patient_id'])) || (mb_strpos($p_name, '※枠なし') !== false);
+
+    // 【空き枠を含むOFF時の制御】空き枠チェックが無い場合は「枠なし（休止枠・※枠なし行）」も印刷させない
+    if (!$show_empty && $is_no_waku) {
+        continue;
+    }
+
+    $exam        = (string)($row['exam_type'] ?? '');
+    $group       = (string)($row['group_code'] ?? 'OTHER');
+    $row_cat     = resolveExamGroup($exam, $pdo);
+    $final_cat   = ($row_cat !== 'OTHER') ? $row_cat : $group;
+
+    if ($filter_exam !== 'all') {
+        $target_exams = explode(',', $filter_exam);
+        if (!$is_mismatch && !in_array($final_cat, $target_exams, true)) {
+            continue;
+        }
+    }
+
+    // 全件一覧用
+    $rows_all[] = $row;
+
+    // CF系（TCF/W/ポリペク）とエコー+GIF系（その他含む）にグループ分け
+    if ($final_cat === 'TCF') {
+        $rows_cf[] = $row;
+    } else {
+        $rows_echo_gif[] = $row;
+    }
+
+    // 予約が入っている有効な部屋番号を集計
+    if (!$is_empty && !$is_no_waku) {
+        $rm = trim((string)($row['room_number'] ?? ''));
+        if ($rm !== '' && $rm !== '未指定' && $rm !== '-') {
+            $room_counts[$rm] = ($room_counts[$rm] ?? 0) + 1;
+        }
+    }
+}
+
+// 実検査数（空き枠および休止枠・枠なしを除いた実患者予約件数）をカウントする関数
+$get_patient_count = function(array $rows): int {
+    $count = 0;
+    foreach ($rows as $r) {
+        $p_name = (string)($r['patient_name'] ?? '');
+        $is_no_waku = (!empty($r['is_suspended']) && empty($r['patient_id'])) || (mb_strpos($p_name, '※枠なし') !== false);
+        if (empty($r['is_empty']) && !$is_no_waku) {
+            $count++;
+        }
+    }
+    return $count;
+};
+
+// 並び替え処理：初期HTMLは常に標準ソート順（時間枠・表示順）で出力し、
+// クライアント側JavaScriptで即時トグル（標準ソート ⇔ 部屋ソート降順）およびlocalStorage記憶を実行
+
+
+/**
+ * 予約テーブルHTML描画関数
+ */
+function renderScheduleTable(array $rows, string $date_str, array $room_counts): void {
+    global $pdo;
+    if (empty($rows)) return;
+    ?>
+    <table class="schedule-table">
+        <thead>
+            <tr>
+                <th class="col-time">時間枠</th>
+                <th class="col-arrival">来院</th>
+                <th class="col-patient-id">患者No</th>
+                <th class="col-patient-name">患者名</th>
+                <th class="col-exam">検査種別</th>
+                <th class="col-room">部屋</th>
+                <th class="col-prep">下剤</th>
+                <th class="col-doctor">担当</th>
+                <th class="col-remarks">
+                    <span class="remarks-title-text">備考</span>
+                    <span class="memo-title-text">手書きメモ</span>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php 
+            $prev_dept = null;
+            foreach ($rows as $idx => $row): 
+                $is_empty = isset($row['is_empty']) && $row['is_empty'] === true;
+                $is_mismatch = isset($row['is_mismatch']) && $row['is_mismatch'] === true;
+                
+                $is_suspended = !empty($row['is_suspended']);
+                
+                $exam = (string)($row['exam_type'] ?? '');
+                $badge_info = getExamTypeBadgeInfo($exam, $pdo);
+                $cls = $badge_info['cls'];
+
+                $time_disp = (string)($row['scheduled_time'] ?? '---');
+                if ($is_mismatch) {
+                    $time_disp = '🚨 迷子 (' . $time_disp . ')';
+                } elseif ($time_disp === 'MISMATCH' || empty($time_disp)) {
+                    $time_disp = '🚨 枠未設定';
+                }
+
+                $row_dept = (string)($row['department_code'] ?? 'PROCT');
+                $dept_char = ($row_dept === 'GASTRO') ? '胃' : '肛';
+                $dept_badge_cls = ($row_dept === 'GASTRO') ? 'GASTRO' : 'PROCT';
+
+                $raw_pname = (string)($row['patient_name'] ?? '');
+                $has_patient = !empty($row['patient_id']) && (mb_strpos($raw_pname, '※枠なし') === false);
+                $is_pure_suspended = ($is_suspended && !$has_patient) || (mb_strpos($raw_pname, '※枠なし') !== false);
+
+                $arrival_disp = (string)($row['arrival_time'] ?? '');
+                if ($is_pure_suspended) {
+                    $arrival_disp = '---';
+                } elseif (empty($arrival_disp) && !$is_empty) {
+                    $arrival_disp = '---';
+                }
+
+                $patient_id_disp = $is_pure_suspended ? '---' : ($is_empty ? '' : (string)($row['patient_id'] ?? '---'));
+                $patient_name_disp = $is_pure_suspended ? '※枠なし' : ($is_empty ? '［空き枠］' : $raw_pname);
+                $doctor_name_disp = $is_pure_suspended ? '◆未定◆' : ($is_empty ? '' : (string)($row['doctor_name'] ?? ''));
+
+                // 年齢計算＆和暦変換
+                $age_int = null;
+                $age_cls = 'age-under';
+                $b_date_clean = '';
+                $b_wareki = '';
+                if (!$is_empty && !$is_pure_suspended && !empty($row['birthday'])) {
+                    $b_date_clean = substr(trim((string)$row['birthday']), 0, 10);
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $b_date_clean)) {
+                        $b_dt = new DateTime($b_date_clean);
+                        $t_dt = new DateTime($date_str);
+                        $age_int = $b_dt->diff($t_dt)->y;
+                        if ($age_int >= 70) {
+                            $age_cls = 'age-senior';
+                        } else {
+                            $age_cls = 'age-under';
+                        }
+                        $b_wareki = convertToWareki($b_date_clean);
+                    }
+                }
+
+                // 部屋設定＆重複判定
+                $room_val = trim((string)($row['room_number'] ?? ''));
+                $clean_room = ($room_val === '-' || $room_val === '未指定') ? '' : $room_val;
+                $room_first_char = ($clean_room !== '') ? mb_substr($clean_room, 0, 1, 'UTF-8') : '';
+
+                $is_room_duplicate = false;
+                if (!$is_empty && !$is_pure_suspended && $clean_room !== '') {
+                    if (isset($room_counts[$room_val]) && $room_counts[$room_val] > 1) {
+                        $is_room_duplicate = true;
+                    }
+                }
+
+                // 下剤カラー（モビ: 青, マグP: 濃いめオレンジ, ニフ: 緑）
+                $prep_val = trim((string)($row['bowel_prep'] ?? ''));
+                $prep_cls = '';
+                if ($prep_val === 'モビ') {
+                    $prep_cls = 'prep-mobi';
+                } elseif ($prep_val === 'マグP') {
+                    $prep_cls = 'prep-magp';
+                } elseif ($prep_val === 'ニフ') {
+                    $prep_cls = 'prep-nif';
+                }
+
+                // 【標準ソート時】診療科が変わる境界にわずかな空行（高さ10px）を挿入
+                if ($idx > 0 && $prev_dept !== null && $prev_dept !== $row_dept) {
+                    echo '<tr class="spacer-row"><td colspan="9"></td></tr>';
+                }
+                $prev_dept = $row_dept;
+            ?>
+                <tr class="schedule-row <?= ($idx % 2 === 1) ? 'row-even' : '' ?>"
+                    data-standard-idx="<?= $idx ?>"
+                    data-dept="<?= htmlspecialchars($row_dept, ENT_QUOTES, 'UTF-8') ?>"
+                    data-room="<?= htmlspecialchars($clean_room, ENT_QUOTES, 'UTF-8') ?>"
+                    data-room-first="<?= htmlspecialchars($room_first_char, ENT_QUOTES, 'UTF-8') ?>"
+                    <?= $is_mismatch ? 'style="background-color:#fee2e2 !important;"' : ($is_empty && !$is_suspended ? 'style="color:#64748b;"' : '') ?>>
+                        <!-- 時間枠 -->
+                        <td class="col-time">
+                            <span class="dept-icon-badge <?= $dept_badge_cls ?>"><?= $dept_char ?></span>
+                            <strong><?= htmlspecialchars($time_disp, ENT_QUOTES, 'UTF-8') ?></strong>
+                            <?php if (!empty($row['is_override']) && !empty($row['is_suspended'])): ?>
+                                <span style="font-size:7pt; color:#ef4444; margin-left:2px;" title="休止枠">🚫</span>
+                            <?php endif; ?>
+                        </td>
+
+                    <!-- 来院時刻 -->
+                    <td class="col-arrival"><?= htmlspecialchars($arrival_disp, ENT_QUOTES, 'UTF-8') ?></td>
+
+                    <!-- 患者No -->
+                    <td class="col-patient-id"><?= htmlspecialchars($patient_id_disp, ENT_QUOTES, 'UTF-8') ?></td>
+                    
+                    <!-- 患者名 -->
+                    <td class="col-patient-name">
+                        <?php if ($is_pure_suspended): ?>
+                            <strong class="p-name" style="color:#0f172a;">※枠なし</strong>
+                            <?php if (!empty($row['override_reason']) && $row['override_reason'] !== '休止'): ?>
+                                <span style="font-size:7.5pt; color:#ef4444; font-weight:normal; margin-left:4px;">(<?= htmlspecialchars($row['override_reason'], ENT_QUOTES, 'UTF-8') ?>)</span>
+                            <?php endif; ?>
+                        <?php elseif ($is_empty): ?>
+                            <span style="font-weight:bold; color:#64748b;">［空き枠］</span>
+                        <?php else: ?>
+                            <div class="patient-line">
+                                <strong class="p-name"><?= htmlspecialchars($patient_name_disp, ENT_QUOTES, 'UTF-8') ?></strong>
+                                <?php if ($age_int !== null): ?>
+                                    <span class="age-box <?= $age_cls ?>"><?= $age_int ?>歳</span>
+                                <?php endif; ?>
+                            </div>
+                            <?php if ($b_wareki !== ''): ?>
+                                <div class="b-wareki">
+                                    🎂 <?= htmlspecialchars($b_wareki, ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- 検査種別 -->
+                    <td class="col-exam">
+                        <?php if (!$is_empty || $is_suspended): ?>
+                            <span class="exam-badge <?= $cls ?>"><?= htmlspecialchars($exam, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- 部屋表示：重複時は赤太字・強調 -->
+                    <td class="col-room">
+                        <?php if (!$is_empty && !$is_suspended && !empty($room_val) && $room_val !== '未指定' && $room_val !== '-'): ?>
+                            <span class="room-badge <?= $is_room_duplicate ? 'room-duplicate' : '' ?>">
+                                <?= $is_room_duplicate ? '⚠️ ' : '' ?><?= htmlspecialchars($room_val, ENT_QUOTES, 'UTF-8') ?>
+                            </span>
+                        <?php else: ?>
+                            -
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- 下剤表示 -->
+                    <td class="col-prep">
+                        <?php if (!$is_empty && !$is_suspended && !empty($prep_val) && $prep_val !== '未指定' && $prep_val !== '-'): ?>
+                            <span class="prep-badge <?= $prep_cls ?>"><?= htmlspecialchars($prep_val, ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php else: ?>
+                            -
+                        <?php endif; ?>
+                    </td>
+
+                    <!-- 担当 -->
+                    <td class="col-doctor"><?= htmlspecialchars($doctor_name_disp, ENT_QUOTES, 'UTF-8') ?></td>
+
+                    <!-- 備考欄（RTF/リッチテキスト対応） -->
+                    <td class="col-remarks">
+                        <?= renderRemarksRtfHtml((string)($row['remarks'] ?? '')) ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php
+}
+?>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>内視鏡予約一覧印刷 - <?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?></title>
+    <style>
+        * { box-sizing: border-box; }
+        
+        @page {
+            size: A4 portrait;
+            margin: 8mm 6mm;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 8.5pt;
+            color: #0f172a;
+            background: #cbd5e1;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* 画面上部操作バー */
+        .no-print-bar {
+            background: #1e293b;
+            color: #fff;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .no-print-bar select, .no-print-bar input[type="text"] {
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .btn-print {
+            background: #10b981;
+            color: #fff;
+            border: none;
+            padding: 5px 16px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-print:hover { background: #059669; }
+
+        /* 印刷用紙コンテナ (画面上ではA4カードプレビュー表示) */
+        .print-page {
+            background: #fff;
+            max-width: 210mm;
+            min-height: 280mm;
+            margin: 16px auto;
+            padding: 8mm 6mm;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sheet-content {
+            flex-grow: 1;
+        }
+
+        .sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+        }
+        .sheet-title {
+            font-size: 12.5pt;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: #0f172a;
+        }
+        .sheet-meta {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #334155;
+            text-align: right;
+            line-height: 1.3;
+        }
+
+        /* テーブル基本設定 */
+        table.schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+            table-layout: auto;
+        }
+        table.schedule-table th, 
+        table.schedule-table td {
+            border: 1px solid #64748b;
+            padding: 2.5px 2px; /* 限界までクリアランスを詰める */
+            text-align: left;
+            vertical-align: middle;
+            line-height: 1.2;
+        }
+        table.schedule-table th {
+            background: #f1f5f9 !important;
+            font-weight: 800;
+            color: #0f172a;
+            text-align: center;
+            font-size: 7.5pt;
+            white-space: nowrap;
+            padding: 4px 2px;
+        }
+        table.schedule-table tr.schedule-row.row-even td {
+            background-color: #fafafa;
+        }
+
+        /* 境界の空行（わずかな空行：高さ10px・罫線なし） */
+        tr.spacer-row td {
+            height: 10px !important;
+            padding: 0 !important;
+            border-top: none !important;
+            border-bottom: none !important;
+            border-left: none !important;
+            border-right: none !important;
+            background: transparent !important;
+        }
+
+        /* 列幅とアライメントの最適化（クリアランス限界圧縮） */
+        .col-time {
+            width: 1%;
+            white-space: nowrap;
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+        }
+        .col-arrival {
+            width: 1%;
+            white-space: nowrap;
+            text-align: center !important;
+            font-size: 7.5pt;
+        }
+        .col-patient-id {
+            width: 1%;
+            white-space: nowrap;
+            text-align: center !important;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 7.5pt;
+            font-weight: bold;
+        }
+        .col-patient-name {
+            min-width: 90px;
+            max-width: 140px;
+            padding-left: 3px !important;
+            padding-right: 3px !important;
+        }
+        .col-exam {
+            width: 1%;
+            white-space: nowrap;
+            text-align: center !important;
+        }
+        .col-room {
+            width: 1%;
+            white-space: nowrap;
+            text-align: center !important;
+        }
+        .col-prep {
+            width: 1%;
+            white-space: nowrap;
+            text-align: center !important;
+        }
+        .col-doctor {
+            width: 1%;
+            white-space: nowrap;
+            text-align: center !important;
+            font-size: 7.5pt;
+        }
+        .col-remarks {
+            width: 28%;
+            font-size: 7pt;
+            word-break: break-all;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+        }
+
+        /* 備考見出し切り替え（通常時: 備考 / 備考OFF時: 手書きメモ） */
+        .col-remarks .memo-title-text {
+            display: none;
+        }
+        body.hide-remarks .col-remarks .remarks-title-text {
+            display: none;
+        }
+        body.hide-remarks .col-remarks .memo-title-text {
+            display: inline;
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        /* 備考欄OFF時（手書きメモ余白モード）: 備考文字を非表示にし、手書き用スペース（適正幅 34%・清潔な白地・適正行高）を確保 */
+        body.hide-remarks td.col-remarks > * {
+            display: none !important;
+        }
+        body.hide-remarks .col-remarks {
+            width: 34% !important; /* 現在幅の80%程度に最適化 */
+            min-width: 60mm !important;
+        }
+        body.hide-remarks th.col-remarks {
+            text-align: center !important;
+        }
+        body.hide-remarks td.col-remarks {
+            background-color: #ffffff !important; /* 偶数行でも手書きしやすい白地 */
+            min-height: 24px;
+        }
+        body.hide-remarks tr.schedule-row td {
+            height: 24px; /* ボールペンで手書きしやすい適度な行高 */
+        }
+
+        /* 患者名ブロック */
+        .patient-line {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+        .p-name {
+            font-size: 8.5pt;
+            font-weight: 800;
+        }
+        .b-wareki {
+            font-size: 6.5pt;
+            color: #64748b;
+            line-height: 1;
+            margin-top: 1px;
+        }
+
+        .dept-icon-badge {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            line-height: 14px;
+            text-align: center;
+            font-size: 7pt;
+            font-weight: 800;
+            color: #ffffff !important;
+            border-radius: 2px;
+            margin-right: 2px;
+            vertical-align: middle;
+        }
+        .dept-icon-badge.PROCT { background-color: #2563eb !important; }
+        .dept-icon-badge.GASTRO { background-color: #059669 !important; }
+
+        .exam-badge {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 7pt;
+            color: #fff !important;
+            white-space: nowrap;
+        }
+        .exam-badge.gif { background-color: #0ea5e9 !important; }
+        .exam-badge.tcf { background-color: #10b981 !important; }
+        .exam-badge.echo { background-color: #8b5cf6 !important; }
+        .exam-badge.other { background-color: #64748b !important; }
+
+        /* 部屋バッジ（通常 / 重複警告） */
+        .room-badge {
+            display: inline-block;
+            padding: 1px 4px;
+            background: #eff6ff !important;
+            color: #1e40af !important;
+            border: 1px solid #bfdbfe;
+            border-radius: 3px;
+            font-size: 7.5pt;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .room-badge.room-duplicate {
+            background-color: #fee2e2 !important;
+            color: #dc2626 !important;
+            border: 1.5px solid #ef4444 !important;
+            font-weight: 900 !important;
+        }
+
+        /* 薬剤バッジ（モビ: 青, マグP: 濃いめオレンジ, ニフ: 緑） */
+        .prep-badge {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 7pt;
+            font-weight: 800;
+            color: #ffffff !important;
+            white-space: nowrap;
+        }
+        .prep-badge.prep-mobi { background-color: #2563eb !important; }
+        .prep-badge.prep-magp { background-color: #ea580c !important; }
+        .prep-badge.prep-nif  { background-color: #16a34a !important; }
+
+        /* 年齢バッジ（70歳以上: 濃いめオレンジ, 69歳以下: 青） */
+        .age-box {
+            display: inline-block;
+            color: #ffffff !important;
+            font-size: 6.5pt;
+            font-weight: 800;
+            line-height: 1;
+            padding: 1px 3px;
+            border-radius: 2px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .age-box.age-senior { background-color: #ea580c !important; }
+        .age-box.age-under  { background-color: #2563eb !important; }
+
+        .rich-remarks p, .plain-remarks { margin: 0; padding: 0; line-height: 1.25; }
+        .rich-remarks ul, .rich-remarks ol { margin: 1px 0 1px 12px; padding: 0; }
+        .rich-remarks strong, .rich-remarks b { font-weight: 800; }
+
+        .print-footer {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 7pt;
+            color: #64748b;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 3px;
+        }
+
+        /* 印刷時スタイル */
+        @media print {
+            .no-print-bar { display: none !important; }
+            body {
+                background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .print-page {
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: none !important;
+                min-height: auto !important;
+                border-radius: 0 !important;
+            }
+            /* 2ページ目の強制改ページ */
+            .print-page.page-break {
+                page-break-before: always !important;
+                break-before: page !important;
+            }
+            /* 非表示コンテナの印刷除外 */
+            .print-container-split[style*="display:none"],
+            .print-container-split[style*="display: none"],
+            .print-container-continuous[style*="display:none"],
+            .print-container-continuous[style*="display: none"] {
+                display: none !important;
+            }
+            thead {
+                display: table-header-group;
+            }
+            tr {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print-bar">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span style="font-weight:bold; font-size:13px;">🖨️ A4当日一覧印刷</span>
+        
+        <form method="GET" id="filterForm" style="display:flex; align-items:center; gap:8px; margin:0; flex-wrap:wrap;">
+            <input type="hidden" name="date" value="<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="page_split" id="formPageSplit" value="<?= $page_split ? '1' : '0' ?>">
+            
+            <label>診療科:
+                <select name="dept" onchange="this.form.submit()">
+                    <option value="ALL" <?= $dept === 'ALL' ? 'selected' : '' ?>>全診療科 (肛門+胃腸)</option>
+                    <option value="PROCT" <?= $dept === 'PROCT' ? 'selected' : '' ?>>肛門科</option>
+                    <option value="GASTRO" <?= $dept === 'GASTRO' ? 'selected' : '' ?>>胃腸科</option>
+                </select>
+            </label>
+
+            <label>検査種別:
+                <select name="exam" onchange="this.form.submit()">
+                    <option value="all" <?= $filter_exam === 'all' ? 'selected' : '' ?>>全種別</option>
+                    <option value="GIF" <?= $filter_exam === 'GIF' ? 'selected' : '' ?>>GIF のみ</option>
+                    <option value="ECHO" <?= $filter_exam === 'ECHO' ? 'selected' : '' ?>>エコー のみ</option>
+                    <option value="TCF" <?= $filter_exam === 'TCF' ? 'selected' : '' ?>>TCF (大腸) のみ</option>
+                </select>
+            </label>
+
+            <label style="cursor:pointer; display:inline-flex; align-items:center; gap:3px; user-select:none;">
+                <input type="checkbox" name="show_empty" value="1" <?= $show_empty ? 'checked' : '' ?> onchange="this.form.submit()">
+                空き枠を含む
+            </label>
+        </form>
+
+        <!-- ページ構成（2ページ分割 ⇔ 改ページなし連続）切り替え -->
+        <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:bold; background:#334155; padding:3px 8px; border-radius:4px; user-select:none; margin-left:2px;">
+            <span>📄 ページ構成:</span>
+            <select id="selectPageSplit" onchange="changePageSplit(this.value)" style="background:#1e293b; color:#fff; border:1px solid #64748b; padding:2px 6px; border-radius:3px; font-size:11px; font-weight:bold; cursor:pointer;">
+                <option value="1" <?= $page_split ? 'selected' : '' ?>>2ページ分割 (エコー/CF)</option>
+                <option value="0" <?= !$page_split ? 'selected' : '' ?>>改ページなし (全件連続)</option>
+            </select>
+        </label>
+
+        <!-- 部屋ソート（降順）トグルスイッチ -->
+        <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:bold; background:#334155; padding:3px 8px; border-radius:4px; user-select:none; margin-left:2px;">
+            <input type="checkbox" id="toggleRoomSort" onchange="toggleRoomSort(this.checked)">
+            <span>🚪 部屋ソート（降順）</span>
+        </label>
+
+        <!-- 備考印刷ON/OFFスイッチ（OFF時は手書きメモ余白モード） -->
+        <label style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:bold; background:#334155; padding:3px 8px; border-radius:4px; user-select:none; margin-left:2px;" title="チェックを外すと備考文を非表示にし、スタッフ手書き用メモスペースになります">
+            <input type="checkbox" id="toggleRemarks" checked onchange="toggleRemarksColumn(this.checked)">
+            <span id="labelRemarksToggle">📝 備考を印刷</span>
+        </label>
+    </div>
+
+    <div style="display:flex; gap:8px; align-items: center;">
+        <a href="progress_monitor.php?date=<?= urlencode($date_str) ?>&dept=<?= urlencode($dept) ?>" style="background:linear-gradient(135deg, #2563eb, #1d4ed8); color:#fff; text-decoration:none; padding:5px 12px; border-radius:4px; font-weight:bold; font-size:12px; display:inline-flex; align-items:center; gap:4px;">📊 当日ホワイトボード</a>
+        <button type="button" class="btn-print" onclick="window.print()">🖨️ 印刷を実行</button>
+        <button type="button" onclick="window.close()" style="background:#475569; color:#fff; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">✕ 閉じる</button>
+    </div>
+</div>
+
+<?php 
+$has_all      = !empty($rows_all);
+$has_echo_gif = !empty($rows_echo_gif);
+$has_cf       = !empty($rows_cf);
+?>
+
+<?php if (!$has_all): ?>
+    <div class="print-page">
+        <div class="sheet-content">
+            <div class="sheet-header">
+                <div class="sheet-title">内視鏡予約一覧表（<?= htmlspecialchars($dept_label, ENT_QUOTES, 'UTF-8') ?>）</div>
+                <div class="sheet-meta">
+                    対象日: <strong><?= date('Y年m月d日', strtotime($date_str)) ?></strong>
+                </div>
+            </div>
+            <p style="text-align:center; padding:60px 0; color:#64748b; font-size:11pt; font-weight:bold;">
+                該当する予約はありません
+            </p>
+        </div>
+        <div class="print-footer">
+            <div>印刷日時: <?= date('Y-m-d H:i:s') ?></div>
+            <div>医療法人小野会 おの肛門科胃腸科内視鏡クリニック</div>
+        </div>
+    </div>
+<?php else: ?>
+
+    <!-- ── 2ページ分割表示コンテナ（デフォルト） ── -->
+    <div id="container-split" class="print-container-split" style="<?= $page_split ? '' : 'display:none;' ?>">
+        <!-- 1ページ目：エコー・GIF (上部・超音波検査) -->
+        <?php if ($has_echo_gif): ?>
+            <div class="print-page print-page-echo-gif">
+                <div class="sheet-content">
+                    <div class="sheet-header">
+                        <div class="sheet-title">内視鏡予約一覧表（エコー・GIF）［<?= htmlspecialchars($dept_label, ENT_QUOTES, 'UTF-8') ?>］</div>
+                        <div class="sheet-meta">
+                            対象日: <strong><?= date('Y年m月d日', strtotime($date_str)) ?></strong>
+                            （<?= $get_patient_count($rows_echo_gif) ?> 件）
+                            <span class="room-sort-badge" style="color:#2563eb; margin-left:4px; display:none;">［部屋降順］</span>
+                        </div>
+                    </div>
+                    <?php renderScheduleTable($rows_echo_gif, $date_str, $room_counts); ?>
+                </div>
+                <div class="print-footer">
+                    <div>印刷日時: <?= date('Y-m-d H:i:s') ?></div>
+                    <div>医療法人小野会 おの肛門科胃腸科内視鏡クリニック</div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- 2ページ目：CF・大腸内視鏡 (下部・ポリペク) -->
+        <?php if ($has_cf): ?>
+            <div class="print-page print-page-cf <?= $has_echo_gif ? 'page-break' : '' ?>">
+                <div class="sheet-content">
+                    <div class="sheet-header">
+                        <div class="sheet-title">内視鏡予約一覧表（CF・大腸内視鏡）［<?= htmlspecialchars($dept_label, ENT_QUOTES, 'UTF-8') ?>］</div>
+                        <div class="sheet-meta">
+                            対象日: <strong><?= date('Y年m月d日', strtotime($date_str)) ?></strong>
+                            （<?= $get_patient_count($rows_cf) ?> 件）
+                            <span class="room-sort-badge" style="color:#2563eb; margin-left:4px; display:none;">［部屋降順］</span>
+                        </div>
+                    </div>
+                    <?php renderScheduleTable($rows_cf, $date_str, $room_counts); ?>
+                </div>
+                <div class="print-footer">
+                    <div>印刷日時: <?= date('Y-m-d H:i:s') ?></div>
+                    <div>医療法人小野会 おの肛門科胃腸科内視鏡クリニック</div>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- ── 改ページなし連続表示コンテナ ── -->
+    <div id="container-continuous" class="print-container-continuous" style="<?= !$page_split ? '' : 'display:none;' ?>">
+        <div class="print-page print-page-all">
+            <div class="sheet-content">
+                <div class="sheet-header">
+                    <div class="sheet-title">内視鏡予約一覧表［<?= htmlspecialchars($dept_label, ENT_QUOTES, 'UTF-8') ?>］</div>
+                    <div class="sheet-meta">
+                        対象日: <strong><?= date('Y年m月d日', strtotime($date_str)) ?></strong>
+                        （<?= $get_patient_count($rows_all) ?> 件）
+                        <span class="room-sort-badge" style="color:#2563eb; margin-left:4px; display:none;">［部屋降順］</span>
+                    </div>
+                </div>
+                <?php renderScheduleTable($rows_all, $date_str, $room_counts); ?>
+            </div>
+            <div class="print-footer">
+                <div>印刷日時: <?= date('Y-m-d H:i:s') ?></div>
+                <div>医療法人小野会 おの肛門科胃腸科内視鏡クリニック</div>
+            </div>
+        </div>
+    </div>
+
+<?php endif; ?>
+
+<script>
+/**
+ * 備考欄の表示/非表示（手書きメモ余白モード）トグル制御（localStorage記憶対応）
+ */
+function toggleRemarksColumn(show) {
+    document.body.classList.toggle('hide-remarks', !show);
+    var lbl = document.getElementById('labelRemarksToggle');
+    if (lbl) {
+        lbl.textContent = show ? '📝 備考を印刷' : '✏️ 手書きメモ余白';
+    }
+    try {
+        localStorage.setItem('print_schedule_show_remarks', show ? '1' : '0');
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+}
+
+/**
+ * 部屋ソート（降順）トグル制御（即時DOM並び替え＋空行挿入＋localStorage記憶対応）
+ */
+function toggleRoomSort(isRoomSort) {
+    try {
+        localStorage.setItem('print_schedule_room_sort', isRoomSort ? '1' : '0');
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+
+    // ヘッダーの［部屋降順］バッジ表示切り替え
+    document.querySelectorAll('.room-sort-badge').forEach(function(badge) {
+        badge.style.display = isRoomSort ? 'inline' : 'none';
+    });
+
+    // 各テーブルの並び替え & スペーサー行（空行）の再構築
+    document.querySelectorAll('table.schedule-table').forEach(function(table) {
+        var tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        // 既存のスペーサー行をすべて削除
+        tbody.querySelectorAll('tr.spacer-row').forEach(function(row) {
+            row.remove();
+        });
+
+        // データ行（.schedule-row）を取得
+        var rows = Array.from(tbody.querySelectorAll('tr.schedule-row'));
+        if (rows.length === 0) return;
+
+        if (!isRoomSort) {
+            // 【標準ソート】：元の出力順（data-standard-idx 昇順）
+            rows.sort(function(a, b) {
+                var idxA = parseInt(a.dataset.standardIdx, 10);
+                var idxB = parseInt(b.dataset.standardIdx, 10);
+                return idxA - idxB;
+            });
+        } else {
+            // 【部屋ソート（降順）】：
+            // 1. 部屋未指定（空欄、-、未指定）を先頭
+            // 2. 部屋名を自然順降順
+            // 3. 同部屋内は標準ソート順
+            rows.sort(function(a, b) {
+                var roomA = (a.dataset.room || '').trim();
+                var roomB = (b.dataset.room || '').trim();
+                if (roomA === '-' || roomA === '未指定') roomA = '';
+                if (roomB === '-' || roomB === '未指定') roomB = '';
+
+                var emptyA = (roomA === '');
+                var emptyB = (roomB === '');
+
+                // 部屋なし（空文字）を先頭に
+                if (emptyA && !emptyB) return -1;
+                if (!emptyA && emptyB) return 1;
+
+                var idxA = parseInt(a.dataset.standardIdx, 10);
+                var idxB = parseInt(b.dataset.standardIdx, 10);
+
+                if (emptyA && emptyB) {
+                    return idxA - idxB;
+                }
+
+                // 部屋名の自然順降順
+                var cmp = roomB.localeCompare(roomA, 'ja', { numeric: true, sensitivity: 'base' });
+                if (cmp !== 0) return cmp;
+
+                return idxA - idxB;
+            });
+        }
+
+        // DOM再配置 & 空行挿入 & ストライプ更新
+        tbody.innerHTML = '';
+        var prevDept = null;
+        var prevRoomClean = null;
+        var prevRoomFirst = null;
+
+        rows.forEach(function(row, idx) {
+            var currDept = (row.dataset.dept || '').trim();
+            var currRoom = (row.dataset.room || '').trim();
+            if (currRoom === '-' || currRoom === '未指定') currRoom = '';
+            var currRoomFirst = (row.dataset.roomFirst || '').trim();
+
+            var needSpacer = false;
+
+            if (idx > 0) {
+                if (!isRoomSort) {
+                    // 標準ソート：診療科が変わる境界
+                    if (prevDept !== null && currDept !== prevDept) {
+                        needSpacer = true;
+                    }
+                } else {
+                    // 部屋ソート：
+                    // ① 部屋未指定から部屋ありへの切り替わり
+                    if (prevRoomClean === '' && currRoom !== '') {
+                        needSpacer = true;
+                    }
+                    // ② 部屋あり同士で、部屋名称の先頭1文字（例：ﾏ⇔ｺ）が変わる境界
+                    else if (prevRoomClean !== '' && currRoom !== '' && prevRoomFirst !== currRoomFirst) {
+                        needSpacer = true;
+                    }
+                }
+            }
+
+            if (needSpacer) {
+                var spacer = document.createElement('tr');
+                spacer.className = 'spacer-row';
+                spacer.innerHTML = '<td colspan="9"></td>';
+                tbody.appendChild(spacer);
+            }
+
+            // ストライプクラスの再適用
+            row.classList.remove('row-even');
+            if (idx % 2 === 1) {
+                row.classList.add('row-even');
+            }
+
+            tbody.appendChild(row);
+
+            prevDept = currDept;
+            prevRoomClean = currRoom;
+            prevRoomFirst = currRoomFirst;
+        });
+    });
+}
+
+/**
+ * ページ構成（2ページ分割 ⇔ 改ページなし連続）切り替え制御（即時DOMトグル ＆ localStorage記憶対応）
+ */
+function changePageSplit(val) {
+    var isSplit = (val === '1' || val === 1 || val === true || val === 'true');
+    var splitCont = document.getElementById('container-split');
+    var contCont = document.getElementById('container-continuous');
+
+    if (splitCont) splitCont.style.display = isSplit ? 'block' : 'none';
+    if (contCont) contCont.style.display = isSplit ? 'none' : 'block';
+
+    var selectSplit = document.getElementById('selectPageSplit');
+    if (selectSplit) {
+        selectSplit.value = isSplit ? '1' : '0';
+    }
+
+    var formSplit = document.getElementById('formPageSplit');
+    if (formSplit) {
+        formSplit.value = isSplit ? '1' : '0';
+    }
+
+    try {
+        localStorage.setItem('print_schedule_page_split', isSplit ? '1' : '0');
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+
+    // 部屋ソート状態の再適用（表示された側のテーブルで並び替えと空行を同期）
+    var chkRoom = document.getElementById('toggleRoomSort');
+    if (chkRoom && typeof toggleRoomSort === 'function') {
+        toggleRoomSort(chkRoom.checked);
+    }
+}
+
+// 初期ロード時にユーザーの前回設定を復元
+document.addEventListener('DOMContentLoaded', function() {
+    // ページ構成（2ページ分割 ⇔ 改ページなし）の前回設定復元（URL引数 page_split も考慮）
+    try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var urlSplit = urlParams.get('page_split');
+        var savedSplit = localStorage.getItem('print_schedule_page_split');
+
+        var isSplit = true; // デフォルトは2ページ分割
+        if (urlSplit !== null) {
+            isSplit = (urlSplit !== '0' && urlSplit !== 'false');
+        } else if (savedSplit !== null) {
+            isSplit = (savedSplit === '1');
+        }
+
+        changePageSplit(isSplit);
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+
+    // 備考欄の前回設定復元
+    try {
+        var savedRemarks = localStorage.getItem('print_schedule_show_remarks');
+        if (savedRemarks === '0') {
+            var chkRemarks = document.getElementById('toggleRemarks');
+            if (chkRemarks) {
+                chkRemarks.checked = false;
+                toggleRemarksColumn(false);
+            }
+        }
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+
+    // 部屋ソートの前回設定復元（URL引数 sort=room も考慮）
+    try {
+        var urlParams = new URLSearchParams(window.location.search);
+        var urlSortRoom = (urlParams.get('sort') === 'room');
+        var savedRoomSort = localStorage.getItem('print_schedule_room_sort');
+        var isRoomSort = urlSortRoom || (savedRoomSort === '1');
+
+        var chkRoomSort = document.getElementById('toggleRoomSort');
+        if (chkRoomSort) {
+            chkRoomSort.checked = isRoomSort;
+        }
+        toggleRoomSort(isRoomSort);
+    } catch (e) {
+        console.warn('localStorage access failed:', e);
+    }
+});
+</script>
+
+</body>
+</html>

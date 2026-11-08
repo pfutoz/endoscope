@@ -3,8 +3,16 @@
  * lib/audit_helper.php
  * 予約操作監査ログ（Audit Log）＆ ワンクリック復元（Undo）ライブラリ
  * 
+ * 生成日時: 2026-10-22 10:00
+ * 修正履歴:
+ *   - 2026-10-22: 初版作成（予約の新規・更新・削除・移動・復元の自動記録 & ワンクリックUndo）
+ *   - 2026-10-22: 【時間枠操作（m2_waku_override）のワンクリック復元対応】
+ *       1. 時間枠の休止設定・休止解除・表示名変更・臨時枠追加・期間設定のUndo完全サポート
+ *       2. 休止復元時の確定予約重複ガード（患者予約がある場合は休止復元を安全に拒絶）
+ *       3. 操作履歴一覧（getRecentAuditLogs）における時間枠設定カードの表示最適化
+ * 
  * 機能:
- *   - recordScheduleAuditLog(): 予約の新規・更新・削除・移動・復元等のトランザクションを自動記録
+ *   - recordScheduleAuditLog(): 予約・時間枠の新規・更新・削除・移動・復元等のトランザクションを自動記録
  *   - undoScheduleAuditLog(): 指定した操作ログを1クリックで直前の状態へ完全復元
  *   - getRecentAuditLogs(): 直近の操作履歴リストを取得（画面表示用）
  */
@@ -192,17 +200,17 @@ function recordScheduleAuditLog(
         $description  = $summary['description'];
         $diff_summary = $options['diff_summary'] ?? $summary['diff'];
 
-        $dept = $new_row['department_code'] ?? $old_row['department_code'] ?? $options['department_code'] ?? null;
+        $dept = $new_row['department_code'] ?? $old_row['department_code'] ?? $new_row['dept'] ?? $old_row['dept'] ?? $options['department_code'] ?? null;
         $pid  = $new_row['patient_id'] ?? $old_row['patient_id'] ?? null;
         $pname = $new_row['patient_name'] ?? $old_row['patient_name'] ?? null;
         $pkana = $new_row['patient_kana'] ?? $old_row['patient_kana'] ?? null;
 
-        $old_date = $old_row['exam_date'] ?? null;
-        $old_time = $old_row['scheduled_time'] ?? null;
+        $old_date = $old_row['exam_date'] ?? $old_row['target_date'] ?? $old_row['start_date'] ?? $old_row['date'] ?? null;
+        $old_time = $old_row['scheduled_time'] ?? $old_row['display_waku_name'] ?? $old_row['waku_name'] ?? null;
         $old_waku = isset($old_row['waku_no']) ? (int)$old_row['waku_no'] : null;
 
-        $new_date = $new_row['exam_date'] ?? null;
-        $new_time = $new_row['scheduled_time'] ?? null;
+        $new_date = $new_row['exam_date'] ?? $new_row['target_date'] ?? $new_row['start_date'] ?? $new_row['date'] ?? null;
+        $new_time = $new_row['scheduled_time'] ?? $new_row['display_waku_name'] ?? $new_row['waku_name'] ?? $new_row['name'] ?? null;
         $new_waku = isset($new_row['waku_no']) ? (int)$new_row['waku_no'] : null;
 
         $old_json = $old_row !== null ? json_encode($old_row, JSON_UNESCAPED_UNICODE) : null;
@@ -270,6 +278,301 @@ function getScheduleRecordById(PDO $pdo, int $schedule_id): ?array {
 }
 
 /**
+ * 時間枠に対する確定予約が存在するかチェック（休止復元時の衝突防止用）
+ */
+function checkWakuConflictForAudit(PDO $pdo, string $dept, string $date, string $waku_name, ?string $original_name = null): array {
+    $stmt = $pdo->prepare("
+        SELECT schedule_id, scheduled_time, patient_id, patient_name, exam_type, doctor_name
+        FROM t_endoscopy_schedule
+        WHERE department_code = :dept
+          AND exam_date = :date
+          AND is_canceled = FALSE
+        ORDER BY schedule_id ASC
+    ");
+    $stmt->execute([':dept' => $dept, ':date' => $date]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $matched = [];
+    $w1 = trim($waku_name);
+    $w2 = $original_name ? trim($original_name) : $w1;
+
+    foreach ($rows as $r) {
+        $p_name = trim((string)($r['patient_name'] ?? ''));
+        if ($p_name === '※枠なし' || $p_name === '') continue;
+
+        $r_time = trim((string)($r['scheduled_time'] ?? ''));
+        if ($r_time === $w1 || $r_time === $w2) {
+            $matched[] = $r;
+        }
+    }
+    return $matched;
+}
+
+/**
+ * 時間枠オーバーライド操作の誤操作ワンクリック復元（Undo）処理
+ */
+function undoWakuOverrideAuditLog(PDO $pdo, array $log, ?array $old_data, ?array $new_data, ?string $operator_name, bool $in_transaction): array {
+    $log_id      = (int)$log['log_id'];
+    $action_type = $log['action_type'];
+    $dept        = $log['department_code'] ?? ($old_data['department_code'] ?? ($new_data['dept'] ?? ($new_data['department_code'] ?? 'PROCT')));
+    
+    // 日付の特定
+    $date = $log['new_exam_date'] ?? $log['old_exam_date'] ?? ($old_data['target_date'] ?? ($new_data['date'] ?? ($new_data['target_date'] ?? null)));
+    if (!$date && !empty($old_data['start_date'])) {
+        $date = $old_data['start_date'];
+    }
+    if (!$date && !empty($new_data['start_date'])) {
+        $date = $new_data['start_date'];
+    }
+
+    // 枠表示名の特定
+    $waku_name = $old_data['display_waku_name'] ?? ($new_data['display_waku_name'] ?? ($old_data['base_waku_name'] ?? ($new_data['name'] ?? '時間枠')));
+
+    $res_msg = '';
+
+    switch ($action_type) {
+        case 'insert':
+            // 臨時枠追加、期間登録、または日別オーバーライド新規追加の取り消し ➔ レコードを削除 (DELETE)
+            $override_id = !empty($new_data['override_id']) ? (int)$new_data['override_id'] : 0;
+            if ($override_id <= 0) {
+                // 条件から直近登録された override_id を検索
+                if (!empty($new_data['date']) && !empty($new_data['base_id'])) {
+                    $s_find = $pdo->prepare("SELECT override_id FROM m2_waku_override WHERE department_code = :dept AND target_date = :date AND base_waku_id = :base_id ORDER BY override_id DESC LIMIT 1");
+                    $s_find->execute([':dept' => $dept, ':date' => $new_data['date'], ':base_id' => $new_data['base_id']]);
+                    $override_id = (int)$s_find->fetchColumn();
+                } elseif (!empty($new_data['date']) && !empty($new_data['name'])) {
+                    $s_find = $pdo->prepare("SELECT override_id FROM m2_waku_override WHERE department_code = :dept AND target_date = :date AND display_waku_name = :name ORDER BY override_id DESC LIMIT 1");
+                    $s_find->execute([':dept' => $dept, ':date' => $new_data['date'], ':name' => $new_data['name']]);
+                    $override_id = (int)$s_find->fetchColumn();
+                }
+            }
+
+            if ($override_id > 0) {
+                $stmt_chk = $pdo->prepare("SELECT * FROM m2_waku_override WHERE override_id = :id FOR UPDATE");
+                $stmt_chk->execute([':id' => $override_id]);
+                $target_row = $stmt_chk->fetch(PDO::FETCH_ASSOC);
+
+                if ($target_row) {
+                    // 臨時枠の場合、確定予約が入っていないか確認
+                    if (empty($target_row['base_waku_id']) && !empty($target_row['target_date'])) {
+                        $confs = checkWakuConflictForAudit($pdo, $dept, $target_row['target_date'], $target_row['display_waku_name']);
+                        if (!empty($confs)) {
+                            if (!$in_transaction) $pdo->rollBack();
+                            $p_names = array_map(function($c) { return $c['patient_name']; }, $confs);
+                            return ['success' => false, 'message' => "臨時枠（{$target_row['display_waku_name']}）に確定予約（" . implode('様, ', $p_names) . "様）が入っているため、登録取り消し（削除）できません"];
+                        }
+                    }
+
+                    $stmt_del = $pdo->prepare("DELETE FROM m2_waku_override WHERE override_id = :id");
+                    $stmt_del->execute([':id' => $override_id]);
+                    $res_msg = "追加された時間枠設定「{$target_row['display_waku_name']}」（ID:{$override_id}）を取り消し、元の状態へ戻しました";
+                } else {
+                    $res_msg = "対象の時間枠オーバーライドは既に解除されています";
+                }
+            } else {
+                if (!$in_transaction) $pdo->rollBack();
+                return ['success' => false, 'message' => '取り消し対象の枠オーバーライドIDを特定できませんでした'];
+            }
+            break;
+
+        case 'delete':
+            // オーバーライド解除（削除）の取り消し ➔ old_data の内容で再登録 (INSERT)
+            if (empty($old_data) || !is_array($old_data)) {
+                if (!$in_transaction) $pdo->rollBack();
+                return ['success' => false, 'message' => '解除前の枠設定データがログに記録されていないため復元できません'];
+            }
+
+            $ov_type   = $old_data['override_type'] ?? 'DATE';
+            $t_date    = $old_data['target_date'] ?? null;
+            $s_date    = $old_data['start_date'] ?? null;
+            $e_date    = $old_data['end_date'] ?? null;
+            $w_name    = $old_data['display_waku_name'] ?? '時間枠';
+            $b_id      = !empty($old_data['base_waku_id']) ? (int)$old_data['base_waku_id'] : null;
+            $grp       = $old_data['group_code'] ?? 'GIF';
+            $d_order   = isset($old_data['display_order']) ? (int)$old_data['display_order'] : 1;
+            $is_susp   = !empty($old_data['is_suspended']) && ($old_data['is_suspended'] === true || $old_data['is_suspended'] === 't' || $old_data['is_suspended'] === 1 || $old_data['is_suspended'] === '1');
+            $reason    = $old_data['reason'] ?? null;
+
+            // 休止状態へ復元する場合、確定予約との衝突をガード
+            if ($is_susp && $ov_type === 'DATE' && !empty($t_date)) {
+                $confs = checkWakuConflictForAudit($pdo, $dept, $t_date, $w_name);
+                if (!empty($confs)) {
+                    if (!$in_transaction) $pdo->rollBack();
+                    $p_names = array_map(function($c) { return $c['patient_name']; }, $confs);
+                    return ['success' => false, 'message' => "対象枠（{$t_date} {$w_name}）には既に確定予約（" . implode('様, ', $p_names) . "様）が入っているため、休止状態へ復元（再休止）できません"];
+                }
+            }
+
+            // 同一日・同一基本枠の既存DATEオーバーライドがあれば一度クリーンアップ（重複防止）
+            if ($ov_type === 'DATE' && !empty($t_date) && $b_id !== null) {
+                $pdo->prepare("DELETE FROM m2_waku_override WHERE department_code = :dept AND base_waku_id = :bid AND target_date = :tdate")
+                    ->execute([':dept' => $dept, ':bid' => $b_id, ':tdate' => $t_date]);
+            }
+
+            // INSERT で再登録
+            $stmt_reins = $pdo->prepare("
+                INSERT INTO m2_waku_override (
+                    department_code, base_waku_id, override_type, target_date, start_date, end_date,
+                    display_waku_name, group_code, display_order, is_suspended, reason,
+                    created_at, updated_at
+                ) VALUES (
+                    :dept, :base_id, :ov_type, :target_date, :start_date, :end_date,
+                    :name, :group, :order, :is_susp, :reason,
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                ) RETURNING override_id
+            ");
+            $stmt_reins->execute([
+                ':dept'        => $dept,
+                ':base_id'     => $b_id,
+                ':ov_type'     => $ov_type,
+                ':target_date' => $t_date,
+                ':start_date'  => $s_date,
+                ':end_date'    => $e_date,
+                ':name'        => $w_name,
+                ':group'       => $grp,
+                ':order'       => $d_order,
+                ':is_susp'     => $is_susp ? 'true' : 'false',
+                ':reason'      => $reason
+            ]);
+            $new_oid = (int)$stmt_reins->fetchColumn();
+
+            $res_msg = "解除された時間枠設定「{$w_name}」（{$t_date}）を再登録（ID:{$new_oid}）し、元の状態へ復元しました";
+            break;
+
+        case 'update':
+            // 枠休止設定・休止解除・名称変更の取り消し
+            // パターン1: old_data が空で、新規休止登録（set_slot_suspend）だった場合
+            $is_new_susp_ins = empty($old_data) && !empty($new_data['is_suspended']) && !empty($new_data['override_id']);
+            if ($is_new_susp_ins) {
+                $oid = (int)$new_data['override_id'];
+                $pdo->prepare("DELETE FROM m2_waku_override WHERE override_id = :id")->execute([':id' => $oid]);
+                $res_msg = "設定された枠休止を取り消し、通常枠へ復元しました";
+                break;
+            }
+
+            if (empty($old_data) || !is_array($old_data)) {
+                if (!$in_transaction) $pdo->rollBack();
+                return ['success' => false, 'message' => '変更前の枠設定データがログに記録されていないため復元できません'];
+            }
+
+            $oid     = !empty($old_data['override_id']) ? (int)$old_data['override_id'] : (!empty($new_data['override_id']) ? (int)$new_data['override_id'] : 0);
+            $w_name  = $old_data['display_waku_name'] ?? '時間枠';
+            $t_date  = $old_data['target_date'] ?? $date;
+            $is_susp = !empty($old_data['is_suspended']) && ($old_data['is_suspended'] === true || $old_data['is_suspended'] === 't' || $old_data['is_suspended'] === 1 || $old_data['is_suspended'] === '1');
+            $reason  = $old_data['reason'] ?? null;
+            $b_id    = !empty($old_data['base_waku_id']) ? (int)$old_data['base_waku_id'] : null;
+
+            // 休止状態へ戻す場合、確定予約チェック
+            if ($is_susp && !empty($t_date)) {
+                $confs = checkWakuConflictForAudit($pdo, $dept, $t_date, $w_name);
+                if (!empty($confs)) {
+                    if (!$in_transaction) $pdo->rollBack();
+                    $p_names = array_map(function($c) { return $c['patient_name']; }, $confs);
+                    return ['success' => false, 'message' => "対象枠（{$t_date} {$w_name}）には既に確定予約（" . implode('様, ', $p_names) . "様）が入っているため、休止状態へ復元（再休止）できません"];
+                }
+            }
+
+            // 現在レコードが存在するか確認
+            $cur_row = null;
+            if ($oid > 0) {
+                $s_cur = $pdo->prepare("SELECT * FROM m2_waku_override WHERE override_id = :id FOR UPDATE");
+                $s_cur->execute([':id' => $oid]);
+                $cur_row = $s_cur->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$cur_row && $b_id !== null && !empty($t_date)) {
+                $s_cur = $pdo->prepare("SELECT * FROM m2_waku_override WHERE department_code = :dept AND base_waku_id = :bid AND target_date = :tdate FOR UPDATE");
+                $s_cur->execute([':dept' => $dept, ':bid' => $b_id, ':tdate' => $t_date]);
+                $cur_row = $s_cur->fetch(PDO::FETCH_ASSOC);
+                if ($cur_row) $oid = (int)$cur_row['override_id'];
+            }
+
+            if ($cur_row) {
+                // UPDATE で変更前の値へ巻き戻す
+                $stmt_upd = $pdo->prepare("
+                    UPDATE m2_waku_override
+                    SET display_waku_name = :wname,
+                        is_suspended = :is_susp,
+                        reason = :reason,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE override_id = :id
+                ");
+                $stmt_upd->execute([
+                    ':wname'   => $w_name,
+                    ':is_susp' => $is_susp ? 'true' : 'false',
+                    ':reason'  => $reason,
+                    ':id'      => $oid
+                ]);
+            } else {
+                // レコードが削除されていた場合は再 INSERT
+                $stmt_reins = $pdo->prepare("
+                    INSERT INTO m2_waku_override (
+                        department_code, base_waku_id, override_type, target_date,
+                        display_waku_name, group_code, display_order, is_suspended, reason,
+                        created_at, updated_at
+                    ) VALUES (
+                        :dept, :base_id, 'DATE', :target_date,
+                        :name, :group, :order, :is_susp, :reason,
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )
+                ");
+                $stmt_reins->execute([
+                    ':dept'        => $dept,
+                    ':base_id'     => $b_id,
+                    ':target_date' => $t_date,
+                    ':name'        => $w_name,
+                    ':group'       => $old_data['group_code'] ?? 'GIF',
+                    ':order'       => isset($old_data['display_order']) ? (int)$old_data['display_order'] : 1,
+                    ':is_susp'     => $is_susp ? 'true' : 'false',
+                    ':reason'      => $reason
+                ]);
+            }
+
+            $state_str = $is_susp ? "休止状態({$reason})" : "通常枠";
+            $res_msg = "時間枠「{$w_name}」（{$t_date}）の変更を取り消し、変更前の状態（{$state_str}）へ復元しました";
+            break;
+
+        default:
+            if (!$in_transaction) $pdo->rollBack();
+            return ['success' => false, 'message' => "時間枠設定の復元に対応していないアクションです: {$action_type}"];
+    }
+
+    // 対象ログを復元済みにマーク
+    $pdo->prepare("UPDATE t_schedule_audit_log SET is_undone = TRUE, undone_at = CURRENT_TIMESTAMP WHERE log_id = :id")
+        ->execute([':id' => $log_id]);
+
+    // Undo操作自体の監査ログを記録
+    $client = getAuditClientInfo();
+    $op = $operator_name ?: $client['operator'];
+    recordScheduleAuditLog(
+        $pdo,
+        'undo',
+        0,
+        $new_data,
+        $old_data,
+        [
+            'operator_name'   => $op,
+            'description'     => "【時間枠操作復元】ログ#{$log_id} ({$action_type}) を取り消し直前状態へ復元: {$res_msg}",
+            'diff_summary'    => "時間枠設定の取り消し復元",
+            'department_code' => $dept
+        ]
+    );
+
+    if (!$in_transaction) {
+        $pdo->commit();
+    }
+
+    return [
+        'success'         => true,
+        'message'         => $res_msg,
+        'schedule_id'     => 0,
+        'action_type'     => $action_type,
+        'log_id'          => $log_id,
+        'department_code' => $dept,
+        'restored_date'   => $date
+    ];
+}
+
+/**
  * 誤操作ワンクリック復元（Undo）処理
  * 
  * @param PDO $pdo
@@ -308,6 +611,16 @@ function undoScheduleAuditLog(PDO $pdo, int $log_id, ?string $operator_name = nu
         $schedule_id = (int)$log['schedule_id'];
         $old_data    = !empty($log['old_data']) ? json_decode($log['old_data'], true) : null;
         $new_data    = !empty($log['new_data']) ? json_decode($log['new_data'], true) : null;
+
+        // ★ 時間枠オーバーライド操作の判定 (schedule_id === 0 または枠操作ログ)
+        $is_waku_op = ($schedule_id === 0) || 
+                      (strpos($log['description'] ?? '', '枠') !== false) || 
+                      (strpos($log['diff_summary'] ?? '', '枠') !== false) ||
+                      (strpos($log['diff_summary'] ?? '', 'オーバーライド') !== false);
+
+        if ($schedule_id === 0 || $is_waku_op) {
+            return undoWakuOverrideAuditLog($pdo, $log, $old_data, $new_data, $operator_name, $in_transaction);
+        }
 
         // 現在の予約状態を取得
         $curr_stmt = $pdo->prepare("SELECT * FROM t_endoscopy_schedule WHERE schedule_id = :id FOR UPDATE");
@@ -615,46 +928,93 @@ function getRecentAuditLogs(PDO $pdo, int $limit = 40, ?string $dept = null, ?in
             $time_relative = $created_dt->format('m/d H:i');
         }
 
+        $is_waku = ((int)$r['schedule_id'] === 0) || 
+                   (strpos($r['description'] ?? '', '枠') !== false) || 
+                   (strpos($r['diff_summary'] ?? '', '枠') !== false) ||
+                   (strpos($r['diff_summary'] ?? '', 'オーバーライド') !== false);
+
         $action_label = '';
         $action_badge = '';
         $icon = '';
 
-        switch ($r['action_type']) {
-            case 'move':
-                $action_label = '枠移動';
-                $action_badge = 'badge-move';
-                $icon = '🚚';
-                break;
-            case 'delete':
-                $action_label = '予約削除';
-                $action_badge = 'badge-delete';
-                $icon = '🗑️';
-                break;
-            case 'update':
-                $action_label = '内容変更';
-                $action_badge = 'badge-update';
-                $icon = '✏️';
-                break;
-            case 'insert':
-                $action_label = '新規予約';
-                $action_badge = 'badge-insert';
-                $icon = '➕';
-                break;
-            case 'restore':
-                $action_label = '予約復活';
-                $action_badge = 'badge-restore';
-                $icon = '⭕';
-                break;
-            case 'undo':
-                $action_label = '復元(Undo)';
-                $action_badge = 'badge-undo';
-                $icon = '↩️';
-                break;
-            default:
-                $action_label = $r['action_type'];
-                $action_badge = 'badge-other';
-                $icon = '📋';
-                break;
+        if ($is_waku) {
+            switch ($r['action_type']) {
+                case 'delete':
+                    $action_label = '枠設定解除';
+                    $action_badge = 'badge-delete';
+                    $icon = '🗑️';
+                    break;
+                case 'insert':
+                    $action_label = '臨時枠/追加';
+                    $action_badge = 'badge-insert';
+                    $icon = '➕';
+                    break;
+                case 'update':
+                    $diff_text = $r['diff_summary'] ?? '';
+                    $desc_text = $r['description'] ?? '';
+                    if (strpos($diff_text, '休止登録') !== false || strpos($desc_text, '休止に設定') !== false) {
+                        $action_label = '枠休止設定';
+                        $action_badge = 'badge-delete';
+                        $icon = '🛑';
+                    } elseif (strpos($diff_text, '休止解除') !== false || strpos($desc_text, '休止を解除') !== false) {
+                        $action_label = '枠休止解除';
+                        $action_badge = 'badge-restore';
+                        $icon = '🔓';
+                    } else {
+                        $action_label = '枠設定変更';
+                        $action_badge = 'badge-update';
+                        $icon = '⚙️';
+                    }
+                    break;
+                case 'undo':
+                    $action_label = '復元(Undo)';
+                    $action_badge = 'badge-undo';
+                    $icon = '↩️';
+                    break;
+                default:
+                    $action_label = '枠設定';
+                    $action_badge = 'badge-other';
+                    $icon = '⚙️';
+                    break;
+            }
+        } else {
+            switch ($r['action_type']) {
+                case 'move':
+                    $action_label = '枠移動';
+                    $action_badge = 'badge-move';
+                    $icon = '🚚';
+                    break;
+                case 'delete':
+                    $action_label = '予約削除';
+                    $action_badge = 'badge-delete';
+                    $icon = '🗑️';
+                    break;
+                case 'update':
+                    $action_label = '内容変更';
+                    $action_badge = 'badge-update';
+                    $icon = '✏️';
+                    break;
+                case 'insert':
+                    $action_label = '新規予約';
+                    $action_badge = 'badge-insert';
+                    $icon = '➕';
+                    break;
+                case 'restore':
+                    $action_label = '予約復活';
+                    $action_badge = 'badge-restore';
+                    $icon = '⭕';
+                    break;
+                case 'undo':
+                    $action_label = '復元(Undo)';
+                    $action_badge = 'badge-undo';
+                    $icon = '↩️';
+                    break;
+                default:
+                    $action_label = $r['action_type'];
+                    $action_badge = 'badge-other';
+                    $icon = '📋';
+                    break;
+            }
         }
 
         $can_undo = false;
@@ -667,6 +1027,22 @@ function getRecentAuditLogs(PDO $pdo, int $limit = 40, ?string $dept = null, ?in
 
         $dept_name = ($r['department_code'] === 'PROCT') ? '肛門科' : (($r['department_code'] === 'GASTRO') ? '胃腸科' : '-');
 
+        // 患者表示名のフォールバック（枠操作の場合は時間枠設定と表示）
+        $patient_id_display = $r['patient_id'] ?? '';
+        $patient_name_display = $r['patient_name'] ?? '';
+        if ($is_waku) {
+            if (empty($patient_id_display)) {
+                $patient_id_display = '';
+            }
+            if (empty($patient_name_display) || $patient_name_display === '患者名未指定') {
+                $patient_name_display = '時間枠オーバーライド設定';
+            }
+        } else {
+            if (empty($patient_name_display)) {
+                $patient_name_display = '患者名未指定';
+            }
+        }
+
         $result[] = [
             'log_id'          => (int)$r['log_id'],
             'schedule_id'     => (int)$r['schedule_id'],
@@ -676,8 +1052,8 @@ function getRecentAuditLogs(PDO $pdo, int $limit = 40, ?string $dept = null, ?in
             'icon'            => $icon,
             'department_code' => $r['department_code'],
             'department_name' => $dept_name,
-            'patient_id'      => $r['patient_id'] ?? '',
-            'patient_name'    => $r['patient_name'] ?? '患者名未指定',
+            'patient_id'      => $patient_id_display,
+            'patient_name'    => $patient_name_display,
             'patient_kana'    => $r['patient_kana'] ?? '',
             'old_exam_date'   => $r['old_exam_date'],
             'old_scheduled_time' => $r['old_scheduled_time'],

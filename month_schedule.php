@@ -5,7 +5,26 @@
  * 
  * 内視鏡予約 ダッシュボード (month_schedule.php) - Modern Web 最適化版
  * 生成日時: 2026-09-27
+ * 更新日時: 2026-11-06 16:36
  * 修正履歴:
+ *   - 2026-11-06: 【下剤表示（ビジクリア等）の先頭3文字略称化 ＆ 専用カラー・フォールバック色対応】
+ *       1. 下剤（bowel_prep）に「ビジクリア」等の4文字以上の名称が設定された場合、先頭3文字（例: 「ビジク」）で略称表示する特殊処理を実装（ツールチップで正式名称を表示）
+ *       2. ビジクリア専用色（prep-visi: パープル #7c3aed）および未定義下剤フォールバック色（prep-other: スレート #64748b）を追加し、白地に白文字で透明化していた不具合を解消
+ *   - 2026-11-06: 【内視鏡シート（endoscopy_sheet.php）全面刷新に伴う出力リンク更新】
+ *       1. 当日予約詳細一覧テーブル（SSR初期描画およびJS非同期再描画）の「📋（内視鏡シート印刷・入力）」ボタン遷移先を旧 print_endoscopy_sheet.php から新設 endoscopy_sheet.php へ更新
+ *   - 2026-10-27: 【隠しキーボード日付移動 ＆ Shift+矢印で休診日スキップ】
+ *       1. 隠し機能: キーボードの ← / → キー（ArrowLeft / ArrowRight）で日付を前日/翌日へ移動可能に
+ *       2. 隠し機能: Shift + ← / Shift + → で休診日を自動スキップし、前診療日/次診療日へスマート移動
+ *       3. 入力フォーム（input, select, textarea）、ダイアログ、カレンダー展開時の誤爆防止ガード完備
+ *       4. 移動先の日付に合わせて year/month を同期連動し、カレンダー表示月と当日予約詳細一覧の整合性を維持
+ *       5. [T] / [Home] キーで今日へのジャンプに対応
+ *   - 2026-10-27: 【診療科端末永続記憶 ＆ [1][2]キー即時切替共通化】
+ *       1. 端末（ブラウザ）ごとに最後に選択した診療科（PROCT/GASTRO）を1年間Cookie（endoscope_selected_dept）およびLocalStorage・セッションに完全同期
+ *       2. URLパラメータ（?dept=）なしのアクセス時やブラウザ再起動時も最後に選択した診療科を自動復元
+ *       3. [1]キー（🟢 肛門科）／ [2]キー（🔵 胃腸科）の即時切替ショートカットおよびタブUIバッジ表示を共通配備
+ *   - 2026-10-26: 【検査種別グループ判定共通化】
+ *       1. getDayUndecidedCount() 内のハードコード種別配列（GIF/TCF/ECHO）を撤廃し resolveExamGroup() に統一
+ *       2. 当日予約一覧テーブルの行バッジ・種別分類を getExamTypeBadgeInfo() に一元化し、m_exam_type_group マスターと完全連動
  *   - 【Modern Web ガイダンス準拠】Web標準仕様への全面リファクタリング
  *   - 【Native Dialog API】手製モーダルオーバーレイを HTML5 標準の `<dialog closedby="any">` と `showModal()` に置換（Safari向けフォールバック完備）
  *   - 【Popover API Toast】同期ブロッキングな `alert()` を Popover API (`popover="manual"`) による非侵入型トースト通知に刷新
@@ -13,6 +32,8 @@
  *   - 【CSS Content-Visibility 最適化】カレンダー週行・予約テーブル行の描画負荷を低減する `content-visibility: auto` と `contain-intrinsic-size` を最適化
  *   - 【CSS :has() セレクタ】重複部屋やアラート行の動的スタイリングを CSS `:has()` で宣言的に実装
  *   - 【Modern JS】非同期通信を `async/await` に統一し、堅牢なエラーハンドリングを実装
+ * 修正履歴 (2026-10-23):
+ *   - 【時間枠エンジン完全同期】getDailyReservationsWithMismatch() を getDailyReservationsWithEffectiveSlots() 委譲に完全移行。未利用 m2_waku クエリを削除
  * 修正履歴 (2026-10-21):
  *   - 【担当未定ハイライト機能】医師未割当（--担当未定--）予約の早期発見・割り振り支援
  *       1. 上部「👨‍⚕️ 医師:」フィルターに「⚠️ 未定 (N件)」ボタンを追加（選択中種別フィルター連動集計）
@@ -43,6 +64,32 @@
  *   - 【日別メモ 診療科完全独立 ＆ 振り分けメンテ連携 (furiwake_daymemo.php)】
  *     - 日別メモの診療科（PROCT/GASTRO）完全独立を徹底
  *     - ツールバーおよび日別メモ編集モーダル内に振り分けメンテ画面（furiwake_daymemo.php）への直通リンクを新設
+ * 
+ * 修正履歴 (2026-10-23 夜):
+ *   - 【枠なし設定・復帰の非同期(Ajax)化】🚫⭕クリック時の画面フルリロードを解消
+ *     - api_toggle_no_waku.php および assets/js/toggle_no_waku.js を導入
+ *     - クリック時に画面リロードせず該当行（🚫⇄⭕、枠名取消線、➕ボタン活性/非活性）を即時切り替え
+ *     - 上部枠数カウンターおよびカレンダーマス目残枠バッジの完全連動・トースト通知表示
+ * 
+ * 修正履歴 (2026-10-23 深夜):
+ *   - 【部屋名称カラーバッジ統一】bulk_edit_prep_room.php の部屋配色ルール（ﾏ: 緑 #16a34a、ｲ: 青 #2563eb、ｺ: ベージュ #c28e4e、白文字）を当日予約詳細一覧の部屋バッジへ完全適用
+ *   - 【ツールバーUI最適化・アイコン整理】schedule_note.php と同様にヘッダー右上のボタン群を「⚙️ その他機能 ▾」ドロップダウンへ集約
+ *     - 「📖 ノート表示」「🏠 ホーム」のみを常時表示し、他7機能（ホワイトボード、予約マトリクス、空き枠検索、重複チェック、操作履歴、アラートスキャン、メモ振分）をドロップダウンへスマートに格納
+ *   - 【カレンダーヘッダー刷新】写真部の年月表示・月送り・今日ボタン（cal-primary-controls）を「小野会日付ピッカー（OnokaiDatePicker）」1つに集約・統合
+ *     - render_onokai_date_control() による角丸ピル・西暦/和暦ワンクリック切替・縦仕切り線付き📅アイコンを実装
+ *     - Flatpickr 特大カレンダー（小野会祝日辞書連動、日祝赤、木曜青、和暦ヘッダー・フッター表示）と連動
+ *     - 日付選択時に該当年月・日の予約一覧へスムーズに即時遷移
+ * 
+ * 修正履歴 (2026-10-23):
+ *   - 【ローカルテスト環境（192.168.1.111）誤操作防止】フレーム外側黒背景・環境識別バナー対応
+ *   - 【時間枠オーバーライド・枠名称一時変更・枠中止の完全連動】
+ *     - 当日予約・枠一覧取得を旧SQL関数から新共通エンジン getDailyReservationsWithEffectiveSlots() へ全面刷新
+ *     - 枠名称変更後の枠（display_waku_name）が迷子予約にならず正確に吸着・一覧表示されるよう改修
+ * 修正履歴 (2026-10-24):
+ *   - 【RS-Base 検査実績タイムライン(キャンバス)連携】
+ *     - 当日予約詳細一覧テーブルの「F/U」列を「実績」へ刷新
+ *     - 各行に「🗺️ 実績」ボタンを配備し、内視鏡(ES)/エコー(US)を自動判定して別タブでキャンバス画面を起動
+ *     - カレンダー内の患者タイル(ID横)にも「🗺️」キャンバスリンクを連動配備
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -56,7 +103,9 @@ require_once __DIR__ . '/lib/patient_helper.php';
 require_once __DIR__ . '/lib/audit_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
 require_once __DIR__ . '/lib/calendar_helper.php';
+require_once __DIR__ . '/lib/env_helper.php';
 require_once __DIR__ . '/calendar_helper_onokai.php';
+require_once __DIR__ . '/lib/canvas_helper.php';
 
 $pdo = getDbConnection();
 if (!$pdo) {
@@ -64,7 +113,9 @@ if (!$pdo) {
 }
 
 $dept = isset($_GET['dept']) ? (string)$_GET['dept'] : 
-        (string)($_SESSION['ui_state']['schedule_dept'] ?? 'PROCT');
+        (isset($_COOKIE['endoscope_selected_dept']) && in_array($_COOKIE['endoscope_selected_dept'], ['PROCT', 'GASTRO'], true)
+            ? (string)$_COOKIE['endoscope_selected_dept']
+            : (string)($_SESSION['ui_state']['schedule_dept'] ?? 'PROCT'));
 
 $year = isset($_GET['year']) ? (int)$_GET['year'] : 
         (isset($_SESSION['ui_state']['schedule_month']) ? (int)substr((string)$_SESSION['ui_state']['schedule_month'], 0, 4) : (int)date('Y'));
@@ -87,6 +138,15 @@ if (isset($_GET['date']) && is_string($_GET['date']) && preg_match('/^(\d{4})-(\
     $month = (int)date('n');
     $selected_date = date('Y-m-d');
 }
+
+// ★ 小野会日付ピッカー用：カレンダー表示月と同期した初期選択日付
+$cur_ym = sprintf('%04d-%02d', $year, $month);
+$sel_ym = substr($selected_date, 0, 7);
+if ($sel_ym === $cur_ym) {
+    $picker_date = $selected_date;
+} else {
+    $picker_date = (date('Y-m') === $cur_ym) ? date('Y-m-d') : sprintf('%04d-%02d-01', $year, $month);
+}
 $filter_doctor = isset($_GET['doctor']) && is_string($_GET['doctor']) ? trim($_GET['doctor']) : 'all';
 if ($filter_doctor === '--担当未定--' || $filter_doctor === '未定') {
     $filter_doctor = 'undecided';
@@ -94,8 +154,65 @@ if ($filter_doctor === '--担当未定--' || $filter_doctor === '未定') {
 $filter_exam   = isset($_GET['exam']) && is_string($_GET['exam']) ? trim($_GET['exam']) : 'all';
 $sheet_single  = isset($_GET['sheet_single']) ? (int)$_GET['sheet_single'] : 0;
 $display_mode  = isset($_GET['display_mode']) && is_string($_GET['display_mode']) ? $_GET['display_mode'] : 'use_max';
-
 $show_empty = isset($_GET['show_empty']) ? ((string)$_GET['show_empty'] === '1') : true;
+
+// ── 診療日スキップ計算ヘルパー ──
+if (!function_exists('getAdjacentClinicDay')) {
+    function getAdjacentClinicDay(string $date_str, int $direction = 1): string {
+        $cur = new DateTime($date_str);
+        for ($i = 0; $i < 30; $i++) {
+            if ($direction > 0) {
+                $cur->modify('+1 day');
+            } else {
+                $cur->modify('-1 day');
+            }
+            $check = check_onokai_calendar($cur->format('Y-m-d'));
+            if (!$check['is_closed']) {
+                return $cur->format('Y-m-d');
+            }
+        }
+        return $cur->format('Y-m-d');
+    }
+}
+
+// ── ナビゲーション日付計算（キーボード左右移動・休診日スキップ用） ──
+$sel_ts           = strtotime($selected_date);
+$prev_day_date    = date('Y-m-d', strtotime('-1 day', $sel_ts));
+$next_day_date    = date('Y-m-d', strtotime('+1 day', $sel_ts));
+$prev_clinic_date = getAdjacentClinicDay($selected_date, -1);
+$next_clinic_date = getAdjacentClinicDay($selected_date, 1);
+$today_date       = date('Y-m-d');
+
+if (!function_exists('buildMonthNavUrl')) {
+    function buildMonthNavUrl(string $target_date, string $dept, string $doctor, string $exam, string $display_mode, bool $show_empty): string {
+        $ts = strtotime($target_date);
+        $y = (int)date('Y', $ts);
+        $m = (int)date('n', $ts);
+        return "?dept=" . urlencode($dept)
+            . "&year=" . $y
+            . "&month=" . $m
+            . "&date=" . urlencode($target_date)
+            . "&doctor=" . urlencode($doctor)
+            . "&exam=" . urlencode($exam)
+            . "&display_mode=" . urlencode($display_mode)
+            . "&show_empty=" . ($show_empty ? '1' : '0');
+    }
+}
+
+$schedule_nav_urls = [
+    'prevDay'    => buildMonthNavUrl($prev_day_date, $dept, $filter_doctor, $filter_exam, $display_mode, $show_empty),
+    'nextDay'    => buildMonthNavUrl($next_day_date, $dept, $filter_doctor, $filter_exam, $display_mode, $show_empty),
+    'prevClinic' => buildMonthNavUrl($prev_clinic_date, $dept, $filter_doctor, $filter_exam, $display_mode, $show_empty),
+    'nextClinic' => buildMonthNavUrl($next_clinic_date, $dept, $filter_doctor, $filter_exam, $display_mode, $show_empty),
+    'today'      => buildMonthNavUrl($today_date, $dept, $filter_doctor, $filter_exam, $display_mode, $show_empty),
+];
+$schedule_nav_dates = [
+    'prevDay'    => $prev_day_date,
+    'nextDay'    => $next_day_date,
+    'prevClinic' => $prev_clinic_date,
+    'nextClinic' => $next_clinic_date,
+    'today'      => $today_date,
+];
 
 // ★ 日別メモ保存・更新 AJAX API
 if (isset($_REQUEST['action']) && $_REQUEST['action'] === 'ajax_save_daily_memo') {
@@ -293,65 +410,129 @@ if (isset($_GET['action'])) {
     $action = $_GET['action'];
     $target_waku = $_GET['waku'] ?? '';
     $target_sid = (int)($_GET['sid'] ?? 0);
+    $target_base_id = (int)($_GET['base_id'] ?? 0);
+    $target_orig_name = trim((string)($_GET['orig_name'] ?? ''));
     
-    if ($action === 'set_no_waku' && !empty($target_waku)) {
+    if ($action === 'set_no_waku' && (!empty($target_waku) || $target_base_id > 0)) {
         try {
-            $ins = $pdo->prepare("
-                INSERT INTO t_endoscopy_schedule 
-                (department_code, exam_date, scheduled_time, waku_no, exam_type, exam_location, doctor_name, patient_name, remarks, is_canceled, created_at)
-                SELECT 
-                    :dept, 
-                    :date, 
-                    :waku, 
-                    COALESCE(w.display_order, 1), 
-                    COALESCE(w.group_code, 'GIF'), 
-                    '指定なし',
-                    '◆未定◆', 
-                    '※枠なし', 
-                    '＊＊＊🚫枠なし🚫＊＊＊', 
-                    FALSE, 
-                    CURRENT_TIMESTAMP
-                FROM (SELECT 1) AS dummy
-                LEFT JOIN m2_waku w 
-                  ON w.department_code = :dept2 
-                  AND w.waku_name = :waku2 
-                  AND w.is_active = TRUE
-            ");
-            $ins->execute([
-                ':dept'  => $dept,
-                ':date'  => $selected_date,
-                ':waku'  => $target_waku,
-                ':dept2' => $dept,
-                ':waku2' => $target_waku
-            ]);
-            $new_sid = (int)$pdo->lastInsertId();
-            if ($new_sid > 0) {
-                $new_row = getScheduleRecordById($pdo, $new_sid);
-                recordScheduleAuditLog($pdo, 'insert', $new_sid, null, $new_row, [
-                    'description'  => "【枠なし設定】{$selected_date} {$target_waku} を枠なし（予約不可）に設定",
-                    'diff_summary' => "枠なしブロック設定"
+            // 基本枠マスタ情報を特定（base_id 優先、なければ orig_name または waku）
+            $bw = null;
+            if ($target_base_id > 0) {
+                $stmt_bw = $pdo->prepare("SELECT id, display_order, group_code, waku_name FROM m2_waku WHERE id = :id AND department_code = :dept AND is_active = TRUE");
+                $stmt_bw->execute([':id' => $target_base_id, ':dept' => $dept]);
+                $bw = $stmt_bw->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$bw && !empty($target_orig_name)) {
+                $stmt_bw = $pdo->prepare("SELECT id, display_order, group_code, waku_name FROM m2_waku WHERE waku_name = :name AND department_code = :dept AND is_active = TRUE AND :date BETWEEN valid_from AND valid_to LIMIT 1");
+                $stmt_bw->execute([':name' => $target_orig_name, ':dept' => $dept, ':date' => $selected_date]);
+                $bw = $stmt_bw->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$bw && !empty($target_waku)) {
+                $stmt_bw = $pdo->prepare("SELECT id, display_order, group_code, waku_name FROM m2_waku WHERE waku_name = :name AND department_code = :dept AND is_active = TRUE AND :date BETWEEN valid_from AND valid_to LIMIT 1");
+                $stmt_bw->execute([':name' => $target_waku, ':dept' => $dept, ':date' => $selected_date]);
+                $bw = $stmt_bw->fetch(PDO::FETCH_ASSOC);
+            }
+
+            $bw_id    = $bw ? (int)$bw['id'] : ($target_base_id > 0 ? $target_base_id : null);
+            $bw_order = $bw ? (int)$bw['display_order'] : 1;
+            $bw_group = $bw ? (string)$bw['group_code'] : 'GIF';
+            $bw_display_name = !empty($target_waku) ? $target_waku : ($bw ? $bw['waku_name'] : 'GIF1');
+
+            // ★ 二重登録防止ガード: 既に当該枠に「※枠なし」レコードが存在する場合は二重INSERTしない
+            $already_exists = false;
+            if ($bw_id !== null && $bw_id > 0) {
+                $stmt_dup = $pdo->prepare("
+                    SELECT schedule_id FROM t_endoscopy_schedule 
+                    WHERE department_code = :dept 
+                      AND exam_date = :date 
+                      AND is_canceled = FALSE 
+                      AND (patient_name = '※枠なし' OR remarks LIKE '%＊＊＊🚫枠なし%')
+                      AND (waku_id = :bid OR waku_no = :ord)
+                    LIMIT 1
+                ");
+                $stmt_dup->execute([':dept' => $dept, ':date' => $selected_date, ':bid' => $bw_id, ':ord' => $bw_order]);
+                $already_exists = (bool)$stmt_dup->fetchColumn();
+            }
+
+            if (!$already_exists) {
+                $ins = $pdo->prepare("
+                    INSERT INTO t_endoscopy_schedule 
+                    (department_code, exam_date, scheduled_time, waku_no, waku_id, exam_type, exam_location, doctor_name, patient_name, remarks, is_canceled, created_at, updated_at)
+                    VALUES
+                    (:dept, :date, :waku, :waku_no, :waku_id, :exam_type, '指定なし', '◆未定◆', '※枠なし', '＊＊＊🚫枠なし🚫＊＊＊', FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ");
+                $ins->execute([
+                    ':dept'      => $dept,
+                    ':date'      => $selected_date,
+                    ':waku'      => $bw_display_name,
+                    ':waku_no'   => $bw_order,
+                    ':waku_id'   => $bw_id,
+                    ':exam_type' => $bw_group
                 ]);
+                $new_sid = (int)$pdo->lastInsertId();
+                if ($new_sid > 0) {
+                    $new_row = getScheduleRecordById($pdo, $new_sid);
+                    recordScheduleAuditLog($pdo, 'insert', $new_sid, null, $new_row, [
+                        'description'  => "【枠なし設定】{$selected_date} {$bw_display_name} を枠なし（予約不可）に設定",
+                        'diff_summary' => "枠なしブロック設定"
+                    ]);
+                }
             }
             header("Location: month_schedule.php?dept={$dept}&year={$year}&month={$month}&date={$selected_date}");
             exit;
         } catch (PDOException $e) {
             die("枠なし登録SQLエラー: " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
         }
-    } elseif ($action === 'revert_waku' && $target_sid > 0) {
+    } elseif ($action === 'revert_waku') {
         try {
-            $old_row = getScheduleRecordById($pdo, $target_sid);
-            $del = $pdo->prepare("DELETE FROM t_endoscopy_schedule WHERE schedule_id = :sid AND department_code = :dept");
-            $del->execute([':sid' => $target_sid, ':dept' => $dept]);
-            if ($old_row) {
-                recordScheduleAuditLog($pdo, 'delete', $target_sid, $old_row, null, [
-                    'description'  => "【枠なし解除】{$old_row['exam_date']} {$old_row['scheduled_time']} を通常枠に復帰",
-                    'diff_summary' => "枠なし解除・通常枠復帰"
-                ]);
+            if ($target_sid > 0) {
+                $old_row = getScheduleRecordById($pdo, $target_sid);
+                $del = $pdo->prepare("DELETE FROM t_endoscopy_schedule WHERE schedule_id = :sid AND department_code = :dept");
+                $del->execute([':sid' => $target_sid, ':dept' => $dept]);
+                if ($old_row) {
+                    recordScheduleAuditLog($pdo, 'delete', $target_sid, $old_row, null, [
+                        'description'  => "【枠なし解除】{$old_row['exam_date']} {$old_row['scheduled_time']} を通常枠に復帰",
+                        'diff_summary' => "枠なし解除・通常枠復帰"
+                    ]);
+                }
             }
+            // オーバーライド休止設定の安全解除（base_id 優先）
+            if ($target_base_id > 0) {
+                $del_ov = $pdo->prepare("
+                    DELETE FROM m2_waku_override
+                    WHERE department_code = :dept
+                      AND target_date = :date
+                      AND base_waku_id = :base_id
+                      AND is_suspended = TRUE
+                ");
+                $del_ov->execute([':dept' => $dept, ':date' => $selected_date, ':base_id' => $target_base_id]);
+            } elseif (!empty($target_waku)) {
+                $del_ov = $pdo->prepare("
+                    DELETE FROM m2_waku_override
+                    WHERE department_code = :dept
+                      AND target_date = :date
+                      AND display_waku_name = :waku
+                      AND is_suspended = TRUE
+                ");
+                $del_ov->execute([':dept' => $dept, ':date' => $selected_date, ':waku' => $target_waku]);
+            }
+
+            // 旧方式の t_endoscopy_schedule 枠なしレコード（sid未指定時も念のため一括掃除）
+            if (!empty($target_waku)) {
+                $del_legacy = $pdo->prepare("
+                    DELETE FROM t_endoscopy_schedule 
+                    WHERE department_code = :dept 
+                      AND exam_date = :date 
+                      AND scheduled_time = :waku 
+                      AND (patient_name = '※枠なし' OR remarks LIKE '%枠なし%' OR remarks LIKE '%休止%')
+                ");
+                $del_legacy->execute([':dept' => $dept, ':date' => $selected_date, ':waku' => $target_waku]);
+            }
+
             header("Location: month_schedule.php?dept={$dept}&year={$year}&month={$month}&date={$selected_date}");
             exit;
         } catch (PDOException $e) {
-            die("枠なし解除SQLエラー: " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
+            die("枠復帰SQLエラー: " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
         }
     }
 }
@@ -364,6 +545,14 @@ if (!isset($_SESSION['ui_state']) || !is_array($_SESSION['ui_state'])) {
 }
 $_SESSION['ui_state']['schedule_month'] = sprintf('%04d-%02d', $year, $month);
 $_SESSION['ui_state']['schedule_dept'] = $dept;
+
+if (!headers_sent()) {
+    setcookie('endoscope_selected_dept', $dept, [
+        'expires'  => time() + 365 * 86400,
+        'path'     => '/',
+        'samesite' => 'Lax'
+    ]);
+}
 
 $first_day_timestamp = strtotime("$year-$month-01");
 $days_in_month = (int)date('t', $first_day_timestamp);
@@ -411,7 +600,7 @@ function getMasterItems(PDO $pdo, string $category, array $default_items = []): 
         return $default_items;
     }
 }
-$exam_types_master = getMasterItems($pdo, 'exam_type', ['TCF', '浣腸CF', 'GIF', 'ポリペク', 'W', 'エコー', '◆胃がん検診◆']);
+$exam_types_master = getExamTypeOptions($pdo);
 
 // 1. 月間確定予約数（厳格に「＊＊＊🚫枠なし🚫＊＊＊」以外をカウント対象とする）
 $stmt_pref = $pdo->prepare("
@@ -425,7 +614,8 @@ $stmt_pref = $pdo->prepare("
       AND exam_date >= :start_date
       AND exam_date <= :end_date
       AND is_canceled = FALSE
-      AND (remarks IS NULL OR remarks != '＊＊＊🚫枠なし🚫＊＊＊')
+      AND (patient_name IS NULL OR patient_name != '※枠なし')
+      AND (remarks IS NULL OR (remarks NOT LIKE '%枠なし%' AND remarks NOT LIKE '%休止%'))
     GROUP BY exam_date, doctor_name, exam_type
 ");
 $stmt_pref->execute([
@@ -456,7 +646,8 @@ $stmt_undecided = $pdo->prepare("
       AND exam_date >= :start_date
       AND exam_date <= :end_date
       AND is_canceled = FALSE
-      AND (remarks IS NULL OR remarks != '＊＊＊🚫枠なし🚫＊＊＊')
+      AND (patient_name IS NULL OR patient_name != '※枠なし')
+      AND (remarks IS NULL OR (remarks NOT LIKE '%枠なし%' AND remarks NOT LIKE '%休止%'))
       AND (doctor_name IS NULL OR doctor_name = '' OR doctor_name = '◆未定◆' OR doctor_name = '--担当未定--')
     GROUP BY exam_date, exam_type
 ");
@@ -483,19 +674,11 @@ function getDayUndecidedCount(string $date_str, array $undecided_cache, string $
     if ($filter_exam === 'all') {
         return array_sum($day_cache);
     }
-    $gif_group = ['GIF', '◆胃がん検診◆', '胃がん検診'];
-    $echo_group = ['ECHO', 'エコー'];
-    $tcf_group = ['TCF', 'W', 'ポリペク'];
-
-    $target_group = [];
-    if ($filter_exam === 'GIF') $target_group = $gif_group;
-    elseif ($filter_exam === 'ECHO') $target_group = $echo_group;
-    elseif ($filter_exam === 'TCF') $target_group = $tcf_group;
-    else $target_group = [$filter_exam];
-
     $c = 0;
-    foreach ($target_group as $etype) {
-        $c += (int)($day_cache[$etype] ?? 0);
+    foreach ($day_cache as $etype => $cnt) {
+        if (resolveExamGroup((string)$etype) === $filter_exam) {
+            $c += (int)$cnt;
+        }
     }
     return $c;
 }
@@ -517,7 +700,8 @@ $stmt_unassigned = $pdo->prepare("
       AND exam_date >= :start_date
       AND exam_date <= :end_date
       AND is_canceled = FALSE
-      AND (remarks IS NULL OR remarks != '＊＊＊🚫枠なし🚫＊＊＊')
+      AND (patient_name IS NULL OR patient_name != '※枠なし')
+      AND (remarks IS NULL OR (remarks NOT LIKE '%枠なし%' AND remarks NOT LIKE '%休止%'))
       AND (scheduled_time IS NULL OR scheduled_time = '' OR scheduled_time = 'MISMATCH')
     GROUP BY exam_date, exam_type
 ");
@@ -558,8 +742,7 @@ if ($selected_day_memo === null) {
 $slot_master_cache = [
     'attendance' => [],
     'daily_capacity' => [],
-    'patterns' => [],
-    'waku_map' => []
+    'patterns' => []
 ];
 
 $stmt_att = $pdo->prepare("
@@ -618,17 +801,7 @@ while ($row = $stmt_pat->fetch(PDO::FETCH_ASSOC)) {
     ];
 }
 
-$stmt_waku = $pdo->prepare("
-    SELECT waku_name, group_code
-    FROM m2_waku
-    WHERE department_code = :dept
-      AND is_active = TRUE
-    ORDER BY display_order ASC
-");
-$stmt_waku->execute([':dept' => $dept]);
-while ($row = $stmt_waku->fetch(PDO::FETCH_ASSOC)) {
-    $slot_master_cache['waku_map'][(string)$row['waku_name']] = (string)$row['group_code'];
-}
+
 
 if (!function_exists('fetchDoctorEventsFromYotei')) {
 /**
@@ -818,9 +991,6 @@ function getDayDataFast(string $dept, string $date_str, int $w, array $doctors, 
     $result = [];
     $total_used = 0;
     $total_max = 0;
-    $gif_group = ['GIF', '◆胃がん検診◆', '胃がん検診'];
-    $echo_group = ['ECHO', 'エコー'];
-    $tcf_group = ['TCF', 'W', 'ポリペク'];
     
     $day_cache = $reserved_cache[$date_str] ?? [];
 
@@ -831,11 +1001,20 @@ function getDayDataFast(string $dept, string $date_str, int $w, array $doctors, 
         $doc_exams = $day_cache[$doctor_name] ?? [];
         
         $used_gif = 0;
-        foreach ($gif_group as $g_exam) { $used_gif += (int)($doc_exams[$g_exam] ?? 0); }
         $used_echo = 0;
-        foreach ($echo_group as $e_exam) { $used_echo += (int)($doc_exams[$e_exam] ?? 0); }
         $used_tcf = 0;
-        foreach ($tcf_group as $t_exam) { $used_tcf += (int)($doc_exams[$t_exam] ?? 0); }
+        if (is_array($doc_exams)) {
+            foreach ($doc_exams as $ex_type => $ex_cnt) {
+                $grp = resolveExamGroup((string)$ex_type);
+                if ($grp === 'GIF') {
+                    $used_gif += (int)$ex_cnt;
+                } elseif ($grp === 'ECHO') {
+                    $used_echo += (int)$ex_cnt;
+                } elseif ($grp === 'TCF') {
+                    $used_tcf += (int)$ex_cnt;
+                }
+            }
+        }
         
         $has_reservation = ($used_gif > 0 || $used_echo > 0 || $used_tcf > 0);
         
@@ -988,8 +1167,11 @@ function renderRemarksRtfHtml(?string $raw): string {
     if ($raw === null || $raw === '') return '';
     $trimmed = trim($raw);
     
-    // 枠なし専用デザイン（厳格な完全一致判定）
-    if ($trimmed === '＊＊＊🚫枠なし🚫＊＊＊') {
+    // 枠なし・休止専用デザイン（新旧フォーマットを吸収し、常に「＊＊＊🚫枠なし🚫＊＊＊」バッジとして表示）
+    if (mb_strpos($trimmed, '枠なし') !== false || mb_strpos($trimmed, '休止') !== false) {
+        if (function_exists('cleanNoWakuRemarksHTML')) {
+            return cleanNoWakuRemarksHTML($trimmed);
+        }
         return '<span style="background-color:#fee2e2; color:#dc2626; padding:2px 6px; border-radius:3px; font-weight:bold;">＊＊＊🚫枠なし🚫＊＊＊</span>';
     }
     
@@ -1006,241 +1188,14 @@ function renderRemarksRtfHtml(?string $raw): string {
 }
 
 function getDailyReservationsWithMismatch(PDO $pdo, string $dept, string $date_str, string $filter_doctor = 'all', string $filter_exam = 'all', bool $show_empty = true): array {
-    if ($show_empty) {
-        $sql = "
-        WITH 
-        all_slots AS (
-            SELECT 
-                waku_name,
-                display_order,
-                group_code
-            FROM m2_waku
-            WHERE department_code = :dept 
-              AND is_active = TRUE
-        ),
-        reserved_data AS (
-            SELECT 
-                s.schedule_id,
-                s.exam_date,
-                s.scheduled_time,
-                s.waku_no,
-                s.patient_id,
-                s.patient_name,
-                s.patient_kana,
-                s.birthday,
-                s.doctor_name,
-                s.exam_type,
-                s.arrival_time,
-                s.exam_location,
-                s.remarks,
-                s.room_number,
-                s.bowel_prep,
-                s.is_canceled,
-                s.booking_status,
-                s.department_code,
-                s.created_at,
-                s.updated_at,
-                w.display_order AS waku_display_order,
-                w.group_code,
-                CASE WHEN w.waku_name IS NULL THEN TRUE ELSE FALSE END AS is_mismatch,
-                FALSE AS is_empty
-            FROM t_endoscopy_schedule s
-            LEFT JOIN m2_waku w 
-                ON s.department_code = w.department_code 
-                AND s.scheduled_time = w.waku_name
-                AND w.is_active = TRUE
-            WHERE s.department_code = :dept 
-              AND s.exam_date = :date 
-              AND s.is_canceled = FALSE
-        ";
-        if ($filter_doctor !== 'all') { $sql .= " AND s.doctor_name = :doctor"; }
-        if ($filter_exam !== 'all') { $sql .= " AND s.exam_type = :exam"; }
-        $sql .= "
-        )
-        SELECT 
-            COALESCE(r.scheduled_time, 'MISMATCH') AS scheduled_time,
-            -1 AS waku_no,
-            COALESCE(r.group_code, 'MISMATCH') AS group_code,
-            COALESCE(r.patient_id, '') AS patient_id,
-            COALESCE(r.patient_name, '') AS patient_name,
-            COALESCE(r.patient_kana, '') AS patient_kana,
-            COALESCE(r.birthday::text, '') AS birthday,
-            COALESCE(r.doctor_name, '') AS doctor_name,
-            COALESCE(r.exam_type, '') AS exam_type,
-            COALESCE(r.arrival_time, '') AS arrival_time,
-            COALESCE(r.exam_location, '') AS exam_location,
-            COALESCE(r.remarks, '') AS remarks,
-            COALESCE(r.room_number, '') AS room_number,
-            COALESCE(r.bowel_prep, '') AS bowel_prep,
-            COALESCE(r.schedule_id, 0) AS schedule_id,
-            FALSE AS is_empty,
-            TRUE AS is_mismatch,
-            COALESCE(r.department_code, :dept) AS department_code,
-            COALESCE(r.created_at::text, '') AS created_at,
-            COALESCE(r.updated_at::text, '') AS updated_at
-        FROM reserved_data r
-        WHERE r.is_mismatch = TRUE
-
-        UNION ALL
-
-        SELECT 
-            a.waku_name AS scheduled_time,
-            a.display_order AS waku_no,
-            a.group_code,
-            COALESCE(r.patient_id, '') AS patient_id,
-            COALESCE(r.patient_name, '') AS patient_name,
-            COALESCE(r.patient_kana, '') AS patient_kana,
-            COALESCE(r.birthday::text, '') AS birthday,
-            COALESCE(r.doctor_name, '') AS doctor_name,
-            COALESCE(r.exam_type, '') AS exam_type,
-            COALESCE(r.arrival_time, '') AS arrival_time,
-            COALESCE(r.exam_location, '') AS exam_location,
-            COALESCE(r.remarks, '') AS remarks,
-            COALESCE(r.room_number, '') AS room_number,
-            COALESCE(r.bowel_prep, '') AS bowel_prep,
-            COALESCE(r.schedule_id, 0) AS schedule_id,
-            CASE WHEN r.schedule_id IS NULL THEN TRUE ELSE FALSE END AS is_empty,
-            FALSE AS is_mismatch,
-            COALESCE(r.department_code, :dept) AS department_code,
-            COALESCE(r.created_at::text, '') AS created_at,
-            COALESCE(r.updated_at::text, '') AS updated_at
-        FROM all_slots a
-        LEFT JOIN reserved_data r ON a.waku_name = r.scheduled_time
-        ORDER BY is_mismatch DESC, waku_no ASC, schedule_id ASC;
-        ";
-    } else {
-        $sql = "
-        SELECT 
-            s.*,
-            w.display_order AS waku_display_order,
-            COALESCE(w.group_code, 'MISMATCH') AS group_code,
-            CASE WHEN w.waku_name IS NULL THEN TRUE ELSE FALSE END AS is_mismatch,
-            FALSE AS is_empty
-        FROM t_endoscopy_schedule s
-        LEFT JOIN m2_waku w 
-            ON s.department_code = w.department_code 
-            AND s.scheduled_time = w.waku_name
-            AND w.is_active = TRUE
-        WHERE s.department_code = :dept 
-          AND s.exam_date = :date 
-          AND s.is_canceled = FALSE
-        ";
-        if ($filter_doctor !== 'all') { $sql .= " AND s.doctor_name = :doctor"; }
-        if ($filter_exam !== 'all') { $sql .= " AND s.exam_type = :exam"; }
-        $sql .= " ORDER BY is_mismatch DESC, COALESCE(w.display_order, 9999) ASC, s.schedule_id ASC";
-    }
-
-    $stmt = $pdo->prepare($sql);
-    $params = [':dept' => $dept, ':date' => $date_str];
-    if ($filter_doctor !== 'all') { $params[':doctor'] = $filter_doctor; }
-    if ($filter_exam !== 'all') { $params[':exam'] = $filter_exam; }
-    $stmt->execute($params);
-    $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    return is_array($res) ? $res : [];
+    // 時間枠オーバーライド（m2_waku_override）対応コアエンジンへ完全委譲
+    return getDailyReservationsWithEffectiveSlots($pdo, $dept, $date_str, $filter_doctor, $filter_exam, $show_empty);
 }
 
 $dept_label = ($dept === 'PROCT') ? '肛門科' : '胃腸科';
 
 if ($sheet_single > 0) {
-    $stmt = $pdo->prepare("SELECT * FROM t_endoscopy_schedule WHERE schedule_id = :id AND department_code = :dept AND is_canceled = FALSE");
-    $stmt->execute([':id' => $sheet_single, ':dept' => $dept]);
-    $p = $stmt->fetch();
-    
-    if (!$p) { die("指定された予約が見つかりません。"); }
-    
-    $exam = (string)($p['exam_type'] ?? '');
-    if ($exam === 'エコー' || $exam === 'ECHO') {
-        die("エコーはシート印刷の対象外です。");
-    }
-    
-    $exam_date = (string)($p['exam_date'] ?? '');
-    $b_day = (string)($p['birthday'] ?? '');
-    $age_str = calculateAge($b_day, $exam_date);
-    $is_proct = ($p['department_code'] === 'PROCT');
-    $wareki = convertToWareki($b_day);
-    ?>
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>内視鏡検査シート</title>
-        <style>
-            @page { size: A4 portrait; margin: 10mm 12mm; }
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt; color: #000; background: #fff; }
-            .sheet-page { padding-bottom: 10mm; }
-            .sheet-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; }
-            .clinic-title { font-size: 14pt; font-weight: bold; }
-            .dept-checkboxes { font-size: 10pt; font-weight: bold; }
-            .sheet-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9pt; }
-            .sheet-table th, .sheet-table td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
-            .sheet-table th { background: #f2f2f2; text-align: center; font-weight: bold; }
-            .highlight-yellow { background: #ffff00 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .section-title { background: #e6e6e6; font-weight: bold; padding: 3px 8px; border: 1px solid #000; border-bottom: none; font-size: 9pt; margin-top: 6px; }
-            .footer-line { display: flex; justify-content: space-between; font-size: 7pt; color: #555; margin-top: 5px; }
-        </style>
-    </head>
-    <body>
-        <div class="sheet-page">
-            <div class="sheet-header">
-                <div class="clinic-title">おの肛門科胃腸科内視鏡クリニック</div>
-                <div class="dept-checkboxes">[ <?= $is_proct ? '☑' : '□' ?> ] 肛門科 &nbsp;&nbsp;&nbsp; [ <?= !$is_proct ? '☑' : '□' ?> ] 胃腸科</div>
-            </div>
-            <table class="sheet-table">
-                <tr>
-                    <th style="width:12%;">患者No</th>
-                    <td style="width:23%; font-weight:bold; font-size:12pt; text-align:center;" class="highlight-yellow"><?= htmlspecialchars((string)($p['patient_id'] ?? '---'), ENT_QUOTES, 'UTF-8') ?></td>
-                    <th style="width:10%;">氏名</th>
-                    <td style="width:35%; font-weight:bold; font-size:13pt;" class="highlight-yellow"><?= htmlspecialchars((string)($p['patient_name'] ?? '（氏名未登録）'), ENT_QUOTES, 'UTF-8') ?></td>
-                    <th style="width:8%;">性別</th>
-                    <td style="width:12%; text-align:center;"><?= htmlspecialchars((string)($p['gender'] ?? '---'), ENT_QUOTES, 'UTF-8') ?></td>
-                </tr>
-                <tr>
-                    <th>生年月日</th>
-                    <td style="text-align:center;"><?= htmlspecialchars($wareki, ENT_QUOTES, 'UTF-8') ?></td>
-                    <th>年齢</th>
-                    <td style="text-align:center; font-weight:bold;"><?= $age_str ?></td>
-                    <th>検査日</th>
-                    <td style="text-align:center; font-weight:bold;"><?= htmlspecialchars($exam_date, ENT_QUOTES, 'UTF-8') ?></td>
-                </tr>
-            </table>
-            <table class="sheet-table" style="font-size:8pt;">
-                <tr><td style="width:50%;"><strong>付添：</strong>無 ・ 有（     ）<br><strong>迎え・タクシー・車：</strong>（      ）</td>
-                    <td style="width:50%;"><strong>荷物：</strong>無 ・ 有（     ）<br><strong>内服：</strong>無 ・ 有（     ）<br><strong>TVセット・入院セット：</strong> 特( ) 個( ) 大( )</td></tr>
-            </table>
-            <div class="section-title">■ 前処置・下剤チェック欄</div>
-            <table class="sheet-table" style="font-size:8pt;">
-                <tr><th style="width:35%;">薬剤名 / 処置</th><th style="width:15%;">数量・規格</th><th>実施状況・特記事項</th></tr>
-                <tr><td>グリセリン浣腸液 50%</td><td style="text-align:center;">60ml / 120ml</td><td><span class="highlight-yellow" style="padding:2px 10px;">[ ] 実施 &nbsp;&nbsp;&nbsp; 時間：(  :  )</span></td></tr>
-                <tr><td>高圧浣腸 グリセリン</td><td style="text-align:center;">100ml</td><td>[ ] 実施</td></tr>
-                <tr><td>マグコロール散 68%</td><td style="text-align:center;">50g / 100g / 150g</td><td>服薬状況：(            )</td></tr>
-                <tr><td>ニフレック / モビプレップ</td><td style="text-align:center;">1袋 / 2L</td><td>排便状況：(            )</td></tr>
-            </table>
-            <div class="section-title">■ 問診・安全確認事項</div>
-            <table class="sheet-table" style="font-size:8pt;">
-                <tr><td style="width:50%;">・排便回数：昨日（ ）・今日（ ） 最終（   ）<br>・便秘： 無 ・ 有 / 難聴： 無 ・ 有<br>・感染症： HB（ ）・HC（ ）・RPR（ ）□未</td>
-                    <td style="width:50%;">・抗凝固薬： □無 □有 （休薬： / ～ ）<br>・糖尿病薬： □無 □有 （休薬： / ～ ）<br>・インスリン：□無 □有 （休薬： / ～ ）<br>・シャント・乳腺手術：□無 □有（右・左）</td></tr>
-                <tr><td colspan="2"><strong>当日内服・血圧：</strong> 血圧： 済 ・ 未 &nbsp; BP（   /   ） &nbsp;&nbsp; <strong>その他特記事項：</strong> <?= htmlspecialchars((string)($p['remarks'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td></tr>
-            </table>
-            <div class="section-title">■ 検査・薬剤投与記録（当日）</div>
-            <table class="sheet-table" style="font-size:8pt;">
-                <tr><th style="width:35%;">項目</th><th style="width:20%; text-align:center;">予定 / 数量</th><th>実施記録・サイン</th></tr>
-                <tr><td>検査種別</td><td style="text-align:center; font-weight:bold;" class="highlight-yellow"><?= htmlspecialchars((string)($p['exam_type'] ?? '---'), ENT_QUOTES, 'UTF-8') ?></td><td>場所: <strong><?= htmlspecialchars((string)($p['exam_location'] ?? '---'), ENT_QUOTES, 'UTF-8') ?></strong> / 担当医: <strong><?= htmlspecialchars((string)($p['doctor_name'] ?? '---'), ENT_QUOTES, 'UTF-8') ?></strong></td></tr>
-                <tr><td>プロフォール 1％</td><td style="text-align:center;"> mg</td><td></td></tr>
-                <tr><td>ジアゼパム 10mg</td><td style="text-align:center;"> ml</td><td></td></tr>
-                <tr><td>ブスコパン 20mg / グルカゴン</td><td style="text-align:center;"> 1ml / 1V</td><td>採血：あり ・ なし / アル綿禁：[ ]</td></tr>
-            </table>
-            <div class="section-title">■ 所見・メモ・特記事項</div>
-            <div style="border:1px solid #000; height:30mm; padding:4px; font-size:8pt;">
-                <?php if (!empty($p['remarks'])): ?>予約時備考: <?= renderRemarksRtfHtml((string)$p['remarks']) ?><?php endif; ?>
-            </div>
-            <div class="footer-line">
-                <div>スケジュールID: #<?= (int)$p['schedule_id'] ?> (枠: <?= htmlspecialchars((string)($p['scheduled_time'] ?? '---'), ENT_QUOTES, 'UTF-8') ?>)</div>
-                <div>おの肛門科胃腸科内視鏡クリニック 診療記録シート</div>
-            </div>
-        </div>
-    </body>
-    </html>
-    <?php
+    header("Location: endoscopy_sheet.php?schedule_id=" . (int)$sheet_single);
     exit;
 }
 
@@ -1257,11 +1212,13 @@ $is_same_month = ($sel_year === $year && $sel_month === $month);
 
 if ($is_same_month) {
     $day_data = getDayDataFast($dept, $selected_date, $sel_w, $doctors_list, $month_reserved_cache, $slot_master_cache, $filter_doctor, $filter_exam);
+    $day_data_full = getDayDataFast($dept, $selected_date, $sel_w, $doctors_list, $month_reserved_cache, $slot_master_cache, 'all', 'all');
     $doctor_counts = getDoctorCountsFast($doctors_list, $selected_date, $month_reserved_cache);
     $list_data = getDailyReservationsWithMismatch($pdo, $dept, $selected_date, 'all', 'all', $show_empty);
 } else {
     // 月跨ぎやカレンダー外日付の場合でも、選択日の予約一覧と医師別件数を確実に取得
     $day_data = getDayDataFast($dept, $selected_date, $sel_w, $doctors_list, $month_reserved_cache, $slot_master_cache, $filter_doctor, $filter_exam);
+    $day_data_full = getDayDataFast($dept, $selected_date, $sel_w, $doctors_list, $month_reserved_cache, $slot_master_cache, 'all', 'all');
     $list_data = getDailyReservationsWithMismatch($pdo, $dept, $selected_date, 'all', 'all', $show_empty);
     
     // 選択日の医師別件数を集計（キャッシュまたは直接集計）
@@ -1278,6 +1235,42 @@ if ($is_same_month) {
             }
         }
     }
+}
+
+// 【案C】選択日の検査グループ別（GIF/ECHO/TCF）医師供給枠・使用数・残枠・可能医師リストを算出
+$selected_day_cap_by_group = [
+    'GIF'  => ['total_max' => 0, 'total_used' => 0, 'total_rem' => 0, 'avail_doctors' => [], 'is_cap_full' => false],
+    'ECHO' => ['total_max' => 0, 'total_used' => 0, 'total_rem' => 0, 'avail_doctors' => [], 'is_cap_full' => false],
+    'TCF'  => ['total_max' => 0, 'total_used' => 0, 'total_rem' => 0, 'avail_doctors' => [], 'is_cap_full' => false],
+];
+foreach (($day_data_full['doctors'] ?? []) as $d_full) {
+    $d_name_full = (string)($d_full['name'] ?? '');
+    foreach (['GIF', 'ECHO', 'TCF'] as $grp_k) {
+        if (isset($d_full['slots'][$grp_k])) {
+            $u_cnt = (int)$d_full['slots'][$grp_k]['used'];
+            $m_cnt = (int)$d_full['slots'][$grp_k]['max'];
+            $rem_cnt = $m_cnt - $u_cnt;
+            $selected_day_cap_by_group[$grp_k]['total_max'] += $m_cnt;
+            $selected_day_cap_by_group[$grp_k]['total_used'] += $u_cnt;
+            if ($m_cnt > 0 && $rem_cnt > 0) {
+                $selected_day_cap_by_group[$grp_k]['avail_doctors'][] = [
+                    'name' => $d_name_full,
+                    'rem'  => $rem_cnt,
+                    'used' => $u_cnt,
+                    'max'  => $m_cnt,
+                ];
+            }
+        }
+    }
+}
+foreach (['GIF', 'ECHO', 'TCF'] as $grp_k) {
+    $undec_cnt = getDayUndecidedCount($selected_date, $month_undecided_cache, $grp_k);
+    $selected_day_cap_by_group[$grp_k]['total_used'] += $undec_cnt;
+    $selected_day_cap_by_group[$grp_k]['total_rem'] = $selected_day_cap_by_group[$grp_k]['total_max'] - $selected_day_cap_by_group[$grp_k]['total_used'];
+    $selected_day_cap_by_group[$grp_k]['is_cap_full'] = (
+        $selected_day_cap_by_group[$grp_k]['total_max'] > 0
+        && $selected_day_cap_by_group[$grp_k]['total_rem'] <= 0
+    );
 }
 
 // 選択日の大腸CF件数（胃腸科・肛門科・TCF/W/ポリペク内訳）を取得（部屋・下剤一括ホバーサマリ用）
@@ -1303,10 +1296,18 @@ foreach ($list_data as $r_item) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📅 月間カレンダービュー | 医療法人小野会</title>
+    <!-- 🖨️ 完全ローカル・オフライン動作 Flatpickr ＆ 小野会共通日付ピッカー -->
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <link rel="stylesheet" href="assets/css/theme.css">
     <link rel="stylesheet" href="assets/css/month_schedule.css?v=<?= time() ?>">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
+    <script src="assets/js/env_detector.js"></script>
 </head>
-<body>
+<body class="<?= getBodyEnvClass() ?>">
+<?= renderLocalEnvBanner() ?>
 
 <div class="container" id="mainContainer">
 
@@ -1317,39 +1318,49 @@ foreach ($list_data as $r_item) {
                 <span class="header-badge" style="background:#eff6ff; color:#1d4ed8; border-color:#93c5fd; font-weight:700;">🚀 HTML5最適化版</span>
             </div>
             <div class="dept-tabs-inline">
-                <a href="?dept=PROCT&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='PROCT'?'active-PROCT':''?>">🟢 肛門科</a>
-                <a href="?dept=GASTRO&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='GASTRO'?'active-GASTRO':''?>">🔵 胃腸科</a>
+                <a href="?dept=PROCT&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='PROCT'?'active-PROCT':''?>" id="deptTabProct" title="🟢 肛門科へ切替 [1キー]">🟢 肛門科 <kbd class="nav-kbd" style="font-size:10px; margin-left:3px; padding:1px 4px; border-radius:3px; background:rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.2);">1</kbd></a>
+                <a href="?dept=GASTRO&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='GASTRO'?'active-GASTRO':''?>" id="deptTabGastro" title="🔵 胃腸科へ切替 [2キー]">🔵 胃腸科 <kbd class="nav-kbd" style="font-size:10px; margin-left:3px; padding:1px 4px; border-radius:3px; background:rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.2);">2</kbd></a>
             </div>
         </div>
         <div class="header-nav">
-            <a href="index.php" class="nav-btn nav-btn-home">
-                <span>🏠</span> 
-            </a>
-            <a href="progress_monitor.php?dept=<?=$dept?>" class="nav-btn nav-btn-whiteboard">
-                <span>📊</span> 当日ホワイトボード
-            </a>
             <a href="schedule_note.php?dept=<?=$dept?>&date=<?=$selected_date?>" class="nav-btn" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: #ffffff; font-weight: 700;" title="カレンダー非表示・紙のノート感覚で全幅一覧できる超高速モード">
                 <span>📖</span> ノート表示
             </a>
+            <a href="index.php" class="nav-btn nav-btn-home" title="ポータルホームへ">
+                <span>🏠</span> 
+            </a>
 
-            <a href="month_matrix_v2.php?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>" class="nav-btn nav-btn-matrix">
-                <span>📊</span> 予約マトリクス
-            </a>
-            <a href="slot_search.php?dept=<?=$dept?>" class="nav-btn nav-btn-search">
-                <span>🔍</span> 空き枠検索
-            </a>
-            <button type="button" onclick="openDuplicateCheckModal()" class="nav-btn nav-btn-duplicate" title="同一患者の未来複数予約・重複チェック">
-                <span>⚠️</span> 重複チェック
-            </button>
-            <button type="button" onclick="openAuditLogModal()" class="nav-btn nav-btn-audit" title="直近の操作履歴・誤操作ワンクリック復元（Undo）">
-                <span>🕒</span> 操作履歴
-            </button>
-            <button type="button" onclick="openMedicalAlertScanModal({date: '<?=$selected_date?>', dept: '<?=$dept?>'})" class="nav-btn nav-btn-alert-scan" title="抗血栓薬・アレルギー・感染症・風邪アラートスキャン">
-                <span>🛡️</span> アラートスキャン
-            </button>
-            <a href="furiwake_daymemo.php" class="nav-btn" style="background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; font-weight: 700;" title="日別メモの診療科振り分けメンテナンス（データ整理）">
-                <span>📝</span> メモ振分
-            </a>
+            <!-- ── ノート表示・ホーム以外の機能を「その他機能」ドロップダウンへ集約 ── -->
+            <div class="more-menu-container">
+                <button type="button" class="nav-btn more-menu-btn" id="moreMenuBtn" onclick="toggleMoreMenu(event)" title="その他の機能メニューを展開">
+                    <span>⚙️</span> その他機能 ▾
+                </button>
+                <div class="more-menu-dropdown" id="moreMenuDropdown">
+                    <a href="progress_monitor.php?dept=<?=$dept?>" class="more-menu-item">
+                        <span>📊</span> 当日ホワイトボード
+                    </a>
+                    <a href="month_matrix_v2.php?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>" class="more-menu-item">
+                        <span>📊</span> 予約マトリクス
+                    </a>
+                    <a href="slot_search.php?dept=<?=$dept?>" class="more-menu-item">
+                        <span>🔍</span> 空き枠検索
+                    </a>
+                    <div class="more-menu-divider"></div>
+                    <button type="button" onclick="openDuplicateCheckModal(); closeMoreMenu();" class="more-menu-item">
+                        <span>⚠️</span> 重複チェック
+                    </button>
+                    <button type="button" onclick="openAuditLogModal(); closeMoreMenu();" class="more-menu-item">
+                        <span>🕒</span> 操作履歴 (Undo)
+                    </button>
+                    <button type="button" onclick="openMedicalAlertScanModal({date: '<?=$selected_date?>', dept: '<?=$dept?>'}); closeMoreMenu();" class="more-menu-item">
+                        <span>🛡️</span> アラートスキャン
+                    </button>
+                    <div class="more-menu-divider"></div>
+                    <a href="furiwake_daymemo.php" class="more-menu-item" style="color:#92400e;">
+                        <span>📝</span> メモ振分メンテナンス
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1434,12 +1445,7 @@ foreach ($list_data as $r_item) {
             </div>
         <div class="cal-nav-bar">
             <div class="cal-primary-controls">
-                <span class="cal-title"><?=$year?>年 <?=$month?>月</span>
-                <div class="cal-btn-group">
-                    <a href="?dept=<?=$dept?>&year=<?=$prev_year?>&month=<?=$prev_month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="cal-nav-arrow" title="前月">◀</a>
-                    <a href="?dept=<?=$dept?>&year=<?=date('Y')?>&month=<?=date('n')?>&date=<?=date('Y-m-d')?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="cal-nav-today">📅 今日</a>
-                    <a href="?dept=<?=$dept?>&year=<?=$next_year?>&month=<?=$next_month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>" class="cal-nav-arrow" title="次月">▶</a>
-                </div>
+                <?= render_onokai_date_control('monthScheduleDate', 'date', $picker_date) ?>
             </div>
 
             <div class="cal-quick-months">
@@ -1534,6 +1540,26 @@ foreach ($list_data as $r_item) {
                     $day_undecided_cnt = getDayUndecidedCount($date_str, $month_undecided_cache, $filter_exam);
                     $has_undecided = ($day_undecided_cnt > 0);
 
+                    // 【案D】特定医師選択時の予約可能（残枠あり）逆引きハイライト判定
+                    $is_specific_doctor = ($filter_doctor !== 'all' && $filter_doctor !== 'undecided');
+                    $doc_filter_rem = 0;
+                    $doc_filter_max = 0;
+                    if ($is_specific_doctor && !$is_closed) {
+                        foreach ($day_data_cell['doctors'] as $d_chk) {
+                            foreach (['GIF', 'ECHO', 'TCF'] as $ex_chk) {
+                                if ($filter_exam !== 'all' && $filter_exam !== $ex_chk) continue;
+                                if (isset($d_chk['slots'][$ex_chk])) {
+                                    $m_chk = (int)$d_chk['slots'][$ex_chk]['max'];
+                                    $u_chk = (int)$d_chk['slots'][$ex_chk]['used'];
+                                    $doc_filter_max += $m_chk;
+                                    if ($m_chk > $u_chk) {
+                                        $doc_filter_rem += ($m_chk - $u_chk);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     $cell_class = 'day-cell';
                     if ($is_selected) $cell_class .= ' selected';
                     if ($is_today) $cell_class .= ' today';
@@ -1557,6 +1583,15 @@ foreach ($list_data as $r_item) {
                             $cell_class .= ' has-undecided-selected';
                         } else {
                             $cell_class .= ' not-undecided-dimmed';
+                        }
+                    } elseif ($is_specific_doctor) {
+                        if (!$is_closed && !$is_past && $doc_filter_rem > 0) {
+                            $cell_class .= ' doc-filter-avail';
+                        } else {
+                            $cell_class .= ' doc-filter-dimmed';
+                        }
+                        if ($has_undecided) {
+                            $cell_class .= ' has-undecided';
                         }
                     } elseif ($has_undecided) {
                         $cell_class .= ' has-undecided';
@@ -1646,7 +1681,7 @@ foreach ($list_data as $r_item) {
                     $filter_exam_enc = urlencode($filter_exam);
                     $cell_y = (int)substr($date_str, 0, 4);
                     $cell_m = (int)substr($date_str, 5, 2);
-                    echo "<td class='{$cell_class}' onclick=\"location.href='?dept={$dept}&year={$cell_y}&month={$cell_m}&date={$date_str}&doctor={$filter_doc_enc}&exam={$filter_exam_enc}&display_mode={$display_mode}&show_empty={$show_empty_val}'\">";
+                    echo "<td class='{$cell_class}' data-date='{$date_str}' onclick=\"location.href='?dept={$dept}&year={$cell_y}&month={$cell_m}&date={$date_str}&doctor={$filter_doc_enc}&exam={$filter_exam_enc}&display_mode={$display_mode}&show_empty={$show_empty_val}'\">";
                     
                     $day_style = '';
                     if (!$is_closed) {
@@ -1666,6 +1701,17 @@ foreach ($list_data as $r_item) {
                     $exception_badge_class = $has_exception ? 'date-num-badge has-exception' : 'date-num-badge';
                     $exception_title = $has_exception ? ' title="出勤例外設定あり"' : '';
                     echo "<div class='day-number' style='{$day_style}'><span class='{$exception_badge_class}'{$exception_title}>{$day}</span>{$memo_badge_html}</div>";
+
+                    // 【案D】特定医師フィルター選択時の残枠ハイライトバッジ
+                    if ($is_specific_doctor && !$is_closed) {
+                        $doc_esc_badge = htmlspecialchars($filter_doctor, ENT_QUOTES, 'UTF-8');
+                        $exam_label_badge = ($filter_exam === 'TCF') ? 'CF' : (($filter_exam === 'GIF') ? 'GIF' : (($filter_exam === 'ECHO') ? 'US' : ''));
+                        if ($doc_filter_rem > 0) {
+                            echo "<div class='doc-avail-cal-badge' title='{$doc_esc_badge}先生の{$exam_label_badge}残枠が {$doc_filter_rem} 枠あります'>🟢 {$exam_label_badge}空き:{$doc_filter_rem}</div>";
+                        } elseif ($doc_filter_max > 0) {
+                            echo "<div class='doc-full-cal-badge' title='{$doc_esc_badge}先生の{$exam_label_badge}枠は定員到達（満枠）です'>🈵 満枠</div>";
+                        }
+                    }
 
                     // 担当未定バッジ表示
                     if ($has_undecided) {
@@ -1804,9 +1850,44 @@ foreach ($list_data as $r_item) {
             <div class="list-title">
                 <?php if ($is_same_month): ?>
                     📋 <?=date('Y.m.d', strtotime($selected_date))?><?=$day_of_week_str?> の予約一覧
-                    <span style="font-size:11px; color:#64748b; font-weight:normal; margin-left:6px;">
+                    <span id="listWakuUsageCounter" style="font-size:11px; color:#64748b; font-weight:normal; margin-left:6px;">
                         (<?=$day_data['total_used']?>/<?=$day_data['total_max']?>枠 使用中)
                     </span>
+                    <?php if (!empty($day_data_full['doctors'])): ?>
+                        <span class="list-doc-cap-bar" title="当日の医師別 検査残枠（クリックでその医師の空き日ハイライト・指名フィルター切替）">
+                            <span class="list-doc-cap-label">👨‍⚕️当日残:</span>
+                            <?php foreach ($day_data_full['doctors'] as $d_cap): 
+                                $d_cap_name = (string)$d_cap['name'];
+                                $is_d_active = ($filter_doctor === $d_cap_name);
+                                $next_doc_param = $is_d_active ? 'all' : $d_cap_name;
+                                $d_cap_url = "?dept={$dept}&year={$year}&month={$month}&date={$selected_date}&doctor=" . urlencode($next_doc_param) . "&exam=" . urlencode($filter_exam) . "&display_mode={$display_mode}&show_empty=" . ($show_empty ? '1' : '0');
+                                $cap_parts_html = [];
+                                foreach (['GIF' => '🔵GIF', 'TCF' => '🟢CF', 'ECHO' => '🟠US'] as $gk => $glabel) {
+                                    if (isset($d_cap['slots'][$gk])) {
+                                        $gu = (int)$d_cap['slots'][$gk]['used'];
+                                        $gm = (int)$d_cap['slots'][$gk]['max'];
+                                        if ($gm > 0 || $gu > 0) {
+                                            $grem = $gm - $gu;
+                                            if ($grem <= 0 && $gm > 0) {
+                                                $cap_parts_html[] = "<span class='list-doc-cap-item rem-full'>{$glabel}:🈵0({$gu}/{$gm})</span>";
+                                            } elseif ($grem === 1) {
+                                                $cap_parts_html[] = "<span class='list-doc-cap-item rem-warn'>{$glabel}:残1({$gu}/{$gm})</span>";
+                                            } else {
+                                                $cap_parts_html[] = "<span class='list-doc-cap-item rem-ok'>{$glabel}:残{$grem}({$gu}/{$gm})</span>";
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!empty($cap_parts_html)):
+                            ?>
+                                <a href="<?= $d_cap_url ?>" class="list-doc-cap-chip <?= $is_d_active ? 'active-doc' : '' ?>" title="<?= htmlspecialchars($d_cap_name, ENT_QUOTES, 'UTF-8') ?>先生のフィルターを<?= $is_d_active ? '解除' : '適用' ?>">
+                                    <?= getDoctorBadgeHTML($d_cap_name) ?>
+                                    <span><?= htmlspecialchars($d_cap_name, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?= implode(' ', $cap_parts_html) ?>
+                                </a>
+                            <?php endif; endforeach; ?>
+                        </span>
+                    <?php endif; ?>
                     <?php if (!empty($selected_day_memo)): ?>
                         <span class="list-title-memo" onclick="openDailyMemoModal('<?= $selected_date ?>', <?= htmlspecialchars(json_encode($selected_day_memo, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>)" title="クリックして日別カレンダーメモを編集">
                             📢 <?= htmlspecialchars($selected_day_memo, ENT_QUOTES, 'UTF-8') ?> <span style="font-size:10px; opacity:0.75;">✏️</span>
@@ -1832,12 +1913,19 @@ foreach ($list_data as $r_item) {
                     ⬜ 空き枠表示
                 </button>
                 
-                <!-- 枠トグルボタングループ (カプセル・各枠背景色連動) -->
+                <!-- 枠トグルボタングループ (カプセル・各枠背景色連動 ＆ 【案E】上段種別連動・🎯CF集中) -->
+                <?php
+                $init_show_gif  = ($filter_exam === 'all' || $filter_exam === 'GIF');
+                $init_show_echo = ($filter_exam === 'all' || $filter_exam === 'ECHO');
+                $init_show_tcf  = ($filter_exam === 'all' || $filter_exam === 'TCF');
+                $init_cf_focus  = ($filter_exam === 'TCF');
+                ?>
                 <div class="slot-toggle-group">
                     <span class="toolbar-label">枠:</span>
-                    <button type="button" id="show_gif" class="btn-slot-toggle btn-slot-gif active" onclick="toggleSlotFilterBtn('GIF', this)" title="GIF(胃カメラ)枠の表示切替">GIF</button>
-                    <button type="button" id="show_echo" class="btn-slot-toggle btn-slot-echo active" onclick="toggleSlotFilterBtn('ECHO', this)" title="エコー(US)枠の表示切替">エコー</button>
-                    <button type="button" id="show_tcf" class="btn-slot-toggle btn-slot-tcf active" onclick="toggleSlotFilterBtn('TCF', this)" title="TCF(大腸)枠の表示切替">TCF</button>
+                    <button type="button" id="show_gif" class="btn-slot-toggle btn-slot-gif <?= $init_show_gif ? 'active' : '' ?>" onclick="toggleSlotFilterBtn('GIF', this)" title="GIF(胃カメラ)枠の表示切替">GIF</button>
+                    <button type="button" id="show_echo" class="btn-slot-toggle btn-slot-echo <?= $init_show_echo ? 'active' : '' ?>" onclick="toggleSlotFilterBtn('ECHO', this)" title="エコー(US)枠の表示切替">エコー</button>
+                    <button type="button" id="show_tcf" class="btn-slot-toggle btn-slot-tcf <?= $init_show_tcf ? 'active' : '' ?>" onclick="toggleSlotFilterBtn('TCF', this)" title="TCF(大腸)枠の表示切替">TCF</button>
+                    <button type="button" id="btn_cf_focus" class="btn-cf-focus <?= $init_cf_focus ? 'active' : '' ?>" onclick="toggleCfFocusMode(this)" title="GIF・エコー行を折りたたんでTCF(大腸)枠のみを集中表示します（もう一度押すと全枠表示）">🎯 CF集中</button>
                 </div>
                 
                 <!-- 部屋・下剤一括設定ボタン（ホバーで胃腸科・肛門科CF件数を表示） -->
@@ -1957,7 +2045,7 @@ foreach ($list_data as $r_item) {
                         <th style="width:52px; text-align:center;">下剤</th>
                         <th>備考</th>
                         <th style="width:45px; text-align:center;">シート</th>
-                        <th style="width:60px; text-align:center;">F/U</th>
+                        <th style="width:60px; text-align:center;">実績</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1965,19 +2053,9 @@ foreach ($list_data as $r_item) {
                 $undecided_rendered_count = 0;
                 foreach ($list_data as $row): 
                     $exam = (string)($row['exam_type'] ?? '');
-                    $cls = 'other';
-                    $row_exam_category = 'OTHER';
-
-                    if ($exam === 'GIF' || $exam === '◆胃がん検診◆' || $exam === '胃がん検診') {
-                        $cls = 'gif';
-                        $row_exam_category = 'GIF';
-                    } elseif ($exam === 'ECHO' || $exam === 'エコー') {
-                        $cls = 'echo';
-                        $row_exam_category = 'ECHO';
-                    } elseif ($exam === 'TCF' || $exam === 'W' || $exam === 'ポリペク') {
-                        $cls = 'tcf';
-                        $row_exam_category = 'TCF';
-                    }
+                    $badge_info = getExamTypeBadgeInfo($exam, $pdo);
+                    $cls = $badge_info['cls'];
+                    $row_exam_category = $badge_info['group'];
                     
                     $is_empty = isset($row['is_empty']) && $row['is_empty'] === true;
                     $is_mismatch = isset($row['is_mismatch']) && $row['is_mismatch'] === true;
@@ -1986,8 +2064,25 @@ foreach ($list_data as $r_item) {
                     $waku = (string)($row['scheduled_time'] ?? '');
                     $remarks_str = (string)($row['remarks'] ?? '');
                     
-                    // ★ 備考欄が「＊＊＊🚫枠なし🚫＊＊＊」と完全一致する場合のみ枠なしとする
-                    $is_no_waku = (!$is_empty && trim($remarks_str) === '＊＊＊🚫枠なし🚫＊＊＊');
+                    // ★ 枠なし・休止枠の判定（実患者保護ガード付き）
+                    $p_name_raw = trim((string)($row['patient_name'] ?? ''));
+                    $is_real_patient = (!$is_empty && $p_name_raw !== '' && $p_name_raw !== '※枠なし' && $p_name_raw !== '※仮予約' && $p_name_raw !== '指定なし');
+
+                    if ($is_real_patient) {
+                        // 実患者の予約が入っている場合は絶対に枠なしにしない（患者情報・備考を完全保護）
+                        $is_no_waku = false;
+                    } else {
+                        $is_suspended_override = !empty($row['is_suspended']);
+                        $is_legacy_no_waku = (!$is_empty && (
+                            $p_name_raw === '※枠なし' ||
+                            mb_strpos($remarks_str, '枠なし') !== false ||
+                            mb_strpos($remarks_str, '休止') !== false
+                        ));
+                        $is_no_waku = ($is_suspended_override || $is_legacy_no_waku || !empty($row['is_no_waku']));
+                        if ($is_no_waku) {
+                            $is_empty = false;
+                        }
+                    }
 
                     // 担当未定の判定（確定予約かつ医師名が未設定）
                     $row_doc = trim((string)($row['doctor_name'] ?? ''));
@@ -2014,34 +2109,16 @@ foreach ($list_data as $r_item) {
                     $undecided_rendered_count++;
 
                     $filter_category = $row_exam_category !== 'OTHER' ? $row_exam_category : $group_code;
-                    $can_sheet = ($exam !== 'エコー' && $exam !== 'ECHO' && !$is_empty && !$is_no_waku);
+                    $can_sheet = ($row_exam_category !== 'ECHO' && !$is_empty && !$is_no_waku);
                     
-                    $time_display = $waku;
+                    $time_display = (!empty($row['slot_waku_name']) && !$is_mismatch) ? (string)$row['slot_waku_name'] : $waku;
                     if ($is_mismatch) {
                         $time_display = '🚨 迷子 (' . htmlspecialchars($waku, ENT_QUOTES, 'UTF-8') . ')';
                     } elseif ($waku === 'MISMATCH' || empty($waku)) {
                         $time_display = '🚨 枠未設定';
                     }
-                    
-                    $fu_url = '#';
-                    $fu_label = '登録';
-                    $fu_class = 'followup';
-                    $fu_title = 'F/U登録';
 
                     $p_id_str = (string)($row['patient_id'] ?? '');
-                    if (!$is_empty && !$is_no_waku && !empty($p_id_str)) {
-                        $fu_params = '';
-                        $fu_params .= 'patient_id=' . urlencode($p_id_str);
-                        $fu_params .= '&patient_name=' . urlencode((string)($row['patient_name'] ?? ''));
-                        $fu_params .= '&patient_kana=' . urlencode((string)($row['patient_kana'] ?? ''));
-                        $fu_params .= '&birthday=' . urlencode((string)($row['birthday'] ?? ''));
-                        $fu_params .= '&department_code=' . urlencode($dept);
-                        $fu_params .= '&doctor_name=' . urlencode((string)($row['doctor_name'] ?? ''));
-                        $fu_params .= '&exam_types=' . urlencode($exam);
-                        
-                        $fu_url = '/endoscope/followup/edit.php?' . $fu_params;
-                        $fu_title = 'F/U登録（新規タブで開きます）';
-                    }
                     
                     $modal_date = $selected_date;
                     $modal_waku = $waku;
@@ -2085,14 +2162,18 @@ foreach ($list_data as $r_item) {
                     }
 
                     $prep_val = trim((string)($row['bowel_prep'] ?? ''));
-                    $prep_cls = '';
-                    if ($prep_val === 'モビ') {
+                    $prep_cls = 'prep-other';
+                    if (mb_strpos($prep_val, 'モビ') === 0) {
                         $prep_cls = 'prep-mobi';
-                    } elseif ($prep_val === 'マグP') {
+                    } elseif (mb_strpos($prep_val, 'マグ') === 0) {
                         $prep_cls = 'prep-magp';
-                    } elseif ($prep_val === 'ニフ') {
+                    } elseif (mb_strpos($prep_val, 'ニフ') === 0) {
                         $prep_cls = 'prep-nif';
+                    } elseif (mb_strpos($prep_val, 'ビジ') === 0) {
+                        $prep_cls = 'prep-visi';
                     }
+                    // 特殊処理: 4文字以上の下剤名称（ビジクリア等）は先頭3文字で略称表示（モビ・マグP・ニフ等の3文字以下はそのまま）
+                    $prep_disp = (mb_strlen($prep_val, 'UTF-8') > 3) ? mb_substr($prep_val, 0, 3, 'UTF-8') : $prep_val;
 
                     $created_at_val = $row['created_at'] ?? '';
                     $updated_at_val = $row['updated_at'] ?? '';
@@ -2113,27 +2194,75 @@ foreach ($list_data as $r_item) {
                         }
                     }
                     $schedule_tooltip = "スケジュールID:{$schedule_id}（システムデータ）\n作成日時: {$created_at_str}\n更新日時: {$updated_at_str}";
+                    
+                    // 【案C】空き枠行における当日の医師供給枠・残枠ガイドおよび医師定員到達グレーアウト判定
+                    $grp_cap = $selected_day_cap_by_group[$filter_category] ?? null;
+                    $is_target_cap_group = ($filter_category === 'TCF' || $filter_category === 'GIF');
+                    $grp_short_label = ($filter_category === 'TCF') ? 'CF' : (($filter_category === 'GIF') ? 'GIF' : 'US');
+                    $is_row_cap_full = ($is_empty && !$is_no_waku && !$is_mismatch && $is_target_cap_group && $grp_cap && $grp_cap['is_cap_full']);
+                    if ($is_row_cap_full) {
+                        $row_class .= ($row_class !== '' ? ' ' : '') . 'row-doctor-cap-full';
+                    }
+
+                    $tr_bg_style = '';
+                    if ($is_no_waku) {
+                        $tr_bg_style = 'style="background-color:#fff1f2;"';
+                    } elseif ($is_empty && !$is_mismatch && !$is_row_cap_full) {
+                        $tr_bg_style = 'style="background-color:#faf5ff;"';
+                    }
                 ?>
                     <tr data-group="<?= htmlspecialchars($filter_category, ENT_QUOTES, 'UTF-8') ?>" 
                         data-reserved="<?= ($is_empty || $is_no_waku) ? 'false' : 'true' ?>"
                         class="<?= $row_class ?>"
-                        <?= ($is_empty && !$is_mismatch) ? 'style="background-color:#faf5ff;"' : '' ?>>
+                        <?= $tr_bg_style ?>>
                         
                         <!-- 1列目: ➕新規追加（枠なし状態以外で常時表示） -->
-                        <td style="text-align:center; white-space:nowrap;">
+                        <td class="cell-add-btn" style="text-align:center; white-space:nowrap;">
                             <?php if (!$is_no_waku && !$is_mismatch): ?>
-                                <a href="#" onclick="openModal('<?= $modal_date ?>', '<?= htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8') ?>', 0, '<?= $modal_dept ?>')" class="icon-btn add" title="この枠に新規予約を追加">➕</a>
+                                <a href="#" onclick="openModal('<?= $modal_date ?>', '<?= htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8') ?>', 0, '<?= $modal_dept ?>')" class="icon-btn add" title="<?= $is_row_cap_full ? '医師定員到達中（上限超過・イレギュラー予約として追加）' : 'この枠に新規予約を追加' ?>">➕</a>
                             <?php else: ?>
                                 <span class="icon-btn disabled">-</span>
                             <?php endif; ?>
                         </td>
 
-                        <!-- 2列目: 🚫枠なし設定 ／ ⭕通常枠復帰（独立列） -->
-                        <td style="text-align:center; white-space:nowrap;">
-                            <?php if ($is_empty): ?>
-                                <a href="?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&action=set_no_waku&waku=<?=urlencode($waku)?>" class="icon-btn" title="この枠を「枠なし」に設定します" style="color:#dc2626; font-size:12px; font-weight:bold;">🚫</a>
-                            <?php elseif ($is_no_waku): ?>
-                                <a href="?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&action=revert_waku&sid=<?=$schedule_id?>" class="icon-btn" title="通常枠（空き枠）に戻す" style="color:#2563eb; font-size:13px; font-weight:bold;">⭕</a>
+                        <!-- 2列目: 🚫枠なし設定 ／ ⭕通常枠復帰（非同期Ajaxトグル対応） -->
+                        <td class="cell-toggle-btn" style="text-align:center; white-space:nowrap;">
+                            <?php 
+                            $row_base_id = (int)($row['base_waku_id'] ?? ($row['waku_id'] ?? 0));
+                            $row_orig_name = (string)($row['original_name'] ?? ($row['base_waku_name'] ?? $waku));
+                            ?>
+                            <?php if ($is_no_waku): ?>
+                                <a href="?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&action=revert_waku&sid=<?=$schedule_id?>&waku=<?=urlencode($time_display)?>&base_id=<?=$row_base_id?>&orig_name=<?=urlencode($row_orig_name)?>" 
+                                   class="icon-btn btn-toggle-no-waku" 
+                                   onclick="toggleNoWakuAsync(this, event)"
+                                   data-action="revert_waku"
+                                   data-dept="<?=$dept?>"
+                                   data-date="<?=$selected_date?>"
+                                   data-sid="<?=$schedule_id?>"
+                                   data-waku="<?=htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8')?>"
+                                   data-base-id="<?=$row_base_id?>"
+                                   data-orig-name="<?=htmlspecialchars($row_orig_name, ENT_QUOTES, 'UTF-8')?>"
+                                   data-modal-waku="<?=htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8')?>"
+                                   data-modal-date="<?=$modal_date?>"
+                                   data-modal-dept="<?=$modal_dept?>"
+                                   title="枠なし設定を解除して通常枠に復帰" 
+                                   style="color:#2563eb; font-size:13px; font-weight:bold; cursor:pointer;">⭕</a>
+                            <?php elseif ($is_empty): ?>
+                                <a href="?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&action=set_no_waku&waku=<?=urlencode($time_display)?>&base_id=<?=$row_base_id?>&orig_name=<?=urlencode($row_orig_name)?>" 
+                                   class="icon-btn btn-toggle-no-waku" 
+                                   onclick="toggleNoWakuAsync(this, event)"
+                                   data-action="set_no_waku"
+                                   data-dept="<?=$dept?>"
+                                   data-date="<?=$selected_date?>"
+                                   data-sid="0"
+                                   data-waku="<?=htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8')?>"
+                                   data-base-id="<?=$row_base_id?>"
+                                   data-orig-name="<?=htmlspecialchars($row_orig_name, ENT_QUOTES, 'UTF-8')?>"
+                                   data-modal-waku="<?=htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8')?>"
+                                   data-modal-date="<?=$modal_date?>"
+                                   data-modal-dept="<?=$modal_dept?>"
+                                   title="この枠を枠なし（予約不可）に設定" 
+                                   style="color:#dc2626; font-size:12px; font-weight:bold; cursor:pointer;">🚫</a>
                             <?php else: ?>
                                 <span class="icon-btn disabled">-</span>
                             <?php endif; ?>
@@ -2143,19 +2272,29 @@ foreach ($list_data as $r_item) {
                         <td style="text-align:center;">
                             <?php if (!$is_empty && !$is_no_waku && $schedule_id > 0): ?>
                             <a href="#" onclick="openModal('<?= $modal_date ?>', '<?= htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8') ?>', <?= $schedule_id ?>, '<?= $modal_dept ?>')" 
-                               class="icon-btn edit" title="この予約を編集・枠再割当・削除">✏️</a>
+                                class="icon-btn edit" title="この予約を編集・枠再割当・削除">✏️</a>
                             <?php else: ?>
                             <span class="icon-btn disabled">-</span>
                             <?php endif; ?>
                         </td>
                         
-                        <!-- 時間枠名（枠なしの場合は赤字・打消し） -->
-                        <td>
-                            <?php if ($is_no_waku): ?>
-                                <span style="color:#dc2626; text-decoration:line-through; font-weight:bold;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></span>
-                            <?php else: ?>
-                                <strong><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></strong>
-                            <?php endif; ?>
+                        <!-- 時間枠名（枠なしの場合は赤字・打消し）＋ 右横に枠名称変更ギア ⚙️ -->
+                        <td style="white-space:nowrap;">
+                            <div style="display:inline-flex; align-items:center; gap:5px;">
+                                <?php if ($is_no_waku): ?>
+                                    <span class="waku-name-label" style="color:#dc2626; text-decoration:line-through; font-weight:bold;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php else: ?>
+                                    <strong class="waku-name-label"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></strong>
+                                <?php endif; ?>
+
+                                <button type="button" 
+                                        class="waku-name-gear-btn" 
+                                        onclick="openWakuRenameModal('<?= $selected_date ?>', '<?= htmlspecialchars($waku, ENT_QUOTES, 'UTF-8') ?>', <?= $row_base_id ?>, '<?= htmlspecialchars($row_orig_name, ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?>', '<?= $dept ?>')" 
+                                        title="この日（<?= $selected_date ?>）の枠名称を変更"
+                                        style="background:none; border:none; cursor:pointer; font-size:12px; color:#0284c7; padding:0 2px; line-height:1; vertical-align:middle; transition:transform 0.15s ease;"
+                                        onmouseover="this.style.transform='scale(1.25) rotate(45deg)';"
+                                        onmouseout="this.style.transform='scale(1) rotate(0deg)';">⚙️</button>
+                            </div>
                         </td>
                         
                         <td style="text-align:center;">
@@ -2172,15 +2311,46 @@ foreach ($list_data as $r_item) {
                             <?php endif; ?>
                         </td>
                         
-                        <td>
+                        <td class="cell-patient-name">
                             <?php if ($is_empty): ?>
-                                <span style="color:#8b5cf6; font-size:11px; font-weight:600;">［空き枠］</span>
+                                <?php if ($is_row_cap_full): ?>
+                                    <div class="empty-slot-cell-wrap">
+                                        <span class="empty-cap-full-badge" title="当日の医師<?= $grp_short_label ?>上限（計<?= (int)$grp_cap['total_max'] ?>枠）に到達しています。先生の許可を得た上限超過・イレギュラー追加は左の「➕」から入力可能です。">
+                                            ［🈵 医師<?= $grp_short_label ?>定員到達（<?= (int)$grp_cap['total_used'] ?>/<?= (int)$grp_cap['total_max'] ?>）］
+                                        </span>
+                                        <span class="empty-cap-full-sub">※イレギュラー追加は➕可</span>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="empty-slot-cell-wrap">
+                                        <span style="color:#8b5cf6; font-size:11px; font-weight:600;">［空き枠］</span>
+                                        <?php if ($is_target_cap_group && !empty($grp_cap['avail_doctors'])): ?>
+                                            <span class="empty-avail-doc-guide">
+                                                <span class="avail-guide-label">👨‍⚕️<?= $grp_short_label ?>可能:</span>
+                                                <?php 
+                                                $chip_cls = ($filter_category === 'GIF') ? 'chip-gif' : '';
+                                                $modal_waku_esc = htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8');
+                                                foreach ($grp_cap['avail_doctors'] as $adoc): 
+                                                    $adoc_name = (string)$adoc['name'];
+                                                    $adoc_rem = (int)$adoc['rem'];
+                                                    $adoc_esc = htmlspecialchars($adoc_name, ENT_QUOTES, 'UTF-8');
+                                                ?>
+                                                    <button type="button" 
+                                                            class="avail-doc-chip <?= $chip_cls ?>" 
+                                                            onclick="openModal('<?= $modal_date ?>', '<?= $modal_waku_esc ?>', 0, '<?= $modal_dept ?>', '<?= $adoc_esc ?>')"
+                                                            title="クリックで担当医「<?= $adoc_esc ?>」を自動セットして「<?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?>」に新規予約を追加します">
+                                                        ＋<?= $adoc_esc ?><span class="avail-doc-rem">(残<?= $adoc_rem ?>)</span>
+                                                    </button>
+                                                <?php endforeach; ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
                             <?php elseif ($is_no_waku): ?>
                                 <span style="color:#dc2626; font-size:11px; font-weight:bold;">［枠なし設定済］</span>
                             <?php else: ?>
                                 <div style="line-height: 1.25;" title="<?= htmlspecialchars($schedule_tooltip, ENT_QUOTES, 'UTF-8') ?>">
                                     <div style="display:flex; align-items:center; flex-wrap:wrap; gap:3px;">
-                                        <strong style="cursor:help;"><?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <?php if (!empty($row['is_vip'])): ?><span class="vip-badge-icon" style="display:inline-block; background:#fde047; color:#6b21a8; border:1.5px solid #000000; font-weight:900; font-size:10px; padding:0 3px; border-radius:2px; line-height:1.15; vertical-align:middle; margin-right:2px;" title="注目検査">V</span><?php endif; ?><strong style="cursor:help;"><?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?></strong>
                                         <?php if ($age_int !== null): ?>
                                             <span class="age-box <?= $age_cls ?>"><?= $age_int ?>歳</span>
                                         <?php endif; ?>
@@ -2208,12 +2378,16 @@ foreach ($list_data as $r_item) {
                                     <?= getDoctorBadgeHTML((string)($row['doctor_name'] ?? '')) ?>
                                     <span class="exam-badge <?=$cls?>"><?= htmlspecialchars($exam, ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
+                            <?php elseif ($is_row_cap_full): ?>
+                                <span style="font-size:10px; color:#94a3b8; font-weight:700;">上限到達</span>
                             <?php endif; ?>
                         </td>
 
                         <td style="text-align:center;">
-                            <?php if (!$is_empty && !$is_no_waku && !empty($room_val) && $room_val !== '未指定'): ?>
-                                <span class="room-badge <?= $is_room_duplicate ? 'room-duplicate' : '' ?>" title="<?= $is_room_duplicate ? '⚠️ 同一日で同じ部屋が重複しています！' : '' ?>">
+                            <?php if (!$is_empty && !$is_no_waku && !empty($room_val) && $room_val !== '未指定'): 
+                                $room_badge_cls = getRoomBadgeClass($room_val);
+                            ?>
+                                <span class="room-badge <?= $room_badge_cls ?> <?= $is_room_duplicate ? 'room-duplicate' : '' ?>" title="<?= $is_room_duplicate ? '⚠️ 同一日で同じ部屋が重複しています！' : '' ?>">
                                     <?= $is_room_duplicate ? '⚠️ ' : '' ?><?= htmlspecialchars($room_val, ENT_QUOTES, 'UTF-8') ?>
                                 </span>
                             <?php else: ?>
@@ -2223,28 +2397,35 @@ foreach ($list_data as $r_item) {
 
                         <td style="text-align:center;">
                             <?php if (!$is_empty && !$is_no_waku && !empty($prep_val) && $prep_val !== '未指定'): ?>
-                                <span class="prep-badge <?= $prep_cls ?>"><?= htmlspecialchars($prep_val, ENT_QUOTES, 'UTF-8') ?></span>
+                                <span class="prep-badge <?= $prep_cls ?>" title="<?= htmlspecialchars($prep_val, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($prep_disp, ENT_QUOTES, 'UTF-8') ?></span>
                             <?php else: ?>
                                 <span style="color:#cbd5e1;">-</span>
                             <?php endif; ?>
                         </td>
 
-                        <td style="min-width:180px;">
-                            <?= renderRemarksRtfHtml($remarks_str) ?>
+                        <td class="cell-remarks" style="min-width:180px;">
+                            <?php
+                            if ($is_no_waku) {
+                                $ov_reason = $row['override_reason'] ?? ($row['reason'] ?? null);
+                                echo function_exists('cleanNoWakuRemarksHTML') 
+                                    ? cleanNoWakuRemarksHTML($remarks_str, $ov_reason) 
+                                    : '<span style="background-color:#fee2e2; color:#dc2626; padding:2px 6px; border-radius:3px; font-weight:bold;">＊＊＊🚫枠なし🚫＊＊＊</span>';
+                            } else {
+                                echo renderRemarksRtfHtml($remarks_str);
+                            }
+                            ?>
                         </td>
                         
                         <td style="text-align:center;">
                             <?php if ($can_sheet): ?>
-                                <a href="?dept=<?=$dept?>&year=<?=$year?>&month=<?=$month?>&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&display_mode=<?=$display_mode?>&show_empty=<?=$show_empty?'1':'0'?>&sheet_single=<?=$row['schedule_id']?>" target="_blank" class="sheet-btn-small" title="検査シート印刷">📋</a>
+                                <a href="endoscopy_sheet.php?schedule_id=<?=$row['schedule_id']?>" target="_blank" class="sheet-btn-small" title="内視鏡シート（印刷・入力）">📋</a>
                             <?php else: ?>
                                 <span style="font-size:8px; color:#94a3b8;">-</span>
                             <?php endif; ?>
                         </td>
                         <td style="text-align:center;">
                             <?php if (!$is_empty && !$is_no_waku && !empty($p_id_str)): ?>
-                                <a href="<?= $fu_url ?>" target="_blank" class="sheet-btn-small <?= $fu_class ?>" title="<?= $fu_title ?>">
-                                    📋 <?= $fu_label ?>
-                                </a>
+                                <?= renderCanvasButtonHTML($p_id_str, $exam, '🗺️ 実績') ?>
                             <?php else: ?>
                                 <span style="font-size:8px; color:#94a3b8;">-</span>
                             <?php endif; ?>
@@ -2356,12 +2537,300 @@ foreach ($list_data as $r_item) {
 
 <script>
 window.currentScheduleDept = '<?= htmlspecialchars($dept, ENT_QUOTES, 'UTF-8') ?>';
+window.currentFilterDoctor = <?= json_encode($filter_doctor, JSON_UNESCAPED_UNICODE) ?>;
+window.currentFilterExam   = <?= json_encode($filter_exam, JSON_UNESCAPED_UNICODE) ?>;
+
+// 🌟 小野会日付ピッカー（カレンダー表示年月・選択日連動）
+if (window.OnokaiDatePicker) {
+    OnokaiDatePicker.bindControl('#monthScheduleDate', {
+        onChange: function(dates, dateStr) {
+            if (!dateStr) return;
+            const parts = dateStr.split('-');
+            const y = parts[0];
+            const m = parseInt(parts[1], 10);
+            const targetUrl = '?dept=<?= urlencode($dept) ?>' +
+                '&year=' + encodeURIComponent(y) +
+                '&month=' + encodeURIComponent(m) +
+                '&date=' + encodeURIComponent(dateStr) +
+                '&doctor=<?= urlencode($filter_doctor) ?>' +
+                '&exam=<?= urlencode($filter_exam) ?>' +
+                '&display_mode=<?= urlencode($display_mode) ?>' +
+                '&show_empty=<?= $show_empty ? '1' : '0' ?>';
+            window.location.href = targetUrl;
+        }
+    });
+}
+
+/* ── その他機能ドロップダウンメニュー制御 ── */
+function toggleMoreMenu(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('moreMenuDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
+function closeMoreMenu() {
+    const dropdown = document.getElementById('moreMenuDropdown');
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const container = document.querySelector('.more-menu-container');
+    if (container && !container.contains(e.target)) {
+        closeMoreMenu();
+    }
+});
 </script>
 <script src="assets/js/month_schedule.js?v=<?= time() ?>"></script>
+<script src="assets/js/toggle_no_waku.js?v=<?= time() ?>"></script>
 
 <?php include __DIR__ . '/audit_modal_inc.php'; ?>
 <?php include __DIR__ . '/medical_alert_modal_inc.php'; ?>
 <?php include __DIR__ . '/urgent_slot_modal_inc.php'; ?>
+<?php include __DIR__ . '/waku_override_modal_inc.php'; ?>
+
+<!-- ⚙️ 時間枠名称変更専用ダイアログ（当日限定・直感操作） -->
+<dialog id="wakuRenameModal" style="border:none; border-radius:12px; padding:0; box-shadow:0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.1); max-width:440px; width:92vw; background:#ffffff; overflow:hidden; z-index:100050;">
+    <div style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:#ffffff; padding:10px 16px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold; font-size:14px; display:flex; align-items:center; gap:6px;">⚙️ 時間枠名称の変更（当日限定）</span>
+        <button type="button" onclick="closeWakuRenameModal()" style="background:none; border:none; color:#ffffff; font-size:20px; cursor:pointer; line-height:1; padding:0 4px;">&times;</button>
+    </div>
+    <form id="wakuRenameForm" onsubmit="submitWakuRename(event)" style="padding:16px 20px; margin:0;">
+        <input type="hidden" id="renameDept" value="">
+        <input type="hidden" id="renameDate" value="">
+        <input type="hidden" id="renameBaseId" value="">
+        
+        <div style="margin-bottom:14px; font-size:13px; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; line-height:1.6;">
+            <div>📅 対象日: <strong id="renameDateDisplay" style="color:#0369a1; font-size:14px;"></strong></div>
+            <div style="margin-top:4px;">🕐 基本枠名: <strong id="renameOrigNameDisplay" style="color:#0f172a;"></strong></div>
+        </div>
+
+        <div style="margin-bottom:18px;">
+            <label style="display:block; font-weight:bold; font-size:13px; color:#0f172a; margin-bottom:6px;">表示枠名（変更する場合）:</label>
+            <input type="text" id="renameDisplayNameInput" style="width:100%; box-sizing:border-box; padding:8px 12px; font-size:14px; font-weight:bold; color:#1e3a8a; border:2px solid #3b82f6; border-radius:6px; outline:none;" placeholder="例: 14:30(特) や エコー枠 など">
+            <div style="font-size:11px; color:#64748b; margin-top:4px;">※元の名前に戻したい場合は「元に戻す」を押してください</div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <button type="button" onclick="resetWakuRename()" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; padding:7px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">元に戻す</button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" onclick="closeWakuRenameModal()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:7px 14px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer;">キャンセル</button>
+                <button type="submit" style="background:#0284c7; color:#ffffff; border:none; padding:7px 18px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; box-shadow:0 1px 3px rgba(2,132,199,0.3);">保存する</button>
+            </div>
+        </div>
+    </form>
+</dialog>
+
+<script>
+function openWakuRenameModal(date, currentWaku, baseId, origName, displayTitle, dept) {
+    const modal = document.getElementById('wakuRenameModal');
+    if (!modal) return;
+    document.getElementById('renameDept').value = dept;
+    document.getElementById('renameDate').value = date;
+    document.getElementById('renameBaseId').value = baseId;
+    document.getElementById('renameDateDisplay').textContent = date;
+    document.getElementById('renameOrigNameDisplay').textContent = origName || currentWaku;
+    document.getElementById('renameDisplayNameInput').value = (displayTitle && displayTitle !== origName) ? displayTitle : '';
+    if (typeof modal.showModal === 'function') {
+        modal.showModal();
+    } else {
+        modal.style.display = 'block';
+    }
+    setTimeout(() => { document.getElementById('renameDisplayNameInput').focus(); }, 80);
+}
+
+function closeWakuRenameModal() {
+    const modal = document.getElementById('wakuRenameModal');
+    if (!modal) return;
+    if (typeof modal.close === 'function') {
+        modal.close();
+    } else {
+        modal.style.display = 'none';
+    }
+}
+
+async function submitWakuRename(e) {
+    e.preventDefault();
+    const dept = document.getElementById('renameDept').value;
+    const date = document.getElementById('renameDate').value;
+    const baseId = document.getElementById('renameBaseId').value;
+    const origName = document.getElementById('renameOrigNameDisplay').textContent;
+    const newName = document.getElementById('renameDisplayNameInput').value.trim() || origName;
+
+    try {
+        const formData = new FormData();
+        formData.append('action', 'save_override');
+        formData.append('dept', dept);
+        formData.append('date', date);
+        formData.append('base_waku_id', baseId);
+        formData.append('base_waku_name', origName);
+        formData.append('display_waku_name', newName);
+        formData.append('is_suspended', '0');
+
+        const res = await fetch('action_waku_override.php', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (json.success) {
+            closeWakuRenameModal();
+            location.reload();
+        } else {
+            alert('保存エラー: ' + (json.error || json.message || '名称変更に失敗しました'));
+        }
+    } catch (err) {
+        alert('通信エラーが発生しました: ' + err.message);
+    }
+}
+
+async function resetWakuRename() {
+    if (!confirm('この日の枠名称を基本枠名に戻しますか？')) return;
+    const dept = document.getElementById('renameDept').value;
+    const date = document.getElementById('renameDate').value;
+    const baseId = document.getElementById('renameBaseId').value;
+    const origName = document.getElementById('renameOrigNameDisplay').textContent;
+
+    try {
+        const formData = new FormData();
+        formData.append('action', 'save_override');
+        formData.append('dept', dept);
+        formData.append('date', date);
+        formData.append('base_waku_id', baseId);
+        formData.append('base_waku_name', origName);
+        formData.append('display_waku_name', origName);
+        formData.append('is_suspended', '0');
+
+        const res = await fetch('action_waku_override.php', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (json.success) {
+            closeWakuRenameModal();
+            location.reload();
+        } else {
+            alert('リセットエラー: ' + (json.error || json.message || '元に戻せませんでした'));
+        }
+    } catch (err) {
+        alert('通信エラーが発生しました: ' + err.message);
+    }
+}
+</script>
+
+<?php if (!empty($_GET['open_override'])): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        if (typeof openWakuOverrideModal === 'function') {
+            const viewMode = '<?= ($_GET['open_override'] === 'manage') ? 'manage' : 'day' ?>';
+            openWakuOverrideModal('<?= $selected_date ?>', '<?= $dept ?>', viewMode);
+        }
+    }, 200);
+});
+</script>
+<?php endif; ?>
+<script>
+// ── 診療科端末永続記憶 ＆ [1][2]キー即時切替 ＆ 隠しキーボード日付移動 ──
+window.currentScheduleDept = <?= json_encode($dept) ?>;
+window.scheduleDeptUrls = {
+    proct: <?= json_encode("?dept=PROCT&year={$year}&month={$month}&date={$selected_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&display_mode={$display_mode}&show_empty=" . ($show_empty ? '1' : '0')) ?>,
+    gastro: <?= json_encode("?dept=GASTRO&year={$year}&month={$month}&date={$selected_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&display_mode={$display_mode}&show_empty=" . ($show_empty ? '1' : '0')) ?>
+};
+window.scheduleNavUrls = <?= json_encode($schedule_nav_urls, JSON_UNESCAPED_SLASHES) ?>;
+window.scheduleNavDates = <?= json_encode($schedule_nav_dates, JSON_UNESCAPED_SLASHES) ?>;
+
+// LocalStorage への端末記憶同期
+try {
+    localStorage.setItem('endoscope_selected_dept', window.currentScheduleDept);
+} catch (e) {}
+
+// キーボード操作リスナー（誤爆防止ガード付き）
+document.addEventListener('keydown', function(e) {
+    const active = document.activeElement;
+    const isInputActive = active && (
+        active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.tagName === 'SELECT' ||
+        active.isContentEditable
+    );
+    const isModalOpen = !!document.querySelector('dialog[open]');
+    const isFlatpickrOpen = !!document.querySelector('.flatpickr-calendar.open');
+    if (isInputActive || isModalOpen || isFlatpickrOpen) {
+        return;
+    }
+
+    let targetUrl = null;
+    let targetDate = null;
+    let targetLabel = '';
+
+    // [1] キー（テンキー1含む）: 🟢 肛門科へ切替
+    // [2] キー（テンキー2含む）: 🔵 胃腸科へ切替
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === '1' || e.code === 'Numpad1') {
+            e.preventDefault();
+            if (window.currentScheduleDept === 'PROCT') {
+                if (typeof showToast === 'function') {
+                    showToast('⭐ 既に🟢 肛門科を表示しています', 'info');
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🏥 🟢 肛門科へ切り替え中...', 'info');
+            }
+            try { localStorage.setItem('endoscope_selected_dept', 'PROCT'); } catch(e) {}
+            window.location.href = window.scheduleDeptUrls.proct;
+            return;
+        } else if (e.key === '2' || e.code === 'Numpad2') {
+            e.preventDefault();
+            if (window.currentScheduleDept === 'GASTRO') {
+                if (typeof showToast === 'function') {
+                    showToast('⭐ 既に🔵 胃腸科を表示しています', 'info');
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🏥 🔵 胃腸科へ切り替え中...', 'info');
+            }
+            try { localStorage.setItem('endoscope_selected_dept', 'GASTRO'); } catch(e) {}
+            window.location.href = window.scheduleDeptUrls.gastro;
+            return;
+        }
+    }
+
+    // 隠し機能: Shift + 矢印（Shift + ← / Shift + →）: 休診日スキップ移動
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'ArrowLeft') {
+            targetUrl = window.scheduleNavUrls.prevClinic;
+            targetDate = window.scheduleNavDates.prevClinic;
+            targetLabel = '前診療日';
+        } else if (e.key === 'ArrowRight') {
+            targetUrl = window.scheduleNavUrls.nextClinic;
+            targetDate = window.scheduleNavDates.nextClinic;
+            targetLabel = '次診療日';
+        }
+    } else if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // 隠し機能: 左右カーソル（← / →）: 日付移動（前日 / 翌日）
+        if (e.key === 'ArrowLeft') {
+            targetUrl = window.scheduleNavUrls.prevDay;
+            targetDate = window.scheduleNavDates.prevDay;
+            targetLabel = '前日 (-1日)';
+        } else if (e.key === 'ArrowRight') {
+            targetUrl = window.scheduleNavUrls.nextDay;
+            targetDate = window.scheduleNavDates.nextDay;
+            targetLabel = '翌日 (+1日)';
+        } else if (e.key === 't' || e.key === 'T' || e.key === 'Home') {
+            targetUrl = window.scheduleNavUrls.today;
+            targetDate = window.scheduleNavDates.today;
+            targetLabel = '今日';
+        }
+    }
+
+    if (targetUrl) {
+        e.preventDefault();
+        if (typeof showToast === 'function') {
+            showToast('📅 ' + targetLabel + ' へ移動中... (' + targetDate + ')', 'info');
+        }
+        window.location.href = targetUrl;
+    }
+});
+</script>
 
 </body>
 </html>

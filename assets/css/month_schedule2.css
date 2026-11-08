@@ -265,10 +265,12 @@
         .room-badge.room-duplicate { background: #fee2e2 !important; color: #dc2626 !important; border: 1.5px solid #ef4444 !important; font-weight: 800 !important; animation: pulse-room 1.8s infinite ease-in-out; }
         @keyframes pulse-room { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 
-        .prep-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9.5px; font-weight: 800; color: #ffffff; white-space: nowrap; }
-        .prep-badge.prep-mobi { background-color: #2563eb; }
-        .prep-badge.prep-magp { background-color: #ea580c; }
-        .prep-badge.prep-nif  { background-color: #16a34a; }
+        .prep-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9.5px; font-weight: 800; color: #ffffff; background-color: #64748b; white-space: nowrap; }
+        .prep-badge.prep-mobi  { background-color: #2563eb; }
+        .prep-badge.prep-magp  { background-color: #ea580c; }
+        .prep-badge.prep-nif   { background-color: #16a34a; }
+        .prep-badge.prep-visi  { background-color: #7c3aed; }
+        .prep-badge.prep-other { background-color: #64748b; }
 
         .age-box { display: inline-block; color: #ffffff !important; font-size: 9.5px; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px; vertical-align: middle; white-space: nowrap; }
         .age-box.age-senior { background-color: #ea580c; }

@@ -18,6 +18,8 @@
  *   - 2026-09-07: room_number (マイトイレ), bowel_prep (下剤) の保存に対応
  *   - 2026-09-07: 仮予約時・必須未設定保存時のバリデーション緩和対応
  *   - 2026-10-04: is_admission（病棟連動入院予定）のINSERTバインドパラメータ漏れ修正、およびUPDATE時の保存・差分検知に対応
+ *   - 2026-10-23: 時間枠オーバーライド（m2_waku_override）対応。枠名称変更や臨時枠でも正しい waku_no を取得できるよう getWakuDisplayOrderFromM2 を安全化
+ *   - 2026-11-06: 時間枠世代管理（valid_from 〜 valid_to）に対応。getWakuDisplayOrderFromM2 にて検査日の世代を優先解決するよう強化。
  */
 ini_set('display_errors', "0");
 error_reporting(E_ALL);
@@ -32,6 +34,7 @@ require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/patient_helper.php';
 require_once __DIR__ . '/lib/audit_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
+require_once __DIR__ . '/lib/slot_helper.php';
 
 $pdo = getDbConnection();
 if (!$pdo) {
@@ -72,20 +75,36 @@ $bowel_prep      = isset($_POST['bowel_prep']) ? trim($_POST['bowel_prep']) : ''
 /**
  * 時間枠定義（m2_waku）から表示順序（waku_no）を取得
  */
-function getWakuDisplayOrderFromM2($pdo, $dept, $scheduled_time) {
+function getWakuDisplayOrderFromM2($pdo, $dept, $scheduled_time, $exam_date = '') {
     if (empty($scheduled_time)) return 1;
     $time_raw  = trim($scheduled_time);
     $time_half = mb_convert_kana($time_raw, 'a'); // ＃1 -> #1, 全角英数字半角化
-    
+
+    // 1. 検査日が指定されている場合、当日の有効時間枠（オーバーライド考慮）から探索
+    if (!empty($exam_date)) {
+        if (!function_exists('getEffectiveWakuList')) {
+            require_once __DIR__ . '/lib/slot_helper.php';
+        }
+        $effective_list = getEffectiveWakuList($pdo, $dept, $exam_date);
+        $waku = findEffectiveWaku($effective_list, $time_raw);
+        if ($waku && isset($waku['display_order'])) {
+            writeLog('SCHEDULE', "時間枠順序(waku_no)取得成功 (effective_waku): {$waku['display_order']} (枠名: {$time_raw})");
+            return (int)$waku['display_order'];
+        }
+    }
+
+    // 2. フォールバック: 静的時間枠マスター（m2_waku）から検索（検査日の世代を最優先）
+    $eff_date = (!empty($exam_date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $exam_date)) ? $exam_date : date('Y-m-d');
     $stmt = $pdo->prepare("
         SELECT display_order 
         FROM m2_waku 
         WHERE department_code = :dept 
           AND (waku_name = :w1 OR waku_name = :w2)
           AND is_active = TRUE 
+        ORDER BY CASE WHEN :eff_date BETWEEN valid_from AND valid_to THEN 0 ELSE 1 END, id DESC
         LIMIT 1
     ");
-    $stmt->execute([':dept' => $dept, ':w1' => $time_raw, ':w2' => $time_half]);
+    $stmt->execute([':dept' => $dept, ':w1' => $time_raw, ':w2' => $time_half, ':eff_date' => $eff_date]);
     $res = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($res) {
         writeLog('SCHEDULE', "時間枠順序(waku_no)取得成功 (m2_waku): {$res['display_order']}");
@@ -128,7 +147,7 @@ try {
             exit;
         }
 
-        $waku_no = getWakuDisplayOrderFromM2($pdo, $department_code, $scheduled_time);
+        $waku_no = getWakuDisplayOrderFromM2($pdo, $department_code, $scheduled_time, $exam_date);
 
         if ($patient_id) {
             writeLog('SCHEDULE', "MALLメモ同期試行: patient_id = {$patient_id}");
@@ -138,6 +157,7 @@ try {
         $has_sed_param = isset($_POST['has_sedation']) ? (!empty($_POST['has_sedation']) ? 'true' : 'false') : null;
         $has_drive_param = isset($_POST['has_drive_caution']) ? (!empty($_POST['has_drive_caution']) ? 'true' : 'false') : null;
         $has_admission_param = isset($_POST['is_admission']) ? (!empty($_POST['is_admission']) ? 'true' : 'false') : null;
+        $has_vip_param = (!empty($_POST['is_vip']) && ($_POST['is_vip'] === '1' || $_POST['is_vip'] === 'true' || $_POST['is_vip'] === 'on')) ? 'true' : 'false';
 
         $params = [
             ':exam_date'       => $exam_date,
@@ -157,18 +177,19 @@ try {
             ':bowel_prep'      => $bowel_prep,
             ':has_sedation'    => $has_sed_param,
             ':has_drive'       => $has_drive_param,
-            ':is_admission'    => $has_admission_param
+            ':is_admission'    => $has_admission_param,
+            ':is_vip'          => $has_vip_param
         ];
         writeLog('SCHEDULE', 'INSERT実行パラメータ', $params);
 
         $sql = "INSERT INTO t_endoscopy_schedule (
                     exam_date, scheduled_time, waku_no, department_code, patient_id, patient_name, patient_kana, birthday,
                     doctor_name, exam_type, arrival_time, exam_location, remarks, room_number, bowel_prep,
-                    has_sedation, has_drive_caution, is_admission, is_canceled, created_at, updated_at
+                    has_sedation, has_drive_caution, is_admission, is_vip, is_canceled, created_at, updated_at
                 ) VALUES (
                     :exam_date, :scheduled_time, :waku_no, :department_code, :patient_id, :patient_name, :patient_kana, :birthday,
                     :doctor_name, :exam_type, :arrival_time, :exam_location, :remarks, :room_number, :bowel_prep,
-                    :has_sedation, :has_drive, :is_admission, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    :has_sedation, :has_drive, :is_admission, :is_vip, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )";
                 
         $stmt = $pdo->prepare($sql);
@@ -272,7 +293,7 @@ function normalizeRemarksForDiff(?string $text): string {
     return trim(preg_replace('/\r\n|\r|\n/', "\n", $t));
 }
 
-        $waku_no = getWakuDisplayOrderFromM2($pdo, $department_code, $scheduled_time);
+        $waku_no = getWakuDisplayOrderFromM2($pdo, $department_code, $scheduled_time, $exam_date);
 
         if ($patient_id) {
             writeLog('SCHEDULE', "更新に伴うMALLメモ同期試行: patient_id = {$patient_id}");
@@ -371,6 +392,15 @@ function normalizeRemarksForDiff(?string $text): string {
             }
         }
 
+        // 注目検査（is_vip）の差分検知
+        if (!$is_diff && isset($_POST['is_vip'])) {
+            $old_is_vip = !empty($old_row['is_vip']);
+            $new_is_vip = (!empty($_POST['is_vip']) && ($_POST['is_vip'] === '1' || $_POST['is_vip'] === 'true' || $_POST['is_vip'] === 'on'));
+            if ($old_is_vip !== $new_is_vip) {
+                $is_diff = true;
+            }
+        }
+
         // ★★★ 【完全一致・差分ゼロ】の場合：DB更新・監査ログ・医師通知をすべてスキップ ★★★
         if (!$is_diff) {
             writeLog('SCHEDULE', "無変更保存を検知: schedule_id = {$schedule_id} （DB更新・監査ログ・医師通知をすべてスキップ）");
@@ -401,6 +431,7 @@ function normalizeRemarksForDiff(?string $text): string {
 
         $has_sed_param = isset($_POST['has_sedation']) ? (!empty($_POST['has_sedation']) ? 'true' : 'false') : (isset($old_row['has_sedation']) && $old_row['has_sedation'] !== null ? (!empty($old_row['has_sedation']) ? 'true' : 'false') : null);
         $has_drive_param = isset($_POST['has_drive_caution']) ? (!empty($_POST['has_drive_caution']) ? 'true' : 'false') : (isset($old_row['has_drive_caution']) && $old_row['has_drive_caution'] !== null ? (!empty($old_row['has_drive_caution']) ? 'true' : 'false') : null);
+        $has_vip_param = isset($_POST['is_vip']) ? ((!empty($_POST['is_vip']) && ($_POST['is_vip'] === '1' || $_POST['is_vip'] === 'true' || $_POST['is_vip'] === 'on')) ? 'true' : 'false') : (isset($old_row['is_vip']) && !empty($old_row['is_vip']) ? 'true' : 'false');
         $has_admission_param = isset($_POST['manual_alert_set']) 
             ? (!empty($_POST['is_admission']) ? 'true' : 'false') 
             : (isset($_POST['is_admission']) ? (!empty($_POST['is_admission']) ? 'true' : 'false') : (isset($old_row['is_admission']) && $old_row['is_admission'] !== null ? (!empty($old_row['is_admission']) ? 'true' : 'false') : null));
@@ -424,6 +455,7 @@ function normalizeRemarksForDiff(?string $text): string {
             ':has_sedation'    => $has_sed_param,
             ':has_drive'       => $has_drive_param,
             ':is_admission'    => $has_admission_param,
+            ':is_vip'          => $has_vip_param,
             ':schedule_id'     => $schedule_id
         ];
         writeLog('SCHEDULE', 'UPDATE実行パラメータ', $params);
@@ -433,7 +465,7 @@ function normalizeRemarksForDiff(?string $text): string {
                     patient_id = :patient_id, patient_name = :patient_name, patient_kana = :patient_kana, birthday = :birthday,
                     doctor_name = :doctor_name, exam_type = :exam_type, arrival_time = :arrival_time,
                     exam_location = :exam_location, remarks = :remarks, room_number = :room_number, bowel_prep = :bowel_prep,
-                    has_sedation = :has_sedation, has_drive_caution = :has_drive, is_admission = :is_admission,
+                    has_sedation = :has_sedation, has_drive_caution = :has_drive, is_admission = :is_admission, is_vip = :is_vip,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE schedule_id = :schedule_id";
 
@@ -639,7 +671,7 @@ function normalizeRemarksForDiff(?string $text): string {
         $d_row = $dept_chk->fetch();
         $target_dept = $d_row ? $d_row['department_code'] : 'PROCT';
 
-        $waku_no = getWakuDisplayOrderFromM2($pdo, $target_dept, $scheduled_time);
+        $waku_no = getWakuDisplayOrderFromM2($pdo, $target_dept, $scheduled_time, $exam_date);
 
         $sql = "UPDATE t_endoscopy_schedule SET exam_date = :exam_date, scheduled_time = :scheduled_time, waku_no = :waku_no, updated_at = CURRENT_TIMESTAMP WHERE schedule_id = :schedule_id";
         $stmt = $pdo->prepare($sql);

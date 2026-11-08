@@ -4,7 +4,18 @@
  * 内視鏡室 当日進捗ステータスモニター (電子ホワイトボード)
  * 
  * 生成日時: 2026-09-09 20:30:00 JST
+ * 更新日時: 2026-11-06 16:40:00 JST
  * 改修履歴:
+ *   - 2026-11-06 (下剤バッジ色分け強化：ビジクリア専用パープル ＆ 未定義下剤フォールバック色対応):
+ *       1. 前処置セルの下剤バッジにビジクリア専用色（.prep-med-visi: パープル系）および未定義下剤フォールバック色（.prep-med-other: スレート系）を追加
+ *       2. 下剤情報ポップオーバー（showMedInfo）にビジクリアの服薬案内を追加
+ *   - 2026-11-01 (UI大幅スリム化 ＆ 表示モード整理 ＆ コントロール統合):
+ *       1. あまり使わないボタン群（当日・緊急追加、アラートスキャン、直近空き枠速報、当日印刷、カレンダー、ポータル）を「📂 その他メニュー ▾」リストボックスに統合集約し、ヘッダーを大幅スリム化
+ *       2. 自動更新コントロールに「🔄 今すぐ更新」アイコンボタンを一体化配置
+ *       3. 表示モードから「圧縮」という言葉を排除し、「🔲 タイル」「📋 テーブル」の2択に整理。「高密度表」「標準表」を撤廃し、テーブル時は常に圧縮状態（高密度）をデフォルト固定
+ *       4. 検査種別フィルタータブにサマリー件数を合体統合し、下段サマリーバーの重複バッジを撤廃
+ *       5. 日付ステッパー内に「今日へ」ボタンをスマートに内包・一体化
+ *       6. サマリーバーの「🔔 説明待」と「6. 説明中」を「6. 説明 (待○/中○)」に1枠統合
  *   - 2026-09-29 (第4弾: 多数患者俯瞰・スクロール削減・インデックス絞り込み):
  *       1. 3つの表示モード切替（🔲 タイル ／ 📑 高密度表 ／ 📄 標準表）新設、職種別初期モード連動＆端末自動記憶
  *       2. タイル表示モード（予約枠時間順マトリクス・4〜6列グリッド、現在ステータス・タイマー・重要アラート集約）新設
@@ -28,7 +39,7 @@
  *       - GIF(胃カメラ)動線最適化（前処置なし・1➔3直接進捗）
  *       - セデーション(鎮静剤/プロポフォール)有無管理・リカバリスキップ連動
  *       - 検査種別フィルター(全内視鏡 / 大腸系 / 胃カメラ)常設
- */
+ *  */
 
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -228,6 +239,33 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             gap: 6px;
         }
 
+        .date-btn-today {
+            font-size: 11px;
+            background: #0284c7;
+            color: #ffffff;
+            padding: 2px 7px;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            font-weight: 800;
+            transition: background 0.15s;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+        }
+        .date-btn-today:hover {
+            background: #0369a1;
+        }
+
+        .badge-today {
+            font-size: 10.5px;
+            background: #38bdf8;
+            color: #0f172a;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
         .dept-tabs, .role-tabs, .exam-tabs {
             display: inline-flex;
             background: var(--bg-app);
@@ -266,6 +304,21 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 
         .tab-btn.active-proct { background: #0284c7; color: #fff; }
         .tab-btn.active-gastro { background: #059669; color: #fff; }
+
+        .tab-badge-count {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.18);
+            font-size: 11px;
+            font-weight: 800;
+            padding: 0 5px;
+            border-radius: 10px;
+            margin-left: 3px;
+            line-height: 1.3;
+        }
+        .tab-btn.active .tab-badge-count {
+            background: rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+        }
 
         /* 自動更新 & ツール */
         .sync-controls {
@@ -310,6 +363,67 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             background: var(--primary);
             width: 100%;
             transform-origin: left;
+        }
+
+        .btn-refresh-now {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: var(--radius-sm);
+            width: 26px;
+            height: 24px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            line-height: 1;
+            padding: 0;
+            margin-left: 2px;
+        }
+
+        .btn-refresh-now:hover {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+            transform: rotate(180deg);
+        }
+
+        .btn-refresh-now:active {
+            transform: rotate(360deg);
+        }
+
+        .header-menu-wrap {
+            display: flex;
+            align-items: center;
+        }
+
+        .select-header-menu {
+            background: linear-gradient(135deg, #334155, #1e293b);
+            color: #f8fafc;
+            border: 1px solid #475569;
+            padding: 5px 12px;
+            border-radius: var(--radius-md);
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.15s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .select-header-menu:hover {
+            border-color: #38bdf8;
+            background: linear-gradient(135deg, #475569, #334155);
+            color: #ffffff;
+        }
+
+        .select-header-menu option {
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 13px;
+            padding: 6px 10px;
         }
 
         .btn-header {
@@ -1050,9 +1164,11 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             margin-top: 4px;
             cursor: pointer;
         }
-        .prep-med-mobi { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
-        .prep-med-magp { background: #7c2d12; color: #fdba74; border: 1px solid #f97316; }
-        .prep-med-nif { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
+        .prep-med-mobi  { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+        .prep-med-magp  { background: #7c2d12; color: #fdba74; border: 1px solid #f97316; }
+        .prep-med-nif   { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
+        .prep-med-visi  { background: #4c1d95; color: #ddd6fe; border: 1px solid #8b5cf6; }
+        .prep-med-other { background: #334155; color: #e2e8f0; border: 1px solid #64748b; }
 
         .prep-status-toggle {
             font-size: 10px;
@@ -2342,18 +2458,17 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                 <button type="button" class="tab-btn" data-role="clerk" onclick="switchRoleView('clerk', this)">📋 受付事務</button>
             </nav>
 
-            <!-- 表示モード切替タブ -->
+            <!-- 表示モード切替タブ（🔲 タイル / 📋 テーブル） -->
             <nav class="view-mode-tabs" aria-label="表示モード切替">
-                <button type="button" class="btn-view-mode active" id="btnModeTile" onclick="switchViewMode('tile')">🔲 タイル</button>
-                <button type="button" class="btn-view-mode" id="btnModeCompact" onclick="switchViewMode('compact')">📑 高密度表</button>
-                <button type="button" class="btn-view-mode" id="btnModeStandard" onclick="switchViewMode('standard')">📄 標準表</button>
+                <button type="button" class="btn-view-mode active" id="btnModeTable" onclick="switchViewMode('table')">📋 テーブル</button>
+                <button type="button" class="btn-view-mode" id="btnModeTile" onclick="switchViewMode('tile')">🔲 タイル</button>
             </nav>
         </div>
 
         <div class="sync-controls">
-            <!-- 自動更新間隔 -->
+            <!-- 自動更新間隔 ＆ 今すぐ更新アイコン -->
             <div class="auto-refresh-box">
-                <span>🔄 自動更新:</span>
+                <span>自動更新:</span>
                 <select id="refreshIntervalSelect" class="select-dark" onchange="changeRefreshInterval(this.value)">
                     <option value="10">10秒</option>
                     <option value="20">20秒</option>
@@ -2361,52 +2476,44 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                     <option value="60">60秒</option>
                     <option value="0">停止</option>
                 </select>
+                <button type="button" class="btn-refresh-now" id="btnRefreshNow" onclick="fetchProgressData(true)" title="今すぐデータを最新に更新 (クリック)">
+                    🔄
+                </button>
                 <span id="savedIndicator" class="saved-indicator" title="更新間隔と職種表示は各端末に自動保存されます">💾 端末保存</span>
                 <div class="refresh-progress" title="次回更新までのカウントダウン">
                     <div id="refreshBar" class="refresh-bar"></div>
                 </div>
             </div>
 
-            <button type="button" class="btn-header" onclick="fetchProgressData(true)" title="今すぐデータを最新に更新">
-                <span>⚡ 今すぐ更新</span>
-            </button>
-            <button type="button" class="btn-header" style="background: linear-gradient(135deg, #059669, #047857); border-color:#059669; color:#fff; font-weight:800;" onclick="openEmergencyRegisterModal()" title="当日の緊急検査・浣腸CF・当日飛び込み予約を追加">
-                <span>➕ 当日・緊急追加</span>
-            </button>
-            <button type="button" class="btn-header" style="background: linear-gradient(135deg, #e11d48, #be123c); border-color:#e11d48; color:#fff;" onclick="openMedicalAlertScanModal({date: '<?= $date_str ?>', dept: '<?= $dept ?>'})" title="当日の抗血栓薬・アレルギー・感染症・風邪アラートスキャン">
-                <span>🛡️ アラートスキャン</span>
-            </button>
-            <button type="button" class="btn-header nav-btn-urgent" style="background: linear-gradient(135deg, #f59e0b, #ea580c); border-color:#d97706; color:#fff; font-weight:800;" onclick="openUrgentSlotModal()" id="btnNavUrgentSlot" title="本日〜30日以内の大腸内視鏡(CF/TCF)空き枠・直前キャンセル速報">
-                <span>⚡ 直近空き枠速報</span>
-                <span id="navUrgentSlotBadge" style="background:#fff; color:#ea580c; font-size:10px; padding:1px 6px; border-radius:10px; font-weight:900; margin-left:3px; display:none;">0</span>
-            </button>
-            <a href="print_schedule_daily.php?date=<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>&dept=<?= htmlspecialchars($dept, ENT_QUOTES, 'UTF-8') ?>" class="btn-header" target="_blank" title="A4当日一覧を印刷">
-                <span>🖨️ 当日印刷</span>
-            </a>
-            <a href="month_schedule.php?dept=<?= htmlspecialchars($dept, ENT_QUOTES, 'UTF-8') ?>" class="btn-header" title="月間カレンダーへ戻る">
-                <span>📅 カレンダー</span>
-            </a>
-            <a href="index.php" class="btn-header" title="ポータルメニューへ戻る">
-                <span>🏠 ポータル</span>
-            </a>
+            <!-- 各種操作・メニュー リストボックス -->
+            <div class="header-menu-wrap">
+                <select id="headerMenuSelect" class="select-header-menu" onchange="handleHeaderMenu(this)">
+                    <option value="" disabled selected>📂 その他メニュー ▾</option>
+                    <option value="emergency">➕ 当日・緊急追加</option>
+                    <option value="alert_scan">🛡️ アラートスキャン</option>
+                    <option value="urgent_slot">⚡ 直近空き枠速報</option>
+                    <option value="print">🖨️ 当日印刷 (A4)</option>
+                    <option value="calendar">📅 月間カレンダー</option>
+                    <option value="portal">🏠 ポータルメニュー</option>
+                </select>
+            </div>
         </div>
     </div>
 
-    <!-- 2行目：日付選択 ＆ 診療科切替 ＆ 検査種別フィルター ＆ 滞在中トグル -->
+    <!-- 2行目：日付選択 ＆ 診療科切替 ＆ 検査種別フィルター（件数連動） ＆ 滞在中トグル -->
     <div class="controls-row">
         <div class="date-stepper">
             <a href="?date=<?= $prev_date ?>&dept=<?= $dept ?>&exam_filter=<?= $exam_filter ?>" class="date-btn" title="前日へ">◀</a>
             <div class="date-current">
                 <span>📅 <?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?> (<?= $dow ?>)</span>
                 <?php if ($is_today): ?>
-                    <span style="font-size: 10px; background: #38bdf8; color: #0f172a; padding: 1px 5px; border-radius: 3px; font-weight: 800;">本日</span>
+                    <span class="badge-today">本日</span>
+                <?php else: ?>
+                    <a href="?date=<?= $today_str ?>&dept=<?= $dept ?>&exam_filter=<?= $exam_filter ?>" class="date-btn-today" title="本日の日付に戻る">今日へ</a>
                 <?php endif; ?>
             </div>
             <a href="?date=<?= $next_date ?>&dept=<?= $dept ?>&exam_filter=<?= $exam_filter ?>" class="date-btn" title="翌日へ">▶</a>
         </div>
-        <?php if (!$is_today): ?>
-            <a href="?date=<?= $today_str ?>&dept=<?= $dept ?>&exam_filter=<?= $exam_filter ?>" class="btn-header" style="background:#0284c7;color:#fff;">本日に戻る</a>
-        <?php endif; ?>
 
         <!-- 診療科タブ -->
         <div class="dept-tabs">
@@ -2415,12 +2522,12 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             <a href="?date=<?= $date_str ?>&dept=GASTRO&exam_filter=<?= $exam_filter ?>" class="tab-btn <?= $dept === 'GASTRO' ? 'active active-gastro' : '' ?>">胃腸科</a>
         </div>
 
-        <!-- 検査種別フィルター4タブ -->
+        <!-- 検査種別フィルター4タブ（サマリー件数合体版） -->
         <div class="exam-tabs" style="margin-left: 6px;">
-            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=ALL" class="tab-btn <?= $exam_filter === 'ALL' ? 'active' : '' ?>">🔬 全内視鏡</a>
-            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=CF" class="tab-btn <?= $exam_filter === 'CF' ? 'active' : '' ?>" style="<?= $exam_filter === 'CF' ? 'background:#059669;color:#fff;' : '' ?>">🟢 大腸系 (TCF)</a>
-            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=ENEMA" class="tab-btn <?= $exam_filter === 'ENEMA' ? 'active' : '' ?>" style="<?= $exam_filter === 'ENEMA' ? 'background:#7c3aed;color:#fff;' : '' ?>">🟣 浣腸CF</a>
-            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=GIF" class="tab-btn <?= $exam_filter === 'GIF' ? 'active' : '' ?>" style="<?= $exam_filter === 'GIF' ? 'background:#0284c7;color:#fff;' : '' ?>">🔵 胃カメラ</a>
+            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=ALL" class="tab-btn <?= $exam_filter === 'ALL' ? 'active' : '' ?>" id="tabExamALL">🔬 全内視鏡 <span class="tab-badge-count" id="badgeExamALL">-</span></a>
+            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=CF" class="tab-btn <?= $exam_filter === 'CF' ? 'active' : '' ?>" id="tabExamCF" style="<?= $exam_filter === 'CF' ? 'background:#059669;color:#fff;' : '' ?>">🟢 大腸系 (TCF) <span class="tab-badge-count" id="badgeExamCF">-</span></a>
+            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=ENEMA" class="tab-btn <?= $exam_filter === 'ENEMA' ? 'active' : '' ?>" id="tabExamENEMA" style="<?= $exam_filter === 'ENEMA' ? 'background:#7c3aed;color:#fff;' : '' ?>">🟣 浣腸CF <span class="tab-badge-count" id="badgeExamENEMA">-</span></a>
+            <a href="?date=<?= $date_str ?>&dept=<?= $dept ?>&exam_filter=GIF" class="tab-btn <?= $exam_filter === 'GIF' ? 'active' : '' ?>" id="tabExamGIF" style="<?= $exam_filter === 'GIF' ? 'background:#0284c7;color:#fff;' : '' ?>">🔵 胃カメラ <span class="tab-badge-count" id="badgeExamGIF">-</span></a>
         </div>
 
         <!-- 院内滞在中クイック絞り込みボタン -->
@@ -2452,19 +2559,6 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         <span class="pill-num" id="sumTotal">-</span>
     </div>
     <div class="summary-divider"></div>
-    <div class="summary-pill" onclick="quickFilterExam('CF')" title="大腸系(TCF)のみ絞り込み">
-        <span class="pill-label">🟢 TCF</span>
-        <span class="pill-num text-success" id="sumCF">-</span>
-    </div>
-    <div class="summary-pill" onclick="quickFilterExam('ENEMA')" title="🟣 浣腸CFのみ絞り込み">
-        <span class="pill-label">🟣 浣腸</span>
-        <span class="pill-num text-purple" id="sumEnema">-</span>
-    </div>
-    <div class="summary-pill" onclick="quickFilterExam('GIF')" title="🔵 胃カメラ(GIF)のみ絞り込み">
-        <span class="pill-label">🔵 胃</span>
-        <span class="pill-num text-primary" id="sumGIF">-</span>
-    </div>
-    <div class="summary-divider"></div>
     <div class="summary-pill summary-filter-st" data-status="1" onclick="toggleStatusFilter(1)" title="1. 受付済のみ絞り込み">
         <span class="pill-label">1.受付</span>
         <span class="pill-num text-primary" id="sumSt1">-</span>
@@ -2486,13 +2580,10 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         <span class="pill-label">5.リカバリ</span>
         <span class="pill-num text-indigo" id="sumSt5">-</span>
     </div>
-    <div class="summary-pill summary-filter-st" data-status="exp" onclick="toggleStatusFilter('exp')" title="説明待ち(医師待)のみ絞り込み" id="cardExplainWait">
-        <span class="pill-label">🔔説明待</span>
-        <span class="pill-num text-warning" id="sumExpWait">-</span>
-    </div>
-    <div class="summary-pill summary-filter-st" data-status="6" onclick="toggleStatusFilter(6)" title="6. 結果説明中のみ絞り込み">
-        <span class="pill-label">6.説明中</span>
+    <div class="summary-pill summary-filter-st" data-status="6" onclick="toggleStatusFilter(6)" title="6. 結果説明（説明待・説明中）のみ絞り込み" id="cardExplainTotal">
+        <span class="pill-label">6.説明</span>
         <span class="pill-num text-purple" id="sumSt6">-</span>
+        <span id="sumExpSub" style="font-size:10px; font-weight:800; color:#94a3b8; margin-left:3px; display:none;"></span>
     </div>
     <div class="summary-pill summary-filter-st" data-status="7" onclick="toggleStatusFilter(7)" title="7. 帰宅・完了のみ絞り込み">
         <span class="pill-label">7.完了</span>
@@ -2524,8 +2615,8 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 <!-- トースト通知 -->
 <div id="savedToast" class="saved-toast"></div>
 
-<!-- メインコンテナ -->
-<main class="main-container" id="mainContainer">
+<!-- メインコンテナ（デフォルトで圧縮表示 view-mode-compact を適用） -->
+<main class="main-container view-mode-compact" id="mainContainer">
     <!-- 職種専用ガイダンス & インジケーターバー -->
     <div id="roleGuidanceBar" class="role-guidance-bar"></div>
 
@@ -2824,7 +2915,11 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 
 <script>
     var currentRole = localStorage.getItem('endoscope_role_view') || 'all';
-    var currentViewMode = localStorage.getItem('endoscope_view_mode') || (currentRole === 'all' ? 'tile' : 'compact');
+    var savedViewMode = localStorage.getItem('endoscope_view_mode');
+    if (savedViewMode === 'compact' || savedViewMode === 'standard') {
+        savedViewMode = 'table';
+    }
+    var currentViewMode = savedViewMode || 'table';
     var activeKanaFilter = 'ALL';
     var activeStatusFilter = null; // null or 1..7, 'exp', 'biopsy'
     var isStayOnlyActive = false;
@@ -2851,6 +2946,32 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         notifications: []
     };
     var isNotifPanelOpen = false;
+
+    /* ============================================================
+       ヘッダーメニューリストボックス操作
+    ============================================================ */
+    function handleHeaderMenu(elem) {
+        if (!elem) return;
+        var val = elem.value;
+        elem.selectedIndex = 0; // 選択後に初期値に戻す
+        if (!val) return;
+
+        if (val === 'emergency') {
+            if (typeof openEmergencyRegisterModal === 'function') openEmergencyRegisterModal();
+        } else if (val === 'alert_scan') {
+            if (typeof openMedicalAlertScanModal === 'function') {
+                openMedicalAlertScanModal({date: currentDate, dept: currentDept});
+            }
+        } else if (val === 'urgent_slot') {
+            if (typeof openUrgentSlotModal === 'function') openUrgentSlotModal();
+        } else if (val === 'print') {
+            window.open('print_schedule_daily.php?date=' + encodeURIComponent(currentDate) + '&dept=' + encodeURIComponent(currentDept), '_blank');
+        } else if (val === 'calendar') {
+            window.location.href = 'month_schedule.php?dept=' + encodeURIComponent(currentDept);
+        } else if (val === 'portal') {
+            window.location.href = 'index.php';
+        }
+    }
 
     function showSavedToast(msg) {
         var t = document.getElementById('savedToast');
@@ -2919,8 +3040,8 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             if (targetBtn) targetBtn.classList.add('active');
         }
 
-        // 職種別初期モード連動 (全体俯瞰はタイル、それ以外は高密度表)
-        var preferredMode = (role === 'all') ? 'tile' : 'compact';
+        // 職種別初期モード連動 (現在のモード維持、デフォルトはテーブル)
+        var preferredMode = (currentViewMode === 'tile') ? 'tile' : 'table';
         applyViewMode(preferredMode, true);
 
         updateDoctorNotifVisibility();
@@ -2959,30 +3080,31 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
     }
 
     /* ============================================================
-       表示モード切替 (🔲 タイル / 📑 高密度表 / 📄 標準表)
+       表示モード切替 (📋 テーブル / 🔲 タイル)
     ============================================================ */
     function switchViewMode(mode) {
+        if (mode !== 'tile') mode = 'table';
         currentViewMode = mode;
         try {
             localStorage.setItem('endoscope_view_mode', mode);
-            var modeLabels = { 'tile': 'タイル表示', 'compact': '高密度表', 'standard': '標準表' };
+            var modeLabels = { 'tile': 'タイル表示', 'table': 'テーブル表示' };
             showSavedToast('表示モードを端末に保存: ' + (modeLabels[mode] || mode));
         } catch(e) {}
         applyViewMode(mode, false);
     }
 
     function applyViewMode(mode, isAutoRoleSwitch) {
+        if (mode !== 'tile') mode = 'table';
         currentViewMode = mode;
         var btnTile = document.getElementById('btnModeTile');
-        var btnCompact = document.getElementById('btnModeCompact');
-        var btnStandard = document.getElementById('btnModeStandard');
+        var btnTable = document.getElementById('btnModeTable');
         if (btnTile) btnTile.classList.toggle('active', mode === 'tile');
-        if (btnCompact) btnCompact.classList.toggle('active', mode === 'compact');
-        if (btnStandard) btnStandard.classList.toggle('active', mode === 'standard');
+        if (btnTable) btnTable.classList.toggle('active', mode === 'table');
 
         var container = document.getElementById('mainContainer');
         if (container) {
-            container.classList.toggle('view-mode-compact', mode === 'compact');
+            // テーブル表示時は常に高密度（圧縮）スタイルを適用
+            container.classList.add('view-mode-compact');
         }
 
         var tileView = document.getElementById('tileGridView');
@@ -3084,7 +3206,7 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             tags.push('頭文字「' + activeKanaFilter + '行」');
         }
         if (activeStatusFilter !== null) {
-            var stNames = { 1: '1.受付済', 2: '2.マイトイレ案内', 3: '3.検査待ち', 4: '4.検査中', 5: '5.リカバリ中', 6: '6.結果説明中', 7: '7.完了', 'exp': '🔔説明待ち', 'biopsy': '🚨検体未照合' };
+            var stNames = { 1: '1.受付済', 2: '2.マイトイレ案内', 3: '3.検査待ち', 4: '4.検査中', 5: '5.リカバリ中', 6: '6.結果説明', 7: '7.完了', 'exp': '🔔説明待ち', 'biopsy': '🚨検体未照合' };
             tags.push('ステータス「' + (stNames[activeStatusFilter] || activeStatusFilter) + '」');
         }
         if (isStayOnlyActive) {
@@ -3103,7 +3225,7 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 
     function focusPatientInTable(scheduleId) {
         // タイルから該当行へのフォーカスジャンプ
-        switchViewMode('compact');
+        switchViewMode('table');
         setTimeout(function() {
             var row = document.getElementById('row-sched-' + scheduleId);
             if (row) {
@@ -3318,16 +3440,23 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 
     function renderSummary(sum) {
         if (!sum) return;
-        document.getElementById('sumTotal').textContent = sum.total;
-        document.getElementById('sumCF').textContent = sum.cf_count || 0;
-        if (document.getElementById('sumEnema')) {
-            document.getElementById('sumEnema').textContent = sum.enema_count || 0;
-        }
-        document.getElementById('sumGIF').textContent = sum.gif_count || 0;
-        document.getElementById('sumSt1').textContent = sum.status_counts[1] || 0;
-        document.getElementById('sumSt2').textContent = sum.status_counts[2] || 0;
+        if (document.getElementById('sumTotal')) document.getElementById('sumTotal').textContent = sum.total;
+
+        // 検査種別タブの件数バッジに反映
+        if (document.getElementById('badgeExamALL')) document.getElementById('badgeExamALL').textContent = sum.total || 0;
+        if (document.getElementById('badgeExamCF')) document.getElementById('badgeExamCF').textContent = sum.cf_count || 0;
+        if (document.getElementById('badgeExamENEMA')) document.getElementById('badgeExamENEMA').textContent = sum.enema_count || 0;
+        if (document.getElementById('badgeExamGIF')) document.getElementById('badgeExamGIF').textContent = sum.gif_count || 0;
+
+        // 旧IDへの互換・安全ガード
+        if (document.getElementById('sumCF')) document.getElementById('sumCF').textContent = sum.cf_count || 0;
+        if (document.getElementById('sumEnema')) document.getElementById('sumEnema').textContent = sum.enema_count || 0;
+        if (document.getElementById('sumGIF')) document.getElementById('sumGIF').textContent = sum.gif_count || 0;
+
+        if (document.getElementById('sumSt1')) document.getElementById('sumSt1').textContent = sum.status_counts[1] || 0;
+        if (document.getElementById('sumSt2')) document.getElementById('sumSt2').textContent = sum.status_counts[2] || 0;
         var st3Total = sum.status_counts[3] || 0;
-        document.getElementById('sumSt3').textContent = st3Total;
+        if (document.getElementById('sumSt3')) document.getElementById('sumSt3').textContent = st3Total;
         var subEl = document.getElementById('sumSt3Sub');
         if (subEl) {
             if (st3Total > 0) {
@@ -3339,20 +3468,37 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                 subEl.style.display = 'none';
             }
         }
-        document.getElementById('sumSt4').textContent = sum.status_counts[4] || 0;
-        document.getElementById('sumSt5').textContent = sum.status_counts[5] || 0;
-        document.getElementById('sumSt6').textContent = sum.status_counts[6] || 0;
-        document.getElementById('sumSt7').textContent = sum.status_counts[7] || 0;
+        if (document.getElementById('sumSt4')) document.getElementById('sumSt4').textContent = sum.status_counts[4] || 0;
+        if (document.getElementById('sumSt5')) document.getElementById('sumSt5').textContent = sum.status_counts[5] || 0;
 
-        document.getElementById('sumExpWait').textContent = sum.explain_waiting_count || 0;
-        document.getElementById('sumBiopsyAlert').textContent = sum.unverified_biopsy_count || 0;
+        // 6. 結果説明（説明待＋説明中の統合表示）
+        var st6Count = sum.status_counts[6] || 0;
+        var expWaitCount = sum.explain_waiting_count || 0;
+        var st6Total = st6Count + expWaitCount;
+        if (document.getElementById('sumSt6')) document.getElementById('sumSt6').textContent = st6Total;
+        var expSubEl = document.getElementById('sumExpSub');
+        if (expSubEl) {
+            if (st6Total > 0) {
+                expSubEl.innerHTML = '(<span style="color:#fbbf24;" title="説明待ち">待' + expWaitCount + '</span>/<span style="color:#c084fc;" title="説明中">中' + st6Count + '</span>)';
+                expSubEl.style.display = 'inline';
+            } else {
+                expSubEl.style.display = 'none';
+            }
+        }
+
+        if (document.getElementById('sumSt7')) document.getElementById('sumSt7').textContent = sum.status_counts[7] || 0;
+
+        if (document.getElementById('sumExpWait')) document.getElementById('sumExpWait').textContent = expWaitCount;
+        if (document.getElementById('sumBiopsyAlert')) document.getElementById('sumBiopsyAlert').textContent = sum.unverified_biopsy_count || 0;
 
         var biopsyCard = document.getElementById('cardBiopsyAlert');
-        if (sum.unverified_biopsy_count > 0) {
-            biopsyCard.style.display = 'flex';
-        } else {
-            biopsyCard.style.display = 'flex';
-            biopsyCard.classList.remove('alert-card');
+        if (biopsyCard) {
+            if (sum.unverified_biopsy_count > 0) {
+                biopsyCard.style.display = 'flex';
+            } else {
+                biopsyCard.style.display = 'flex';
+                biopsyCard.classList.remove('alert-card');
+            }
         }
 
         // 医療安全アラートカード
@@ -3624,6 +3770,9 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                     if (!p.is_explain_waiting) return;
                 } else if (activeStatusFilter === 'biopsy') {
                     if (!p.is_unverified_biopsy) return;
+                } else if (parseInt(activeStatusFilter, 10) === 6) {
+                    // ★ 統合された「6.説明」: 説明中(stId===6) または 説明待ち(p.is_explain_waiting)
+                    if (stId !== 6 && !p.is_explain_waiting) return;
                 } else if (parseInt(activeStatusFilter, 10) !== stId) {
                     return;
                 }
@@ -3739,9 +3888,11 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                 var medHtml = '';
                 if (p.bowel_prep) {
                     var medRaw = p.bowel_prep;
-                    var medCls = 'prep-med-mobi';
-                    if (medRaw.indexOf('マグ') !== -1) medCls = 'prep-med-magp';
-                    if (medRaw.indexOf('ニフ') !== -1) medCls = 'prep-med-nif';
+                    var medCls = 'prep-med-other';
+                    if (medRaw.indexOf('モビ') !== -1) medCls = 'prep-med-mobi';
+                    else if (medRaw.indexOf('マグ') !== -1) medCls = 'prep-med-magp';
+                    else if (medRaw.indexOf('ニフ') !== -1) medCls = 'prep-med-nif';
+                    else if (medRaw.indexOf('ビジ') !== -1) medCls = 'prep-med-visi';
                     medHtml = '<div class="prep-med-badge ' + medCls + '" onclick="showMedInfo(event, \'' + escapeHtml(medRaw) + '\')">💊 ' + escapeHtml(medRaw) + ' <small>ℹ️</small></div>';
                 }
 
@@ -4686,6 +4837,8 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             info = '<strong>💊 マグコロールP</strong><br>・水1.8Lで全量溶解<br>・排泄便が透明水様になるまで飲用<br>・冷水推奨';
         } else if (medName.indexOf('ニフ') !== -1) {
             info = '<strong>💊 ニフレック</strong><br>・水2Lで溶解<br>・約2時間かけて服用';
+        } else if (medName.indexOf('ビジ') !== -1) {
+            info = '<strong>💊 ビジクリア配合錠</strong><br>・1回5錠ずつ、15分ごとに水またはお茶200mlで服用（計50錠）';
         } else {
             info = '<strong>💊 ' + escapeHtml(medName) + '</strong><br>・指示通りの用量・ペースで内服してください';
         }

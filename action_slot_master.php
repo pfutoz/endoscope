@@ -1,13 +1,15 @@
 <?php
 /**
  * 生成日時: 2026-09-29 14:34:00 JST
+ * 更新日時: 2026-11-06
  * 設置パス: c:\Apache24\htdocs\endoscope\action_slot_master.php
  * ファイル名: action_slot_master.php
+ * 概要: 検査枠マスターメンテナンス アクション処理（時間枠世代管理・期間一括変更・監査ログ＆ワンクリック復元対応版）
  * 
- * 検査枠マスターメンテナンス アクション処理（監査ログ＆ワンクリック復元・履歴一括削除対応版）
  * 修正履歴:
  *   - 2026-09-01: attendance_add / attendance_update で pattern_name が未選択（空）の場合でも空文字代入で NOT NULL 制約違反防止、過去日付登録防止バリデーション
  *   - 2026-09-29: 検査枠マスタ（医師、時間枠、枠数パターン、出勤例外）の変更差分を t_master_audit_log に自動記録する機能、ワンクリック復元（undo_slot_master）、履歴一括削除（clear_slot_audit_logs）を実装
+ *   - 2026-11-06: 時間枠世代管理（valid_from 〜 valid_to）に対応。世代期間一括変更（waku_period_bulk_update・前後世代境界日の自動連動）、新世代作成・期間分割（waku_generation_split）、世代一括削除（waku_generation_delete）を実装。
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -198,6 +200,8 @@ try {
         $waku_names      = $_POST['waku_name'] ?? [];
         $display_orders  = $_POST['display_order'] ?? [];
         $is_actives      = $_POST['is_active'] ?? [];
+        $gen_from        = trim($_POST['gen_from'] ?? '');
+        $gen_to          = trim($_POST['gen_to'] ?? '');
 
         $stmt_cur = $pdo->prepare("SELECT * FROM m2_waku WHERE department_code = :dept");
         $stmt_cur->execute([':dept' => $dept]);
@@ -239,7 +243,9 @@ try {
                         'group_code'      => $grp,
                         'waku_name'       => $name,
                         'display_order'   => $disp,
-                        'is_active'       => $act
+                        'is_active'       => $act,
+                        'valid_from'      => $cur['valid_from'] ?? '1900-01-01',
+                        'valid_to'        => $cur['valid_to'] ?? '9999-12-31',
                     ];
                     $diff_notes[] = "「{$cur['waku_name']}」➔「{$name}」(G:{$grp}, 順:{$disp}, 有効:{$act})";
                 }
@@ -264,11 +270,12 @@ try {
                 '時間枠一括更新',
                 $old_data,
                 $new_data,
-                "時間枠一括更新: " . implode('; ', $diff_notes)
+                "時間枠一括更新 ({$gen_from}〜{$gen_to}): " . implode('; ', $diff_notes)
             );
         }
 
-        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}&msg=" . urlencode('時間枠を一括更新しました。'));
+        $gen_qs = ($gen_from !== '' && $gen_to !== '') ? "&gen_from=" . urlencode($gen_from) . "&gen_to=" . urlencode($gen_to) : '';
+        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}{$gen_qs}&msg=" . urlencode('時間枠を一括更新しました。'));
         exit;
     }
 
@@ -277,14 +284,21 @@ try {
         $waku_name     = trim($_POST['waku_name'] ?? '');
         $waku_code     = trim($_POST['waku_code'] ?? '');
         $display_order = (int)($_POST['display_order'] ?? 0);
+        $valid_from    = trim($_POST['valid_from'] ?? '1900-01-01');
+        $valid_to      = trim($_POST['valid_to'] ?? '9999-12-31');
+        if ($valid_from === '') { $valid_from = '1900-01-01'; }
+        if ($valid_to === '')   { $valid_to = '9999-12-31'; }
 
         if ($group_code === '' || $waku_name === '') {
             throw new Exception('グループと枠名は必須です。');
         }
+        if ($waku_code === '') {
+            $waku_code = $group_code . '_' . $display_order;
+        }
 
         $stmt = $pdo->prepare("
-            INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, created_at, updated_at)
-            VALUES (:dept, :grp, :code, :name, :disp, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+            VALUES (:dept, :grp, :code, :name, :disp, TRUE, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         ");
         $stmt->execute([
@@ -292,7 +306,9 @@ try {
             ':grp'  => $group_code,
             ':code' => $waku_code,
             ':name' => $waku_name,
-            ':disp' => $display_order
+            ':disp' => $display_order,
+            ':vf'   => $valid_from,
+            ':vt'   => $valid_to,
         ]);
         $new_id = (int)$stmt->fetchColumn();
 
@@ -304,22 +320,28 @@ try {
             (string)$new_id,
             $waku_name,
             null,
-            ['id' => $new_id, 'department_code' => $dept, 'group_code' => $group_code, 'waku_code' => $waku_code, 'waku_name' => $waku_name, 'display_order' => $display_order],
-            "時間枠追加: 「{$waku_name}」(科: {$dept}, グループ: {$group_code}, 表示順: {$display_order})"
+            ['id' => $new_id, 'department_code' => $dept, 'group_code' => $group_code, 'waku_code' => $waku_code, 'waku_name' => $waku_name, 'display_order' => $display_order, 'valid_from' => $valid_from, 'valid_to' => $valid_to],
+            "時間枠追加: 「{$waku_name}」(科: {$dept}, 期間: {$valid_from}〜{$valid_to}, グループ: {$group_code}, 表示順: {$display_order})"
         );
 
-        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}&msg=" . urlencode("時間枠「{$waku_name}」を追加しました。"));
+        $gen_qs = "&gen_from=" . urlencode($valid_from) . "&gen_to=" . urlencode($valid_to);
+        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}{$gen_qs}&msg=" . urlencode("時間枠「{$waku_name}」を追加しました。"));
         exit;
     }
 
     if ($action === 'waku_delete') {
-        $id = (int)($_GET['id'] ?? 0);
+        $id       = (int)($_GET['id'] ?? 0);
+        $gen_from = trim($_GET['gen_from'] ?? '');
+        $gen_to   = trim($_GET['gen_to'] ?? '');
         if ($id > 0) {
             $stmt_cur = $pdo->prepare("SELECT * FROM m2_waku WHERE id = :id");
             $stmt_cur->execute([':id' => $id]);
             $old_w = $stmt_cur->fetch();
 
             if ($old_w) {
+                if ($gen_from === '') { $gen_from = (string)($old_w['valid_from'] ?? ''); }
+                if ($gen_to === '')   { $gen_to   = (string)($old_w['valid_to'] ?? ''); }
+
                 $stmt = $pdo->prepare("DELETE FROM m2_waku WHERE id = :id");
                 $stmt->execute([':id' => $id]);
 
@@ -332,11 +354,279 @@ try {
                     $old_w['waku_name'],
                     $old_w,
                     null,
-                    "時間枠削除: 「{$old_w['waku_name']}」(科: {$old_w['department_code']})"
+                    "時間枠削除: 「{$old_w['waku_name']}」(科: {$old_w['department_code']}, 期間: {$old_w['valid_from']}〜{$old_w['valid_to']})"
                 );
             }
         }
-        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}&msg=" . urlencode('時間枠を削除しました。'));
+        $gen_qs = ($gen_from !== '' && $gen_to !== '') ? "&gen_from=" . urlencode($gen_from) . "&gen_to=" . urlencode($gen_to) : '';
+        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}{$gen_qs}&msg=" . urlencode('時間枠を削除しました。'));
+        exit;
+    }
+
+    // 世代期間一括変更（前後世代の境界日自動連動対応）
+    if ($action === 'waku_period_bulk_update') {
+        $old_vf = trim($_POST['old_valid_from'] ?? '');
+        $old_vt = trim($_POST['old_valid_to'] ?? '');
+        $new_vf = trim($_POST['new_valid_from'] ?? '');
+        $new_vt = trim($_POST['new_valid_to'] ?? '');
+        $sync_adjacent = !empty($_POST['sync_adjacent']);
+
+        if ($new_vf === '') { $new_vf = '1900-01-01'; }
+        if ($new_vt === '') { $new_vt = '9999-12-31'; }
+        if ($new_vt === '9999-09-09' || $new_vt === '9999.9.9') { $new_vt = '9999-12-31'; }
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $new_vf) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $new_vt)) {
+            throw new Exception('有効期間の日付形式が正しくありません（YYYY-MM-DD）。');
+        }
+        if ($new_vf > $new_vt) {
+            throw new Exception("開始日 ({$new_vf}) は終了日 ({$new_vt}) 以前の日付を指定してください。");
+        }
+
+        $pdo->beginTransaction();
+        try {
+            // 変更前の全枠を取得（Undo復元用）
+            $stmt_all_before = $pdo->prepare("SELECT * FROM m2_waku WHERE department_code = :dept ORDER BY id ASC");
+            $stmt_all_before->execute([':dept' => $dept]);
+            $old_all_rows = $stmt_all_before->fetchAll();
+
+            $sync_msgs = [];
+
+            // 前後世代の境界日を自動連動する場合
+            if ($sync_adjacent) {
+                // 1) 開始日が変更された場合、直前の世代（valid_to == old_vf の前日）の valid_to を new_vf の前日に更新
+                if ($new_vf !== $old_vf && $old_vf !== '1900-01-01' && $new_vf !== '1900-01-01') {
+                    $old_prev_end = date('Y-m-d', strtotime($old_vf . ' -1 day'));
+                    $new_prev_end = date('Y-m-d', strtotime($new_vf . ' -1 day'));
+                    $stmt_prev = $pdo->prepare("
+                        UPDATE m2_waku
+                        SET valid_to = :new_prev_vt, updated_at = CURRENT_TIMESTAMP
+                        WHERE department_code = :dept AND valid_to = :old_prev_vt AND valid_from < :new_prev_vt
+                    ");
+                    $stmt_prev->execute([
+                        ':new_prev_vt' => $new_prev_end,
+                        ':dept'        => $dept,
+                        ':old_prev_vt' => $old_prev_end,
+                    ]);
+                    if ($stmt_prev->rowCount() > 0) {
+                        $sync_msgs[] = "前世代の終了日を {$new_prev_end} に連動更新";
+                    }
+                }
+
+                // 2) 終了日が変更された場合、直後の世代（valid_from == old_vt の翌日）の valid_from を new_vt の翌日に更新
+                if ($new_vt !== $old_vt && $old_vt !== '9999-12-31' && $new_vt !== '9999-12-31') {
+                    $old_next_start = date('Y-m-d', strtotime($old_vt . ' +1 day'));
+                    $new_next_start = date('Y-m-d', strtotime($new_vt . ' +1 day'));
+                    $stmt_next = $pdo->prepare("
+                        UPDATE m2_waku
+                        SET valid_from = :new_next_vf, updated_at = CURRENT_TIMESTAMP
+                        WHERE department_code = :dept AND valid_from = :old_next_vf AND valid_to > :new_next_vf
+                    ");
+                    $stmt_next->execute([
+                        ':new_next_vf' => $new_next_start,
+                        ':dept'        => $dept,
+                        ':old_next_vf' => $old_next_start,
+                    ]);
+                    if ($stmt_next->rowCount() > 0) {
+                        $sync_msgs[] = "次世代の開始日を {$new_next_start} に連動更新";
+                    }
+                }
+            }
+
+            // 対象世代の期間を一括更新
+            $stmt_upd = $pdo->prepare("
+                UPDATE m2_waku
+                SET valid_from = :new_vf,
+                    valid_to   = :new_vt,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE department_code = :dept
+                  AND valid_from = :old_vf
+                  AND valid_to   = :old_vt
+            ");
+            $stmt_upd->execute([
+                ':new_vf' => $new_vf,
+                ':new_vt' => $new_vt,
+                ':dept'   => $dept,
+                ':old_vf' => $old_vf,
+                ':old_vt' => $old_vt,
+            ]);
+            $updated_cnt = $stmt_upd->rowCount();
+
+            // 他世代との期間重複チェック
+            $stmt_overlap = $pdo->prepare("
+                SELECT valid_from, valid_to, COUNT(*) AS cnt
+                FROM m2_waku
+                WHERE department_code = :dept
+                  AND NOT (valid_from = :new_vf AND valid_to = :new_vt)
+                  AND valid_from <= :new_vt
+                  AND valid_to >= :new_vf
+                GROUP BY valid_from, valid_to
+            ");
+            $stmt_overlap->execute([
+                ':dept'   => $dept,
+                ':new_vf' => $new_vf,
+                ':new_vt' => $new_vt,
+            ]);
+            $overlaps = $stmt_overlap->fetchAll();
+            if (!empty($overlaps)) {
+                $ov = $overlaps[0];
+                throw new Exception("他の世代（{$ov['valid_from']} 〜 {$ov['valid_to']}）と期間が重複するため変更できません。「前後の世代の境界日も自動連動する」にチェックを入れて実行するか、期間を調整してください。");
+            }
+
+            $stmt_all_after = $pdo->prepare("SELECT * FROM m2_waku WHERE department_code = :dept ORDER BY id ASC");
+            $stmt_all_after->execute([':dept' => $dept]);
+            $new_all_rows = $stmt_all_after->fetchAll();
+
+            $sync_note = !empty($sync_msgs) ? '（' . implode(' / ', $sync_msgs) . '）' : '';
+            recordMasterAuditLog(
+                $pdo,
+                'waku',
+                'update',
+                'm2_waku',
+                null,
+                '時間枠世代期間一括変更',
+                $old_all_rows,
+                $new_all_rows,
+                "世代期間一括変更 [{$dept}]: {$old_vf}〜{$old_vt} ➔ {$new_vf}〜{$new_vt} ({$updated_cnt}枠){$sync_note}"
+            );
+
+            $pdo->commit();
+            $gen_qs = "&gen_from=" . urlencode($new_vf) . "&gen_to=" . urlencode($new_vt);
+            header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}{$gen_qs}&msg=" . urlencode("世代の有効期間を「{$new_vf} 〜 {$new_vt}」に一括変更しました{$sync_note}。"));
+            exit;
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    // 新世代作成（現世代を複製して指定日で期間分割）
+    if ($action === 'waku_generation_split') {
+        $src_vf     = trim($_POST['source_valid_from'] ?? '');
+        $src_vt     = trim($_POST['source_valid_to'] ?? '');
+        $split_date = trim($_POST['split_date'] ?? '');
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $split_date)) {
+            throw new Exception('新世代の開始日を正しく入力してください（YYYY-MM-DD）。');
+        }
+        if ($split_date <= $src_vf || $split_date > $src_vt) {
+            throw new Exception("新世代の開始日 ({$split_date}) は、分割元の期間 ({$src_vf} より後 〜 {$src_vt} 以下) の範囲内で指定してください。");
+        }
+
+        $prev_end_date = date('Y-m-d', strtotime($split_date . ' -1 day'));
+
+        $pdo->beginTransaction();
+        try {
+            $stmt_src = $pdo->prepare("
+                SELECT * FROM m2_waku
+                WHERE department_code = :dept AND valid_from = :vf AND valid_to = :vt
+                ORDER BY display_order ASC, id ASC
+            ");
+            $stmt_src->execute([':dept' => $dept, ':vf' => $src_vf, ':vt' => $src_vt]);
+            $src_rows = $stmt_src->fetchAll();
+
+            if (empty($src_rows)) {
+                throw new Exception('分割元の世代データが見つかりません。');
+            }
+
+            // 1. 分割元世代の valid_to を split_date の前日に更新
+            $stmt_upd = $pdo->prepare("
+                UPDATE m2_waku
+                SET valid_to = :prev_end, updated_at = CURRENT_TIMESTAMP
+                WHERE department_code = :dept AND valid_from = :vf AND valid_to = :vt
+            ");
+            $stmt_upd->execute([
+                ':prev_end' => $prev_end_date,
+                ':dept'     => $dept,
+                ':vf'       => $src_vf,
+                ':vt'       => $src_vt,
+            ]);
+
+            // 2. 新世代（split_date 〜 src_vt）として全枠を複製挿入
+            $stmt_ins = $pdo->prepare("
+                INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+                VALUES (:dept, :grp, :code, :name, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
+            ");
+            $inserted_ids = [];
+            foreach ($src_rows as $r) {
+                $stmt_ins->execute([
+                    ':dept' => $r['department_code'],
+                    ':grp'  => $r['group_code'],
+                    ':code' => $r['waku_code'],
+                    ':name' => $r['waku_name'],
+                    ':disp' => (int)$r['display_order'],
+                    ':act'  => !empty($r['is_active']) ? 'TRUE' : 'FALSE',
+                    ':vf'   => $split_date,
+                    ':vt'   => $src_vt,
+                ]);
+                $inserted_ids[] = (int)$stmt_ins->fetchColumn();
+            }
+
+            recordMasterAuditLog(
+                $pdo,
+                'waku',
+                'insert',
+                'm2_waku',
+                null,
+                "新世代作成 ({$split_date}〜)",
+                $src_rows,
+                ['inserted_ids' => $inserted_ids, 'split_date' => $split_date, 'valid_to' => $src_vt],
+                "新世代作成（期間分割） [{$dept}]: 旧世代を 〜{$prev_end_date} に区切り、{$split_date}〜{$src_vt} の新世代（" . count($inserted_ids) . "枠）を複製作成"
+            );
+
+            $pdo->commit();
+            $gen_qs = "&gen_from=" . urlencode($split_date) . "&gen_to=" . urlencode($src_vt);
+            header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}{$gen_qs}&msg=" . urlencode("新世代（{$split_date} 〜 {$src_vt}）を作成しました。枠の追加・廃止・名称変更を行ってください。"));
+            exit;
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    // 世代一括削除
+    if ($action === 'waku_generation_delete') {
+        $del_vf = trim($_POST['gen_from'] ?? $_GET['gen_from'] ?? '');
+        $del_vt = trim($_POST['gen_to'] ?? $_GET['gen_to'] ?? '');
+
+        // 残り世代数を確認（最低1世代は残す）
+        $stmt_gens = $pdo->prepare("
+            SELECT COUNT(DISTINCT (valid_from::text || '_' || valid_to::text))
+            FROM m2_waku
+            WHERE department_code = :dept
+        ");
+        $stmt_gens->execute([':dept' => $dept]);
+        $gen_count = (int)$stmt_gens->fetchColumn();
+        if ($gen_count <= 1) {
+            throw new Exception('最後の1世代は削除できません。');
+        }
+
+        $stmt_cur = $pdo->prepare("SELECT * FROM m2_waku WHERE department_code = :dept AND valid_from = :vf AND valid_to = :vt ORDER BY display_order ASC");
+        $stmt_cur->execute([':dept' => $dept, ':vf' => $del_vf, ':vt' => $del_vt]);
+        $old_rows = $stmt_cur->fetchAll();
+
+        if (!empty($old_rows)) {
+            $stmt_del = $pdo->prepare("DELETE FROM m2_waku WHERE department_code = :dept AND valid_from = :vf AND valid_to = :vt");
+            $stmt_del->execute([':dept' => $dept, ':vf' => $del_vf, ':vt' => $del_vt]);
+
+            recordMasterAuditLog(
+                $pdo,
+                'waku',
+                'delete',
+                'm2_waku',
+                null,
+                "世代一括削除 ({$del_vf}〜{$del_vt})",
+                $old_rows,
+                null,
+                "時間枠世代一括削除 [{$dept}]: 期間 {$del_vf}〜{$del_vt}（計 " . count($old_rows) . " 枠）を削除"
+            );
+        }
+
+        header("Location: slot_master_maintenance.php?tab=waku&dept={$dept}&msg=" . urlencode("期間（{$del_vf} 〜 {$del_vt}）の世代を一括削除しました。"));
         exit;
     }
 
@@ -800,6 +1090,10 @@ try {
         $pdo->rollBack();
     }
     $err_msg = $e->getMessage();
-    header("Location: slot_master_maintenance.php?tab={$action}&dept={$dept}&year={$year}&error=1&msg=" . urlencode('エラー: ' . $err_msg));
+    $err_tab = 'doctor';
+    if (strpos($action, 'waku_') === 0) { $err_tab = 'waku'; }
+    elseif (strpos($action, 'pattern_') === 0) { $err_tab = 'pattern'; }
+    elseif (strpos($action, 'attendance_') === 0) { $err_tab = 'attendance'; }
+    header("Location: slot_master_maintenance.php?tab={$err_tab}&dept={$dept}&year={$year}&error=1&msg=" . urlencode('エラー: ' . $err_msg));
     exit;
 }

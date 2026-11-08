@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-11-01)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        header.report-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header.report-header .meta {
+            font-size: 12.5px;
+            color: #cbd5e1;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .content {
+            padding: 36px;
+        }
+
+        section {
+            margin-bottom: 36px;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3 {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 14px;
+            color: var(--text-sub);
+        }
+
+        li {
+            margin-bottom: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 9999px;
+            line-height: 1.4;
+        }
+
+        .badge-success { background: var(--success-light); color: var(--success); border: 1px solid #a7f3d0; }
+        .badge-primary { background: var(--primary-light); color: var(--primary-dark); border: 1px solid #bae6fd; }
+        .badge-warning { background: var(--warning-light); color: var(--warning); border: 1px solid #fde68a; }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+            margin: 16px 0 24px 0;
+        }
+
+        .toc-item {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+        }
+
+        .toc-item:hover {
+            background: var(--primary-light);
+            border-color: #7dd3fc;
+            color: var(--primary-dark);
+        }
+
+        table.spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin: 14px 0;
+        }
+
+        table.spec-table th, table.spec-table td {
+            border: 1px solid var(--border);
+            padding: 9px 12px;
+            text-align: left;
+        }
+
+        table.spec-table th {
+            background: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        table.spec-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 12px 0 16px 0;
+            line-height: 1.5;
+        }
+
+        .preview-box {
+            background: #0f172a;
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 14px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 420px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <h1>🏥 内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="meta">
+            <span>📅 実施日時: <strong>2026年11月01日 (日)</strong></span>
+            <span>👨‍⚕️ 担当: <strong>医療情報・開発エンジニアリングチーム</strong></span>
+            <span>🔖 バージョン: <strong>v1101 (Production Release Edition / 本番稼働版)</strong></span>
+            <span>🌐 稼働環境: <strong>Windows / Apache 2.4 / PostgreSQL 18.3 / PHP 8.5.9</strong></span>
+        </div>
+    </header>
+
+    <div class="content">
+        <!-- 目次 -->
+        <section>
+            <h2>📋 本日の改修作業 目次</h2>
+            <div class="toc-grid">
+                <a href="#sec-db-sync" class="toc-item"><span>🔄</span> 1. 本番DBから開発ローカルDBへの完全複製同期</a>
+                <a href="#sec-slot-tooltip" class="toc-item"><span>🔍</span> 2.1 空き枠速報 カレンダー状況ホバープレビュー</a>
+                <a href="#sec-slot-custom" class="toc-item"><span>⚡</span> 2.2 条件指定検索強化 ＆ 初期表示不具合解消</a>
+                <a href="#sec-progress-slim" class="toc-item"><span>🖥️</span> 2.3 進捗モニター UI大幅スリム化 ＆ コントロール統合</a>
+                <a href="#sec-note-date-slim" class="toc-item"><span>📖</span> 2.4 デイリーノート 日付バー大幅スリム化 ＆ ピッカー一本化</a>
+                <a href="#sec-sys-info-master" class="toc-item"><span>📢</span> 2.5 修正インフォメーションマスターメンテ ＆ 非干渉最下部配信</a>
+                <a href="#sec-files" class="toc-item"><span>📁</span> 3. 変更・追加ファイル一覧</a>
+                <a href="#sec-tests" class="toc-item"><span>✅</span> 4. 総合テスト・回帰検証結果 (20画面検証)</a>
+            </div>
+        </section>
+
+        <!-- セクション1: 本番DB完全同期 -->
+        <section id="sec-db-sync">
+            <h2>1. 本番DB (192.168.1.16) から開発ローカルDBへの安全完全複製</h2>
+            <p>
+                本番環境の実運用データ（2026年11月最新の予約、出勤例外、枠パターン、メモ、履歴等）をローカル開発環境に100%安全かつ完全同期しました。
+            </p>
+
+            <h3>安全バックアップと同期フロー</h3>
+            <ol>
+                <li><strong>作業前ローカルDBの安全退避:</strong> 開発中の既存データを <code>backup/local_endoscope_backup_20261101_074820.dump</code> (0.55 MB) にバイナリ退避。</li>
+                <li><strong>本番DBのフルダンプ取得:</strong> <code>pg_dump</code> により本番サーバーからカスタムバイナリ形式 (0.60 MB) および SQLプレーンテキスト (4.34 MB) を取得。</li>
+                <li><strong>ローカルDBの初期化・再構築:</strong> 既存セッションを安全に切断し、<code>DROP DATABASE</code> / <code>CREATE DATABASE</code> 後に <code>pg_restore</code> で完全リストア。</li>
+                <li><strong>整合性自動検証:</strong> 全24テーブルのレコード件数突合、全18個のシーケンス値突合を全自動検証。</li>
+            </ol>
+
+            <h3>テーブル件数 突合結果（全24テーブル一致）</h3>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>テーブル名</th>
+                        <th>本番環境 (192.168.1.16)</th>
+                        <th>ローカル開発環境 (localhost)</th>
+                        <th>判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>t_endoscopy_schedule (予約データ)</td><td>2,479 件</td><td>2,479 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>t_mall_memo (モールメモ)</td><td>1,610 件</td><td>1,610 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>t_patient_medical_alert (医療安全アラート)</td><td>1,031 件</td><td>1,031 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>t_schedule_audit_log (操作監査ログ)</td><td>1,936 件</td><td>1,936 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>t_today_progress (当日進捗)</td><td>616 件</td><td>616 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>m2_waku_override (時間枠オーバーライド)</td><td>369 件</td><td>369 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>m_input_master (入力マスタ)</td><td>117 件</td><td>117 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>m2_doctor_slot_pattern (枠パターン)</td><td>57 件</td><td>57 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>m2_doctor_attendance (医師出勤例外)</td><td>36 件</td><td>36 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>m2_waku (基本時間枠)</td><td>26 件</td><td>26 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>t_daily_memo (日別カレンダーメモ)</td><td>23 件</td><td>23 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>t_master_audit_log (マスタ変更ログ)</td><td>20 件</td><td>20 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>m_exam_type_group (検査種別統合マスタ)</td><td>11 件</td><td>11 件</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                    <tr><td>その他全テーブル (11テーブル)</td><td>各件数完全一致</td><td>各件数完全一致</td><td><span class="badge badge-success">✓ 完全一致</span></td></tr>
+                </tbody>
+            </table>
+            <p>※専用スクリプト <code>tools/copy_prod_db_to_local.php</code> を作成・配備し、今後も1コマンドで安全に本番同期を実行できるよう整備しました。</p>
+        </section>
+
+        <!-- セクション2: 空き枠検索ツールチップ -->
+        <section id="sec-slot-tooltip">
+            <h2>2. 空き枠検索（slot_search.php）カレンダー状況ホバープレビュー</h2>
+            <p>
+                <strong>【改修背景・現場の課題】</strong><br>
+                直近空き枠速報（大腸内視鏡）のカード一覧を閲覧している際、特定の空き枠について「この日は他の先生（胃腸科・肛門科）はどう埋まっているか？」「胃カメラやエコーの枠状況はどうなっているか？」を確認するために、毎回カレンダー画面へ画面遷移（ページジャンプ）する必要がありました。
+            </p>
+            <p>
+                <strong>【解決策と実装内容】</strong><br>
+                カード下部の<strong>「📅 カレンダー表示」ボタンにマウスカーソルを乗せる（ホバーする）だけ</strong>で、画面遷移することなく、その日のカレンダー状況（<code>month_schedule.php</code> の該当セルと完全同一の各医師消化/定員および全体枠集計・メモ・医師不在予定）が<strong>ダーク系モダンフローティングツールチップ</strong>として待ち時間ゼロ（体感即時）でポップアップ表示される新機能を実装しました。
+            </p>
+
+            <h3>主要な仕様と特徴</h3>
+            <ul>
+                <li><strong>胃腸科・肛門科の上下2段完全表示:</strong> 該当日について「🔵 胃腸科」と「🟢 肛門科」の両セクションを並べて表示し、内視鏡室全体の混雑状況を直感的に俯瞰可能。</li>
+                <li><strong>カレンダー完全準拠のバッジ表示:</strong> 医師丸アイコン（哲、義、慶、誠など）の横に、<code>🔵10/10</code> (GIF)、<code>🟠2/2</code> (エコー)、<code>🟢7/7</code> (TCF) の「使用数/定員」バッジを配置。定員到達（満枠）は強調、超過時は赤色点滅。</li>
+                <li><strong>科別全体集計バー:</strong> 各科の下部に <code>全体 🔵10/10 🟠2/2 🟢10/10</code> の集計バーを常設。</li>
+                <li><strong>付加情報（日別メモ・医師予定）の自動連動:</strong> 該当日に日別メモ（📝）や医師不在・休診予定（🙅🏼）がある場合は、下部にコンパクトに同時プレビュー。</li>
+                <li><strong>体感遅延ゼロのプリフェッチ設計:</strong> 速報取得時にバックエンド（<code>action_slot_assistant.php</code>）で対象期間のカレンダープレビューデータを一括計算・JSONキャッシュし、ホバー時は通信待ちなしで瞬時にレンダリング。</li>
+                <li><strong>スマートポジショニング:</strong> 画面端や下部での見切れを防ぐため、ボタンの上側/下側・左右位置を自動反転判定。ESCキーやスクロール時にも安全に非表示化。</li>
+            </ul>
+
+            <div class="preview-box">
+                <div style="font-weight:bold; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:4px; margin-bottom:8px;">
+                    📅 2026-11-10 (火)
+                </div>
+                <div style="background:rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px; margin-bottom:6px;">
+                    <div style="color:#93c5fd; font-weight:bold; font-size:11px; margin-bottom:3px;">🔵 胃腸科</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                        <span style="background:#06b6d4; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:bold;">哲</span>
+                        <span style="background:rgba(59,130,246,0.3); padding:1px 4px; border-radius:3px; font-size:10px;">🔵 10/11</span>
+                        <span style="background:rgba(59,130,246,0.3); padding:1px 4px; border-radius:3px; font-size:10px;">🟠 2/2</span>
+                        <span style="background:rgba(59,130,246,0.3); padding:1px 4px; border-radius:3px; font-size:10px;">🟢 7/7</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                        <span style="background:#6366f1; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:bold;">義</span>
+                        <span style="background:rgba(59,130,246,0.3); padding:1px 4px; border-radius:3px; font-size:10px;">🟢 3/3</span>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.2); color:#6ee7b7; padding:2px 6px; border-radius:4px; font-size:9.5px; font-weight:bold; margin-top:3px; display:flex; justify-content:space-between;">
+                        <span>全体</span><span>🔵 10/11  🟠 2/2  🟢 10/10</span>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px;">
+                    <div style="color:#6ee7b7; font-weight:bold; font-size:11px; margin-bottom:3px;">🟢 肛門科</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                        <span style="background:#f59e0b; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:bold;">誠</span>
+                        <span style="background:rgba(255,255,255,0.1); padding:1px 4px; border-radius:3px; font-size:10px;">🔵 1/2</span>
+                        <span style="background:rgba(59,130,246,0.3); padding:1px 4px; border-radius:3px; font-size:10px;">🟢 7/7</span>
+                    </div>
+                    <div style="background:rgba(16,185,129,0.2); color:#6ee7b7; padding:2px 6px; border-radius:4px; font-size:9.5px; font-weight:bold; margin-top:3px; display:flex; justify-content:space-between;">
+                        <span>全体</span><span>🔵 1/2  🟢 7/7</span>
+                    </div>
+                </div>
+                <div style="margin-top:6px; font-size:10px; color:#fde68a;">
+                    📝 [胃腸科] GIF12:30追加
+                </div>
+            </div>
+        </section>
+
+        <!-- セクション2.2: 条件指定検索パワーアップ＆初期表示不具合の完全解消 -->
+        <section id="sec-slot-custom">
+            <h2>2.2 条件指定検索パワーアップ ＆ 初期表示時検索不具合の完全解消</h2>
+            <p>
+                <strong>【改修背景・ユーザーからの指摘】</strong><br>
+                「初期表示のとき検索できない」「検索ボタンを押しても結果が表示されない」「複数医師を選択したい」というご要望および動作不具合への対応を実施しました。
+            </p>
+            <p>
+                <strong>【根本原因の分析】</strong><br>
+                <ol>
+                    <li><strong>医師予定パース時のWarningによるJSON構文破壊:</strong> <code>lib/calendar_helper.php</code> の <code>getCalendarPreviewsForDates()</code> 内で、整形済み医師予定のキー <code>title</code> を誤参照したため、PHP Warning (<code>Undefined array key "title"</code>) が出力され、AjaxレスポンスのJSON先頭に混入してブラウザ側の <code>await res.json()</code> が SyntaxError で例外中断していました。</li>
+                    <li><strong>初期表示（mode=custom）時のSSR未実行:</strong> 従来は <code>search_clicked=1</code> パラメータが存在しない初回アクセス時にサーバーサイドでの検索（SSR）が実行されず、結果セクションが非表示（<code>display: none</code>）のまま停止していました。</li>
+                    <li><strong>フロントエンド初期化時の検索トリガー漏れ:</strong> <code>DOMContentLoaded</code> 時に <code>currentSearchMode === 'custom'</code> の自動検索分岐が存在せず、タブ切替時にもデータ未描画判定が不十分でした。</li>
+                    <li><strong>複数医師選択時の勝手な全解除バグ:</strong> <code>initButtons()</code> に存在した「選択数 == 全医師数」判定により、全医師を選択した瞬間に勝手に解除されて「全医師」ボタンに戻ってしまう動作がありました。</li>
+                </ol>
+            </p>
+
+            <h3>【実施した対策と機能強化】</h3>
+            <ul>
+                <li><strong>PHP Warning の完全根絶:</strong> <code>calendar_helper.php</code> の配列参照を <code>$ev['raw_title'] ?? ($ev['title'] ?? '')</code> に是正し、純粋・正常な JSON を確実に返却するよう修正。</li>
+                <li><strong>初期表示時（mode=custom）のSSR自動検索対応:</strong> 画面を開いた初回表示（<code>search_mode === 'custom'</code>）でも、デフォルト条件（胃腸科、全医師、全種別、全曜日、本日〜2か月後末日）でサーバーサイド検索を即座に実行し、テーブル（325行）およびコンパクトカード（162件）を初期HTMLに完全描画。開いた瞬間に待ち時間ゼロで結果が表示されます。</li>
+                <li><strong>高密度コンパクトカード表示モードの追加:</strong> テーブル形式とカード形式を1クリックで切り替え可能（<code>localStorage</code> でユーザーの好みを永続記憶）。カード内の「📅 カレンダー」ボタンからも当日の枠状況ホバープレビューが連動。</li>
+                <li><strong>確実な自動検索トリガー:</strong> <code>DOMContentLoaded</code> 時および「🔍 条件指定検索」タブ切替時に、未描画であれば即座に Ajax 自動検索を呼び出す安全フォールバックを実装。条件変更時も 250ms デバウンスで自動検索＆検索ボタンPulse点滅アニメーション。</li>
+                <li><strong>複数医師選択ロジックの改善:</strong> 全員選択時の勝手な解除判定を完全撤廃。「全医師」から医師をクリックすると単独選択となり、別の医師をクリックすると複数医師がそのままアクティブを維持。0人になった場合のみ「全医師」に自動復帰する直感的なUIに改善。</li>
+            </ul>
+        </section>
+
+        <!-- セクション2.3: 進捗モニター UI大幅スリム化 ＆ コントロール統合 -->
+        <section id="sec-progress-slim">
+            <h2>2.3 進捗モニター（当日進捗ステータスモニター）UI大幅スリム化 ＆ コントロール統合</h2>
+            <p>
+                <strong>【改修背景・課題】</strong><br>
+                当日進捗ステータスモニター（<code>progress_monitor.php</code>）において、ヘッダー右側に機能ボタンが7個も並び画面幅を強く圧迫していたほか、「圧縮表示」「標準表示」といった分かりにくい文言が存在していました。また、2行目（検査種別タブ）と3行目（サマリーバー）で検査種別の件数表示が完全に重複しており、視認性・操作性の向上が求められていました。
+            </p>
+
+            <h3>【実施した6大統合・スリム化改修】</h3>
+            <ol>
+                <li>
+                    <strong>ヘッダー右側ボタンのプルダウン集約（<code>&lt;select&gt;</code> ドロップダウン化）:</strong><br>
+                    「➕ 当日・緊急追加」「🛡️ アラートスキャン」「⚡ 直近空き枠速報」「🖨️ 当日印刷」「📅 月間カレンダー」「🏠 ポータルメニュー」の6ボタンを、1つのコンパクトなリストボックス <code>📂 その他メニュー ▾</code> に統合。選択時に即座に対象モーダル起動や画面遷移を実行し、自動的に初期表示に戻る安全設計を採用。ヘッダーの省スペース化を実現しました。
+                </li>
+                <li>
+                    <strong>自動更新コントロールの洗練（🔄 今すぐ更新アイコン）:</strong><br>
+                    更新間隔プルダウン（10秒/30秒/60秒/停止）の直後に <code>🔄</code> アイコンボタンを配置。1クリックで即座に最新データを取得し、アニメーションとともにトースト通知を表示。
+                </li>
+                <li>
+                    <strong>表示モード切替の2択化 ＆「圧縮」文言の完全撤廃:</strong><br>
+                    「圧縮」「標準」の言葉を完全になくし、<code>[ 📋 テーブル ]</code> と <code>[ 🔲 タイル ]</code> の2択に整理。テーブル表示時は常に高密度（圧縮）スタイル（<code>view-mode-compact</code>）をデフォルト適用し、1画面でより多くの患者状況を俯瞰できるように改善。
+                </li>
+                <li>
+                    <strong>日付ステッパー内への「今日へ」ボタン内包:</strong><br>
+                    独立していた「本日に戻る」ボタンを日付ステッパー内に <code>今日へ</code> リンクとして内包。本日表示時は「本日」バッジ、他日表示時は「今日へ」ボタンとしてスマートに切り替わります。
+                </li>
+                <li>
+                    <strong>検査種別タブとサマリーの完全合体（重複バッジの撤廃）:</strong><br>
+                    2行目の検査種別タブ（<code>🔬 全内視鏡</code>、<code>🟢 大腸系 (TCF)</code>、<code>🟣 浣腸CF</code>、<code>🔵 胃カメラ</code>）内にリアルタイム件数バッジを直接表示。これにより、3行目サマリーバーにあった重複バッジ（TCF/浣腸/胃）を完全撤廃し、サマリーバーを動線ステータス（1〜7・未照合）に特化させました。
+                </li>
+                <li>
+                    <strong>「6. 結果説明」ステータスの1枠統合（待○/中○）:</strong><br>
+                    従来の「🔔 説明待」と「6. 説明中」を1つの枠 <code>6. 説明 (待○/中○)</code> に統合。枠をクリックした際の絞り込みも、説明待ちと説明中の両方を漏れなく抽出するように連動させました。
+                </li>
+            </ol>
+        </section>
+
+        <!-- セクション2.4: デイリーノート 日付バー大幅スリム化 ＆ ピッカー一本化 -->
+        <section id="sec-note-date-slim">
+            <h2>2.4 デイリーノート（schedule_note.php）日付バー大幅スリム化 ＆ ピッカー一本化</h2>
+            <p>
+                <strong>【改修背景・課題】</strong><br>
+                デイリーノート画面（<code>schedule_note.php</code>）の日付ナビゲーションバーにおいて、中央に大きな日付文字（<code>📅 2026年11月1日 (日)</code>）が表示されているすぐ右隣に、ほぼ同一の日付を示すピッカーボックス（<code>[ 令和8年11/1 (日) 和暦 🗓️ ]</code>）が並んでおり、<strong>日付表示が2重化して画面幅を無駄に圧迫</strong>していました。また、左右のステッパーボタン（-7日/前日/前診療日、次診療日/翌日/+7日）が独立して横に広がり、視覚的な煩雑さを生んでいました。
+            </p>
+
+            <h3>【実施した3大統合・スリム化改修】</h3>
+            <ol>
+                <li>
+                    <strong>日付の2重表示を完全解消（ピッカー優先型に一本化）:</strong><br>
+                    重複していた左側の大きな日付文字を撤廃。西暦・和暦ワンクリック切替と特大Flatpickr起動が一体となった <code>[ 令和8年11/1 (日) 和暦 🗓️ ]</code> を中央のメイン日付表示として一本化しました。
+                </li>
+                <li>
+                    <strong>中央コントロール群の高さ32pxツライチ統一:</strong><br>
+                    中央に並ぶ <code>[ 日付ピッカーボックス ]</code>、<code>[ ⛔ 休診 / 🟢 診療日 ]</code> バッジ、<code>[ ⭐ 本日 / 📅 今日へ (T) ]</code> ボタンの3要素を、すべて高さ32pxで美しく揃えて並列配置。上下のズレを完全になくし、整然とした外観を実現しました。
+                </li>
+                <li>
+                    <strong>左右ステッパーのセグメント連結スリム化（横幅大幅圧縮）:</strong><br>
+                    過去側3ボタン（<code>[ ◀◀ -7日 ↑ | ◀ 前日 ← | ◀ 前診療日 Shift+← ]</code>）および未来側3ボタン（<code>[ 次診療日 ▶ Shift+→ | 翌日 ▶ → | +7日 ▶▶ ↓ ]</code>）の隙間をなくし、一体化した連結ボタングループ（Segmented Button Group）に成形。キーボードショートカット操作性を100%維持しながら、左右の横幅を大幅に圧縮しました。
+                </li>
+            </ol>
+        </section>
+
+        <!-- セクション2.5: 修正インフォメーションマスターメンテ -->
+        <section id="sec-sys-info-master">
+            <h2>2.5 修正インフォメーションマスターメンテ ＆ 非干渉ボタン最下部配信 (v1101 本番稼働版)</h2>
+            <p>
+                「本番稼働に伴い、今後の改修・修正情報を現場へ告知・周知できるようにしたい」「日常の予約操作や患者検索の邪魔にならないようボタン群の一番下に配置したい」「マスターメンテから誰でも安全に編集・管理したい」という要件に基づき、修正インフォメーション一元管理システムを新規構築しました。
+            </p>
+
+            <h3>主な改修・導入内容</h3>
+            <ul class="feature-list">
+                <li><strong>専用管理画面（<code>system_info_maintenance.php</code>）新設:</strong> 日付、バージョン（v1101）、バッジ文言＆配色、見出しタイトル、概要サマリー、改修詳細項目（複数行入力から自動箇条書き成形）、表示優先順、公開/非公開トグルを直感的に操作可能。</li>
+                <li><strong>ボタン群の最下部（非干渉レイアウト）配置:</strong> ポータル画面（<code>index.php</code>）および静的開始画面（<code>index.html</code>）において、日常業務で頻繁に使用する予約操作・検索集計・マスタ管理の重要ボタン群の操作を一切邪魔しないよう、インフォメーションバナーを全ボタン群の一番下（フッター手前）に配置。</li>
+                <li><strong>DB・JSON・静的HTMLの完全三重自動同期:</strong> 管理画面から保存・編集・削除・公開切替を行うと、PostgreSQL DB（<code>m_system_info</code>）への保存と同時に、軽量設定ファイル（<code>config/system_info.json</code>）および <code>index.html</code> のインフォボックスへ最新内容が即時自動反映。</li>
+                <li><strong>院内統合マスタナビゲーション（master-hub-nav）連携:</strong> 検査枠マスタ、検査種別マスタ、汎用選択肢マスタ、プリンターマスタの全画面ナビに「📢 修正インフォメーション」タブを新設し、汎用マスタ画面（<code>master_maintenance.php</code>）のカテゴリ選択にも誘導バナーを配備。</li>
+            </ul>
+        </section>
+
+        <!-- セクション3: 変更ファイル -->
+        <section id="sec-files">
+            <h2>3. 変更・追加ファイル一覧</h2>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>ファイルパス</th>
+                        <th>種別</th>
+                        <th>改修内容の要約</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>tools/copy_prod_db_to_local.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>本番DB (192.168.1.16) から開発ローカルDBへの安全ダンプ・退避・初期化リストア・全件数突合スクリプト</td>
+                    </tr>
+                    <tr>
+                        <td><code>lib/calendar_helper.php</code></td>
+                        <td><span class="badge badge-primary">機能拡張・不具合修正</span></td>
+                        <td>全科両対応のカレンダープレビューデータ一括集計関数 <code>getCalendarPreviewsForDates()</code> を新設。医師予定配列パース時の <code>Undefined array key "title"</code> 警告を完全解消。</td>
+                    </tr>
+                    <tr>
+                        <td><code>action_slot_assistant.php</code></td>
+                        <td><span class="badge badge-primary">機能拡張</span></td>
+                        <td>プレビュー生成を共通関数に一本化し、オンデマンド取得用エンドポイント（<code>action=get_calendar_preview</code>）を追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>slot_search.php</code></td>
+                        <td><span class="badge badge-primary">大幅強化・不具合修正</span></td>
+                        <td>初期表示時（mode=custom）のSSR自動検索対応、初回プレビューキャッシュ埋め込み、DOMContentLoaded/タブ切替時の確実な検索トリガー、複数医師選択ロジック改善（勝手な解除防止）、高密度コンパクトカード表示モードおよびリアルタイムAjax検索を全面実装</td>
+                    </tr>
+                    <tr>
+                        <td><code>progress_monitor.php</code></td>
+                        <td><span class="badge badge-primary">UI大幅スリム化・統合</span></td>
+                        <td>ヘッダー機能ボタンのドロップダウン集約（<code>📂 その他メニュー ▾</code>）、自動更新🔄アイコン新設、表示モードの「テーブル」「タイル」2択化＆常時高密度化、日付ステッパー内「今日へ」内包、検査種別タブ内件数バッジ合体＆サマリーバー重複撤廃、「6.説明(待/中)」統合</td>
+                    </tr>
+                    <tr>
+                        <td><code>schedule_note.php</code></td>
+                        <td><span class="badge badge-primary">UI大幅スリム化・統合</span></td>
+                        <td>日付バーの重複表示解消（ピッカー優先型一本化）、中央ピッカー・休診バッジ・今日へボタンの32pxツライチ統一、左右ステッパーのセグメント連結ボタングループ化による横幅大幅圧縮</td>
+                    </tr>
+                    <tr>
+                        <td><code>system_info_maintenance.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>修正インフォメーションマスターメンテナンス画面。リアルタイムライブプレビュー、登録・編集フォーム、公開/非公開ワンクリック切替、一覧テーブル完備</td>
+                    </tr>
+                    <tr>
+                        <td><code>inc_system_info.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>修正インフォメーション配信＆DB・JSON・HTML三重自動同期モジュール。バナー描画・履歴アコーディオン機能搭載</td>
+                    </tr>
+                    <tr>
+                        <td><code>config/system_info.json</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>修正インフォメーションの軽量JSONキャッシュ・設定ファイル（オフライン・耐障害性対応）</td>
+                    </tr>
+                    <tr>
+                        <td><code>index.php</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>インフォメーションバナーをボタン群の最下部（非干渉位置）へ移動、マスタ管理セクションに「📢 修正インフォメーションメンテ」カードを新設、バージョン表記を v1101 に昇格</td>
+                    </tr>
+                    <tr>
+                        <td><code>index.html</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>ボタン群（「予約ポータルを開く」）を最上部に配置し、修正インフォメーションをボタンの一番下に配置。マスタ管理からの自動同期マーカー配備、v1101 本番稼働バッジ反映</td>
+                    </tr>
+                    <tr>
+                        <td><code>master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>統合ヘッダーナビに「📢 修正インフォメーション」タブ追加、カテゴリ選択に system_info 追加＆専用管理画面への案内誘導バナー配備</td>
+                    </tr>
+                    <tr>
+                        <td><code>slot_master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>統合ヘッダーナビに「📢 修正インフォメーション」タブを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>exam_master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>統合ヘッダーナビに「📢 修正インフォメーション」タブを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>printer_master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>統合ヘッダーナビに「📢 修正インフォメーション」タブを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>help.php / help.html</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>システムバージョン表記を v1101 に昇格</td>
+                    </tr>
+                    <tr>
+                        <td><code>tools/migrate_system_info_table.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>ローカルDBおよび本番DB（192.168.1.16）への m_system_info テーブル作成＆初期データ投入マイグレーションスクリプト</td>
+                    </tr>
+                    <tr>
+                        <td><code>tests/test_system_info_maintenance.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>修正インフォメーションマスタ機能、非干渉最下部配置、CRUD操作、自動同期の総合テストスクリプト（全23項目 PASS）</td>
+                    </tr>
+                    <tr>
+                        <td><code>tests/test_progress_monitor_slim_ui.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>進捗モニターのUIスリム化・統合改修（全26項目）のHTTP自動検証テストスクリプト</td>
+                    </tr>
+                    <tr>
+                        <td><code>tests/test_schedule_note_date_nav_slim.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>デイリーノートの日付バー大幅スリム化・ピッカー一本化のHTTP自動検証テストスクリプト</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/2026-11-1works.html</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>本日の改修作業完了報告書（本ファイル）</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/specdoc.html</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>全体機能仕様書の更新（第31章〜第35章追記、バージョン v1101 本番稼働版昇格、更新履歴同期）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- セクション4: テスト検証結果 -->
+        <section id="sec-tests">
+            <h2>4. 総合テスト・回帰検証結果 (20画面検証)</h2>
+            <p>
+                本番最新データ（予約2,479件）を投入した状態で、HTTP経由での全主要20画面の自動疎通・レンダリング回帰テストを実施しました。
+            </p>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>テスト対象画面</th>
+                        <th>HTTP Status</th>
+                        <th>エラー出力</th>
+                        <th>結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>index.php (メニューポータル)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>month_schedule.php (胃腸科・肛門科)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>month_matrix_v2.php (マトリクス)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>schedule_note.php (デイリーノート)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>slot_search.php (空き枠検索・速報)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>print_schedule_daily.php (日別予約印刷)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>progress_monitor.php (進捗モニター)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>slot_master_maintenance.php (各マスタ)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>exam_master_maintenance.php (検査種別)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>master_maintenance.php (各種設定)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>furiwake_daymemo.php (日別メモ振分)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                    <tr><td>stats.php (検査数集計)</td><td>200 OK</td><td>なし (0 bytes)</td><td><span class="badge badge-success">PASS</span></td></tr>
+                </tbody>
+            </table>
+            <p><strong>検証結果: 成功 20 画面 / 失敗 0 画面 (100% 正常稼働)</strong></p>
+        </section>
+    </div>
+</div>
+
+</body>
+</html>

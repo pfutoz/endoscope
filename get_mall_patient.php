@@ -1,4 +1,12 @@
 <?php
+/**
+ * 設置パス: c:\Apache24\htdocs\endoscope\get_mall_patient.php
+ * ファイル名: get_mall_patient.php
+ * 概要: MALL3電子カルテ患者属性＆最終受診情報取得API
+ * 
+ * 修正履歴:
+ *   - 2026-10-30: 【最終受診情報連携】本日以前の最新受診日（last_visit_date）、診療科（last_dept_name）、担当医（last_doctor_name）、本日受診フラグ（is_today_visit）を追加
+ */
 // 予期せぬ文字出力を防ぐため画面表示はOFF、ログには全出力
 ini_set('display_errors', 0); 
 error_reporting(E_ALL);
@@ -34,6 +42,7 @@ try {
 try {
     // 2. 患者基本情報（PatientKanaを追加） ＋ 住所拡張情報の取得
     $sql = "SELECT 
+                P.PatientID,
                 P.PatientName, 
                 P.PatientKana,
                 CONVERT(varchar(10), P.BirthDay, 120) AS BirthDayStr,
@@ -63,17 +72,43 @@ try {
     if ($gender === '1') $gender = '男性';
     if ($gender === '2') $gender = '女性';
 
-    // 4. 綺麗なJSONのみを返却（patient_kana, telを新規追加）
+    // 4. 本日以前の直近受診履歴（最終受診日・診療科・担当医）
+    $stmt_visit = $conn->prepare("
+        SELECT TOP 1
+            CONVERT(varchar(10), k.ConsultDate, 120) AS LastVisitDate,
+            c.ConsultCtrlName AS DeptName,
+            st.StaffName AS DoctorName
+        FROM T_Karte k WITH (NOLOCK)
+        LEFT JOIN M_ConsultCtrl c WITH (NOLOCK) ON k.ConsultCtrlID = c.ConsultCtrlID
+        LEFT JOIN M_Staff st WITH (NOLOCK) ON k.StaffID = st.StaffID
+        WHERE k.PatientID = :pid
+          AND k.ConsultDate <= CONVERT(date, GETDATE())
+        ORDER BY k.ConsultDate DESC, k.KarteID DESC
+    ");
+    $stmt_visit->execute([':pid' => $patient['PatientID']]);
+    $last_visit = $stmt_visit->fetch();
+
+    $last_visit_date = $last_visit['LastVisitDate'] ?? null;
+    $last_dept_name  = !empty($last_visit['DeptName']) ? trim($last_visit['DeptName']) : null;
+    $last_doctor     = !empty($last_visit['DoctorName']) ? trim($last_visit['DoctorName']) : null;
+    $is_today_visit  = ($last_visit_date === date('Y-m-d'));
+
+    // 5. JSON返却
     echo json_encode([
-        'success'      => true,
-        'patient_name' => trim($patient['PatientName']),
-        'patient_kana' => isset($patient['PatientKana']) ? trim($patient['PatientKana']) : '',
-        'birthday'     => !empty($patient['BirthDayStr']) ? $patient['BirthDayStr'] : '',
-        'gender'       => $gender,
-        'address'      => $clean_address,
-        'tel'          => isset($patient['Tel']) ? trim($patient['Tel']) : ''
+        'success'          => true,
+        'patient_id'       => (int)$patient['PatientID'],
+        'patient_name'     => trim($patient['PatientName']),
+        'patient_kana'     => isset($patient['PatientKana']) ? trim($patient['PatientKana']) : '',
+        'birthday'         => !empty($patient['BirthDayStr']) ? $patient['BirthDayStr'] : '',
+        'gender'           => $gender,
+        'address'          => $clean_address,
+        'tel'              => isset($patient['Tel']) ? trim($patient['Tel']) : '',
+        'last_visit_date'  => $last_visit_date,
+        'last_dept_name'   => $last_dept_name,
+        'last_doctor_name' => $last_doctor,
+        'is_today_visit'   => $is_today_visit
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'クエリ実行不具合']);
+    echo json_encode(['success' => false, 'message' => 'クエリ実行不具合: ' . $e->getMessage()]);
 }

@@ -1,12 +1,14 @@
 <?php
 /**
  * 生成日時: 2026-09-29 14:31:00 JST
+ * 更新日時: 2026-11-06
  * 設置パス: c:\Apache24\htdocs\endoscope\lib\master_audit_helper.php
  * ファイル名: master_audit_helper.php
+ * 概要: マスタ変更監査ログ（Audit Log）＆ ワンクリック復元（Undo）ライブラリ
  * 
- * マスタ変更監査ログ（Audit Log）＆ ワンクリック復元（Undo）ライブラリ
  * 修正履歴:
  *   - 2026-09-29: 新規作成。汎用マスタ（m_input_master）および検査枠マスタ（m2_doctor, m2_waku, m2_doctor_slot_pattern, m2_doctor_attendance）の変更差分記録、ワンクリックUndo（復元）、履歴一括削除に対応。
+ *   - 2026-11-06: 時間枠マスタ（m2_waku）の世代管理カラム（valid_from, valid_to）および世代分割・一括削除のUndo復元に対応。
  */
 
 /**
@@ -246,16 +248,37 @@ function undoMasterAuditLog(PDO $pdo, int $log_id): string {
     // ============================================================
     } elseif ($master_type === 'waku') {
         if ($action_type === 'insert') {
-            $w_id = (int)$log['target_id'];
-            $del = $pdo->prepare("DELETE FROM m2_waku WHERE id = :id");
-            $del->execute([':id' => $w_id]);
-            $restore_msg = "時間枠追加を取り消しました（枠ID: {$w_id} を削除）";
+            if (!empty($new_data['inserted_ids']) && is_array($new_data['inserted_ids'])) {
+                // 世代分割（複数枠一括複製）の取り消し
+                $in_placeholders = implode(',', array_map('intval', $new_data['inserted_ids']));
+                if ($in_placeholders !== '') {
+                    $pdo->exec("DELETE FROM m2_waku WHERE id IN ({$in_placeholders})");
+                }
+                if (is_array($old_data)) {
+                    $upd = $pdo->prepare("UPDATE m2_waku SET valid_from = :vf, valid_to = :vt, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+                    foreach ($old_data as $row) {
+                        if (isset($row['id'])) {
+                            $upd->execute([
+                                ':vf' => $row['valid_from'] ?? '1900-01-01',
+                                ':vt' => $row['valid_to'] ?? '9999-12-31',
+                                ':id' => (int)$row['id']
+                            ]);
+                        }
+                    }
+                }
+                $restore_msg = "新世代作成（期間分割）を取り消しました（複製枠を削除し元世代の期間を復元）";
+            } else {
+                $w_id = (int)$log['target_id'];
+                $del = $pdo->prepare("DELETE FROM m2_waku WHERE id = :id");
+                $del->execute([':id' => $w_id]);
+                $restore_msg = "時間枠追加を取り消しました（枠ID: {$w_id} を削除）";
+            }
 
         } elseif ($action_type === 'delete') {
             if ($old_data && isset($old_data['waku_name'])) {
                 $ins = $pdo->prepare("
-                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, created_at, updated_at)
-                    VALUES (:dept, :grp, :code, :name, :disp, :act, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+                    VALUES (:dept, :grp, :code, :name, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ");
                 $ins->execute([
                     ':dept' => $old_data['department_code'] ?? 'GASTRO',
@@ -263,26 +286,61 @@ function undoMasterAuditLog(PDO $pdo, int $log_id): string {
                     ':code' => $old_data['waku_code'] ?? '',
                     ':name' => $old_data['waku_name'],
                     ':disp' => (int)($old_data['display_order'] ?? 0),
-                    ':act'  => !empty($old_data['is_active']) ? 'TRUE' : 'FALSE'
+                    ':act'  => !empty($old_data['is_active']) ? 'TRUE' : 'FALSE',
+                    ':vf'   => $old_data['valid_from'] ?? '1900-01-01',
+                    ':vt'   => $old_data['valid_to'] ?? '9999-12-31',
                 ]);
                 $restore_msg = "時間枠削除を取り消しました（「{$old_data['waku_name']}」を復元）";
+            } elseif (is_array($old_data)) {
+                // 世代一括削除の取り消し
+                $ins = $pdo->prepare("
+                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+                    VALUES (:dept, :grp, :code, :name, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ");
+                $cnt = 0;
+                foreach ($old_data as $row) {
+                    if (isset($row['waku_name'])) {
+                        $ins->execute([
+                            ':dept' => $row['department_code'] ?? 'GASTRO',
+                            ':grp'  => $row['group_code'] ?? 'OTHER',
+                            ':code' => $row['waku_code'] ?? '',
+                            ':name' => $row['waku_name'],
+                            ':disp' => (int)($row['display_order'] ?? 0),
+                            ':act'  => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
+                            ':vf'   => $row['valid_from'] ?? '1900-01-01',
+                            ':vt'   => $row['valid_to'] ?? '9999-12-31',
+                        ]);
+                        $cnt++;
+                    }
+                }
+                $restore_msg = "世代一括削除を取り消しました（計 {$cnt} 枠を復元）";
             }
 
         } elseif ($action_type === 'update') {
             if (is_array($old_data)) {
                 $upd = $pdo->prepare("
                     UPDATE m2_waku 
-                    SET group_code = :grp, waku_name = :name, display_order = :disp, is_active = :act, updated_at = CURRENT_TIMESTAMP
+                    SET group_code = :grp,
+                        waku_name = :name,
+                        display_order = :disp,
+                        is_active = :act,
+                        valid_from = :vf,
+                        valid_to = :vt,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id
                 ");
                 foreach ($old_data as $row) {
-                    $upd->execute([
-                        ':grp'  => $row['group_code'],
-                        ':name' => $row['waku_name'],
-                        ':disp' => (int)($row['display_order'] ?? 0),
-                        ':act'  => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
-                        ':id'   => (int)$row['id']
-                    ]);
+                    if (isset($row['id'])) {
+                        $upd->execute([
+                            ':grp'  => $row['group_code'],
+                            ':name' => $row['waku_name'],
+                            ':disp' => (int)($row['display_order'] ?? 0),
+                            ':act'  => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
+                            ':vf'   => $row['valid_from'] ?? '1900-01-01',
+                            ':vt'   => $row['valid_to'] ?? '9999-12-31',
+                            ':id'   => (int)$row['id']
+                        ]);
+                    }
                 }
                 $restore_msg = "時間枠更新を取り消しました（変更前の状態に復元）";
             }

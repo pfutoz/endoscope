@@ -81,6 +81,71 @@
         .nav-btn-audit:hover { background: linear-gradient(135deg, #6d28d9, #5b21b6); color: #ffffff; }
         .nav-btn-alert-scan { background: linear-gradient(135deg, #e11d48, #be123c); color: #ffffff; font-weight: 700; box-shadow: 0 2px 4px rgba(225, 29, 72, 0.2); }
         .nav-btn-alert-scan:hover { background: linear-gradient(135deg, #be123c, #9f1239); color: #ffffff; }
+        
+        /* ── その他機能 ドロップダウンメニュー（ツールバー整理） ── */
+        .more-menu-container {
+            position: relative;
+            display: inline-block;
+        }
+        .more-menu-btn {
+            background: #f8fafc;
+            color: #334155;
+            border: 1.5px solid #cbd5e1;
+            font-weight: 700;
+        }
+        .more-menu-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+        .more-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 100050;
+            min-width: 195px;
+            padding: 6px 0;
+            animation: fadeInMenu 0.15s ease-out;
+        }
+        .more-menu-dropdown.show {
+            display: block;
+        }
+        .more-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 14px;
+            color: #334155;
+            font-size: 12.5px;
+            font-weight: 700;
+            text-decoration: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.12s ease, color 0.12s ease;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+        .more-menu-item:hover {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+        .more-menu-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 4px 0;
+        }
+        @keyframes fadeInMenu {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .filters-compact {
             background: #ffffff;
@@ -302,14 +367,22 @@
         .exam-badge.tcf { background: #10b981; color: #fff; }
         .exam-badge.other { background: #e2e8f0; color: #475569; }
 
-        .room-badge { display: inline-block; padding: 1px 5px; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 3px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+        /* ── 部屋バッジ（頭文字別カラー: bulk_edit_prep_room.php連動） ── */
+        .room-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10.5px; font-weight: 800; white-space: nowrap; color: #ffffff !important; }
+        .room-badge.room-ma { background-color: #16a34a !important; border: 1px solid #15803d !important; }
+        .room-badge.room-i  { background-color: #2563eb !important; border: 1px solid #1d4ed8 !important; }
+        .room-badge.room-ko { background-color: #c28e4e !important; border: 1px solid #a16207 !important; }
+        .room-badge.room-other { background-color: #64748b !important; border: 1px solid #475569 !important; }
         .room-badge.room-duplicate { background: #fee2e2 !important; color: #dc2626 !important; border: 1.5px solid #ef4444 !important; font-weight: 800 !important; animation: pulse-room 1.8s infinite ease-in-out; }
         @keyframes pulse-room { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 
-        .prep-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9.5px; font-weight: 800; color: #ffffff; white-space: nowrap; }
-        .prep-badge.prep-mobi { background-color: #2563eb; }
-        .prep-badge.prep-magp { background-color: #ea580c; }
-        .prep-badge.prep-nif  { background-color: #16a34a; }
+        /* ── 下剤バッジ（モビ: 青, マグP: 橙, ニフ: 緑, ビジクリア: 紫 #7c3aed, その他フォールバック: スレート #64748b） ── */
+        .prep-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9.5px; font-weight: 800; color: #ffffff; background-color: #64748b; white-space: nowrap; }
+        .prep-badge.prep-mobi  { background-color: #2563eb; }
+        .prep-badge.prep-magp  { background-color: #ea580c; }
+        .prep-badge.prep-nif   { background-color: #16a34a; }
+        .prep-badge.prep-visi  { background-color: #7c3aed; }
+        .prep-badge.prep-other { background-color: #64748b; }
 
         .age-box { display: inline-block; color: #ffffff !important; font-size: 9.5px; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px; vertical-align: middle; white-space: nowrap; }
         .age-box.age-senior { background-color: #ea580c; }
@@ -1069,4 +1142,250 @@ tr.row-undecided-highlight:hover td {
     box-shadow: 0 1px 2px rgba(234, 88, 12, 0.3);
     letter-spacing: -0.5px;
 }
+
+/* ============================================================
+   案D・案C・案E 適合スタイル (2026-11-07)
+   - 案D: 上段カレンダー 医師指名×空き日逆引きハイライト
+   - 案C: 下段一覧 医師別残枠バー ＆ 空き枠可能医師ガイド・定員到達グレーアウト
+   - 案E: 🎯 CF集中ワンタップ絞り込みボタン
+   ============================================================ */
+
+/* ── 【案D】上段カレンダー：医師フィルター選択時の明暗ハイライト ── */
+.cal-table .day-cell.doc-filter-avail {
+    background-color: #ecfdf5 !important;
+    border: 2.5px solid #10b981 !important;
+    box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.25);
+    position: relative;
+    z-index: 4;
+}
+.cal-table .day-cell.doc-filter-avail:hover {
+    background-color: #d1fae5 !important;
+}
+.cal-table .day-cell.doc-filter-dimmed {
+    opacity: 0.36;
+    filter: grayscale(40%);
+    background-color: #f8fafc !important;
+}
+.cal-table .day-cell.doc-filter-dimmed.selected {
+    opacity: 0.88;
+    filter: none;
+}
+.doc-avail-cal-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 9.5px;
+    font-weight: 800;
+    background: #059669;
+    color: #ffffff;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin: 1px 0 2px 0;
+    box-shadow: 0 1px 2px rgba(5, 150, 105, 0.25);
+    white-space: nowrap;
+}
+.doc-full-cal-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    border-radius: 3px;
+    padding: 0 4px;
+    margin: 1px 0 2px 0;
+    white-space: nowrap;
+}
+
+/* ── 【案C】下段ヘッダー：当日医師別 残枠サマリーバー ── */
+.list-doc-cap-bar {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 11px;
+    vertical-align: middle;
+}
+.list-doc-cap-label {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #475569;
+    white-space: nowrap;
+}
+.list-doc-cap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px;
+    border-radius: 5px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    font-size: 11px;
+    font-weight: 700;
+    color: #0f172a;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.list-doc-cap-chip:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    transform: translateY(-1px);
+}
+.list-doc-cap-chip.active-doc {
+    background: #ecfdf5;
+    border: 1.5px solid #10b981;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+}
+.list-doc-cap-item {
+    font-size: 10.5px;
+    font-weight: 700;
+}
+.list-doc-cap-item.rem-ok {
+    color: #15803d;
+}
+.list-doc-cap-item.rem-warn {
+    color: #b45309;
+}
+.list-doc-cap-item.rem-full {
+    color: #dc2626;
+    background: #fee2e2;
+    padding: 0 3px;
+    border-radius: 3px;
+}
+
+/* ── 【案C】下段テーブル：空き枠の可能医師ガイド ＆ 医師定員到達グレーアウト ── */
+.empty-slot-cell-wrap {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.empty-avail-doc-guide {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.avail-guide-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    white-space: nowrap;
+}
+.avail-doc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #ecfdf5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+    font-size: 10.5px;
+    font-weight: 800;
+    cursor: pointer;
+    line-height: 1.3;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+}
+.avail-doc-chip:hover {
+    background: #10b981;
+    border-color: #059669;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
+}
+.avail-doc-chip.chip-gif {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1e40af;
+}
+.avail-doc-chip.chip-gif:hover {
+    background: #2563eb;
+    border-color: #1d4ed8;
+    color: #ffffff;
+}
+.avail-doc-rem {
+    font-size: 9.5px;
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+/* 医師上限到達時の空き枠行（斜線グレーアウト） */
+.list-table tr.row-doctor-cap-full {
+    background: repeating-linear-gradient(
+        135deg,
+        #f8fafc,
+        #f8fafc 6px,
+        #f1f5f9 6px,
+        #f1f5f9 12px
+    ) !important;
+}
+.list-table tr.row-doctor-cap-full td {
+    color: #64748b;
+}
+.empty-cap-full-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #e2e8f0;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10.5px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.empty-cap-full-sub {
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ── 【案E】下段ツールバー：🎯 CF集中ボタン ── */
+.btn-cf-focus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 24px;
+    box-sizing: border-box;
+    line-height: 1;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 0 8px;
+    margin-left: 3px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    background: #f8fafc;
+    color: #475569;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.btn-cf-focus:hover {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #6ee7b7;
+}
+.btn-cf-focus.active {
+    background: linear-gradient(135deg, #059669, #047857);
+    color: #ffffff;
+    border-color: #047857;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
+}
+
 

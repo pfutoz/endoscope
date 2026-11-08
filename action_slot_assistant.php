@@ -14,6 +14,8 @@
  * 5. カレンダー・予約モーダル直接起動用のジャンプURL生成
  * 
  * 修正履歴:
+ * - 2026-11-01: 直近空き枠カードの「カレンダー表示」ホバープレビュー用データ（calendar_previews: 胃腸科・肛門科両対応、各医師消化/定員＋全体集計＋日別メモ＋医師予定）を一括返却するよう拡張。
+ * - 2026-10-27: 直近空き枠検索期間に「60日」「90日」を追加（最大取得日数を60から90へ拡張）。
  * - 2026-10-05: 休診判定（日曜・祝日・振替休日・年末年始休診）の追加（check_onokai_calendar連携）。
  *   祝日等の休診日は空き枠候補から除外。ただし出勤例外（m2_doctor_attendance）が登録されている場合は
  *   出勤例外最優先ルールに基づき検索候補対象とするよう改修。
@@ -26,6 +28,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/slot_helper.php';
+require_once __DIR__ . '/lib/calendar_helper.php';
 require_once __DIR__ . '/calendar_helper_onokai.php';
 
 try {
@@ -38,7 +41,7 @@ try {
 
     if ($action === 'get_urgent_slots') {
         $doctor_filter = isset($_GET['doctor']) ? trim((string)$_GET['doctor']) : 'all';
-        $days = isset($_GET['days']) ? max(1, min(60, (int)$_GET['days'])) : 30;
+        $days = isset($_GET['days']) ? max(1, min(90, (int)$_GET['days'])) : 30;
         $only_cancel = isset($_GET['only_cancel']) && ($_GET['only_cancel'] === '1' || $_GET['only_cancel'] === 'true');
 
         $today = date('Y-m-d');
@@ -427,13 +430,32 @@ try {
             return $a['doctor_order'] <=> $b['doctor_order'];
         });
 
+        // ── 4. カレンダープレビューデータ一括集計（胃腸科・肛門科 両対応） ──
+        $eval_dates = [];
+        for ($i = 0; $i < $days; $i++) {
+            $eval_dates[] = date('Y-m-d', strtotime("$today +$i days"));
+        }
+        $calendar_previews = getCalendarPreviewsForDates($pdo, $eval_dates);
+
         echo json_encode([
             'success' => true,
             'summary' => $summary_counts,
             'slots' => $slots,
+            'calendar_previews' => $calendar_previews,
             'queried_at' => date('Y-m-d H:i:s'),
             'filter_doctor' => $doctor_filter,
             'days' => $days
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($action === 'get_calendar_preview') {
+        $dates_param = $_GET['dates'] ?? $_GET['date'] ?? '';
+        $dates = array_filter(array_map('trim', explode(',', (string)$dates_param)));
+        $previews = getCalendarPreviewsForDates($pdo, $dates);
+        echo json_encode([
+            'success' => true,
+            'calendar_previews' => $previews
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }

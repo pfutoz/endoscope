@@ -5,8 +5,20 @@
  * 生成日時: 2026-08-28 01:25:00 JST
  * 
  * 空き枠検索画面
+ * 修正: 2026-11-01 【カレンダー状況ホバープレビュー】直近空き枠カードの「📅 カレンダー表示」ボタンへのマウスホバー時、ダーク系モダンツールチップで当日の各科（胃腸科・肛門科）全医師消化/定員および全体枠集計・メモ・医師予定を即座にプレビュー表示する機能を追加
+ * 修正: 2026-11-01 【条件指定検索パワーアップ】
+ *   - 診療科「全科」対応（胃腸科・肛門科横断検索、医師科バッジ表示）
+ *   - 高密度コンパクトカード表示モード追加（テーブル ⇔ カード切替トグル、localStorage永続化）
+ *   - リアルタイムAjax自動検索（デバウンス250ms）＆検索ボタンPulse点滅アニメーション
+ *   - コンパクトカード内の「📅 カレンダー」ボタンからの当日の枠状況ホバープレビュー連動
+ * 修正: 2026-11-01 【初期表示時検索不具合解消】
+ *   - 初期表示（mode=custom）時のSSR自動検索対応＆初回カレンダープレビューキャッシュ埋め込み
+ *   - DOMContentLoaded時およびタブ切替時の確実な自動検索トリガー
+ *   - 医師予定パース時の警告（Undefined array key 'title'）解消によるAjax構文エラー修正完了
  * 修正: 2026-08-28 ステップ1（getExamIconの重複排除・共通ライブラリ利用）
  * 修正: 2026-10-05 休診日（祝日・日曜・年末年始）判定時の出勤例外最優先ロジックの統一
+ * 修正: 2026-10-27 直近空き枠速報の検索期間に「直近 60日間」「直近 90日間」を追加。選択期間に応じたタブ表示動的連動
+ * 修正: 2026-10-26 検査種別グループ解決を共通関数 resolveExamGroup() / getExamTypeBadgeInfo() に一本化し、m_exam_type_group と連動
  * 修正: 2026-10-20 検索期間指定に特大Flatpickr（小野会カレンダー・公休日色分け）導入
  */
 ini_set('display_errors', "1");
@@ -91,9 +103,16 @@ if ($is_month_mode) {
 }
 $search_clicked = isset($_GET['search_clicked']) && (string)$_GET['search_clicked'] === '1';
 
+$doctor_meta_map = [
+    '誠吾' => ['dept' => 'PROCT', 'dept_name' => '肛門科', 'short' => '誠', 'cls' => 'doc-seigo', 'color' => '#059669', 'badge_cls' => 'bg-emerald', 'dept_tag_cls' => 'tag-proct'],
+    '哲也' => ['dept' => 'GASTRO', 'dept_name' => '胃腸科', 'short' => '哲', 'cls' => 'doc-tetsuya', 'color' => '#4f46e5', 'badge_cls' => 'bg-cyan', 'dept_tag_cls' => 'tag-gastro'],
+    '義智' => ['dept' => 'GASTRO', 'dept_name' => '胃腸科', 'short' => '義', 'cls' => 'doc-yoshitomo', 'color' => '#7c3aed', 'badge_cls' => 'bg-indigo', 'dept_tag_cls' => 'tag-gastro'],
+    '慶太郎' => ['dept' => 'GASTRO', 'dept_name' => '胃腸科', 'short' => '慶', 'cls' => 'doc-keitaro', 'color' => '#d97706', 'badge_cls' => 'bg-rose', 'dept_tag_cls' => 'tag-gastro'],
+];
+
 $all_doctors = [];
-foreach (['PROCT', 'GASTRO'] as $dept) {
-    $all_doctors[$dept] = getDoctorsForDept($pdo, $dept);
+foreach (['PROCT', 'GASTRO'] as $d) {
+    $all_doctors[$d] = getDoctorsForDept($pdo, $d);
 }
 $doctors_list = $all_doctors[$selected_dept] ?? [];
 $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
@@ -109,12 +128,16 @@ for ($i = 0; $i < 12; $i++) {
     ];
 }
 
+// 条件指定モードの場合、初回表示（search_clicked未指定）でもデフォルト条件で初期検索を実行
+$should_search = $search_clicked || ($search_mode === 'custom');
+
 $results = [];
 $result_count = 0;
 $executed_sql = '';
 $too_many_count = 0;
+$initial_cal_previews = [];
 
-if ($search_clicked) {
+if ($should_search) {
     $result = searchAvailableSlots(
         $pdo,
         $selected_dept,
@@ -135,14 +158,148 @@ if ($search_clicked) {
     } else {
         $results = $result;
         $result_count = count($results);
+        
+        // カレンダープレビュー用データを集計
+        $unique_dates = array_values(array_unique(array_column($results, 'exam_date')));
+        if (!empty($unique_dates)) {
+            $initial_cal_previews = getCalendarPreviewsForDates($pdo, $unique_dates);
+        }
     }
 }
 
+// ★ Ajaxリアルタイム検索リクエスト判定
+if (isset($_GET['ajax']) && (string)$_GET['ajax'] === '1') {
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // 検索実行
+    $ajax_sql = '';
+    $ajax_result = searchAvailableSlots(
+        $pdo,
+        $selected_dept,
+        $selected_doctors,
+        $selected_exams,
+        $weekdays,
+        $selected_months,
+        $date_from,
+        $date_to,
+        $is_month_mode,
+        $ajax_sql
+    );
+    
+    $is_too_many = false;
+    $ajax_too_many_count = 0;
+    $ajax_results = [];
+    
+    if (isset($ajax_result['error']) && $ajax_result['error'] === 'too_many') {
+        $is_too_many = true;
+        $ajax_too_many_count = $ajax_result['count'];
+    } else {
+        $ajax_results = $ajax_result;
+    }
+    
+    // カレンダープレビュー用データを集計
+    $unique_dates = array_values(array_unique(array_column($ajax_results, 'exam_date')));
+    $cal_previews = [];
+    if (!empty($unique_dates)) {
+        $cal_previews = getCalendarPreviewsForDates($pdo, $unique_dates);
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'count' => count($ajax_results),
+        'too_many' => $is_too_many,
+        'too_many_count' => $ajax_too_many_count,
+        'results' => $ajax_results,
+        'calendar_previews' => $cal_previews,
+        'dept' => $selected_dept,
+        'executed_sql' => $debug_mode ? $ajax_sql : ''
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months, $date_from, $date_to, $is_month_mode, &$executed_sql) {
+    global $doctor_meta_map, $week_ja;
+    $week_ja_map = ['日', '月', '火', '水', '木', '金', '土'];
+    
+    // 対象科の医師一覧
+    $dept_doctors = getDoctorsForDept($pdo, $dept);
+    $target_doctors = [];
+    if (in_array('all', $doctors, true)) {
+        $target_doctors = ['all'];
+    } else {
+        $target_doctors = array_values(array_intersect($doctors, $dept_doctors));
+        if (empty($target_doctors)) {
+            $executed_sql = "-- 対象科に一致する医師がありません";
+            return [];
+        }
+    }
+    
+    $res = searchAvailableSlotsOneDept($pdo, $dept, $target_doctors, $exams, $weekdays, $months, $date_from, $date_to, $is_month_mode, $executed_sql);
+    
+    $dep_name = ($dept === 'GASTRO') ? '胃腸科' : '肛門科';
+    $all_results = [];
+    foreach ($res as $row) {
+        $d_name = $row['doctor_name'];
+        $meta = $doctor_meta_map[$d_name] ?? [
+            'dept' => $dept,
+            'dept_name' => $dep_name,
+            'short' => mb_substr($d_name, 0, 1),
+            'cls' => '',
+            'color' => '#334155',
+            'badge_cls' => 'bg-slate',
+            'dept_tag_cls' => ($dept === 'GASTRO') ? 'tag-gastro' : 'tag-proct'
+        ];
+        $dow = (int)date('w', strtotime($row['exam_date']));
+        $parts = explode('-', $row['exam_date']);
+        $y = $parts[0] ?? date('Y');
+        $m = (int)($parts[1] ?? date('m'));
+        
+        $all_results[] = [
+            'exam_date' => $row['exam_date'],
+            'year' => (int)$y,
+            'month' => $m,
+            'dow' => $dow,
+            'dow_ja' => $week_ja_map[$dow] ?? '',
+            'department_code' => $dept,
+            'department_name' => $dep_name,
+            'doctor_name' => $d_name,
+            'doctor_short' => $meta['short'],
+            'doctor_cls' => $meta['cls'],
+            'doctor_color' => $meta['color'],
+            'doctor_badge_cls' => $meta['badge_cls'],
+            'dept_tag_cls' => $meta['dept_tag_cls'],
+            'exam_type' => $row['exam_type'],
+            'exam_cls' => getExamClass($row['exam_type']),
+            'exam_icon' => getExamIcon($row['exam_type']),
+            'free_slots' => (int)$row['free_slots'],
+            'max_slots' => (int)$row['max_slots'],
+            'used_slots' => (int)$row['max_slots'] - (int)$row['free_slots'],
+            'free_color_cls' => getFreeColorClass((int)$row['free_slots']),
+            'jump_url' => "month_schedule.php?dept=" . urlencode($dept) . "&year={$y}&month={$m}&date=" . urlencode($row['exam_date']) . "&display_mode=remain"
+        ];
+    }
+    
+    $total_count = count($all_results);
+    if ($total_count > 300) {
+        $executed_sql .= "
+-- 空き枠検索結果が300件を超えました（{$total_count}件）";
+        return ['error' => 'too_many', 'count' => $total_count];
+    }
+    
+    usort($all_results, function($a, $b) {
+        if ($a['exam_date'] !== $b['exam_date']) return strcmp($a['exam_date'], $b['exam_date']);
+        if ($a['doctor_name'] !== $b['doctor_name']) return strcmp($a['doctor_name'], $b['doctor_name']);
+        $order = ['GIF' => 0, 'エコー' => 1, 'TCF' => 2];
+        return ($order[$a['exam_type']] ?? 99) - ($order[$b['exam_type']] ?? 99);
+    });
+    
+    return $all_results;
+}
+
+function searchAvailableSlotsOneDept($pdo, $dept, $doctors, $exams, $weekdays, $months, $date_from, $date_to, $is_month_mode, &$executed_sql) {
     $dates = [];
     $today = date('Y-m-d');
     
-    // ★ 出勤例外（m2_doctor_attendance）が登録されている日付を事前に取得（休診日でも出勤例外最優先）
     $stmt_closed_att = $pdo->prepare("
         SELECT DISTINCT target_date::text 
         FROM m2_doctor_attendance 
@@ -174,7 +331,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
                 }
                 if ($date_str >= $today) {
                     $day_check = check_onokai_calendar($date_str, null);
-                    // 原則休診日は除外するが、出勤例外が登録されている場合は対象とする
                     if (!$day_check['is_closed'] || isset($exception_date_set[$date_str])) {
                         $dates[] = $date_str;
                     }
@@ -196,7 +352,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
             }
             if ($date_str >= $today) {
                 $day_check = check_onokai_calendar($date_str, null);
-                // 原則休診日は除外するが、出勤例外が登録されている場合は対象とする
                 if (!$day_check['is_closed'] || isset($exception_date_set[$date_str])) {
                     $dates[] = $date_str;
                 }
@@ -219,7 +374,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
         return [];
     }
     
-    // ★ 予約集計（カレンダー画面 month_schedule.php と完全準拠：枠なし除外 ＆ 医師・検査種別グループ集計）
     $placeholders = implode(',', array_fill(0, count($dates), '?'));
     $sql = "
         SELECT 
@@ -252,10 +406,11 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
         $reservationMap[$d][$doc][$etype] = $cnt;
     }
 
-    $executed_sql = "-- 既存予約集計結果: " . $total_reserved_count . " 件\n";
-    $executed_sql .= $sql . "\n-- 対象日: " . implode(', ', $dates);
+    $executed_sql = "-- 既存予約集計結果: " . $total_reserved_count . " 件
+";
+    $executed_sql .= $sql . "
+-- 対象日: " . implode(', ', $dates);
 
-    // ★ 期間内の枠マスタ（出勤例外・日別上書き・曜日パターン）を一括プリフェッチ
     $min_date = reset($dates);
     $max_date = end($dates);
 
@@ -265,7 +420,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
         'patterns' => []
     ];
 
-    // 1. 出勤例外一括取得
     $stmt_att = $pdo->prepare("
         SELECT doctor_name, target_date::text AS target_date, gif_slots, echo_slots, tcf_slots, reason, pattern_name
         FROM m2_doctor_attendance
@@ -283,7 +437,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
         ];
     }
 
-    // 2. 日別上書き一括取得
     $stmt_cap = $pdo->prepare("
         SELECT doctor_name, target_date::text AS target_date, gif_slots, echo_slots, tcf_slots, memo_jp
         FROM m2_doctor_daily_capacity_v2
@@ -301,7 +454,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
         ];
     }
 
-    // 3. 曜日パターン一括取得（★重要: MAXとGROUP BYで複数行による0上書き消失を完全に防止）
     $stmt_pat = $pdo->prepare("
         SELECT 
             doctor_name, 
@@ -322,10 +474,6 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
             'TCF' => (int)($row['tcf_slots'] ?? 0)
         ];
     }
-
-    $gif_group  = ['GIF', '◆胃がん検診◆', '胃がん検診'];
-    $echo_group = ['ECHO', 'エコー'];
-    $tcf_group  = ['TCF', 'W', 'ポリペク'];
 
     $results = [];
     $slot_types = ['GIF', 'ECHO', 'TCF'];
@@ -349,14 +497,11 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
                 $max_slots = $status['slots'][$slot_type] ?? 0;
                 if ($max_slots <= 0) continue;
                 
-                // カレンダー画面と同等のグループ合算で消化数を算出
                 $used = 0;
-                if ($slot_type === 'GIF') {
-                    foreach ($gif_group as $g) { $used += (int)($doc_res[$g] ?? 0); }
-                } elseif ($slot_type === 'ECHO') {
-                    foreach ($echo_group as $e) { $used += (int)($doc_res[$e] ?? 0); }
-                } elseif ($slot_type === 'TCF') {
-                    foreach ($tcf_group as $t) { $used += (int)($doc_res[$t] ?? 0); }
+                foreach ($doc_res as $e_name => $cnt) {
+                    if (resolveExamGroup((string)$e_name) === $slot_type) {
+                        $used += (int)$cnt;
+                    }
                 }
                 
                 $free = $max_slots - $used;
@@ -373,26 +518,11 @@ function searchAvailableSlots($pdo, $dept, $doctors, $exams, $weekdays, $months,
         }
     }
 
-    // ★ 空き枠件数の上限判定（空き枠自体が300件を超えた場合に絞り込み案内を表示）
-    $total_free_count = count($results);
-    if ($total_free_count > 300) {
-        $executed_sql .= "\n-- 空き枠検索結果が300件を超えました（{$total_free_count}件）\n-- 条件を絞り込んでください";
-        return ['error' => 'too_many', 'count' => $total_free_count];
-    }
-    
-    usort($results, function($a, $b) {
-        if ($a['exam_date'] !== $b['exam_date']) return strcmp($a['exam_date'], $b['exam_date']);
-        if ($a['doctor_name'] !== $b['doctor_name']) return strcmp($a['doctor_name'], $b['doctor_name']);
-        $order = ['GIF' => 0, 'エコー' => 1, 'TCF' => 2];
-        return ($order[$a['exam_type']] ?? 99) - ($order[$b['exam_type']] ?? 99);
-    });
-    
     return $results;
 }
 
 function getExamClass($exam_type) {
-    $map = ['GIF' => 'gif', 'エコー' => 'echo', 'TCF' => 'tcf'];
-    return $map[$exam_type] ?? 'other';
+    return getExamTypeBadgeInfo($exam_type)['cls'];
 }
 
 function getFreeColorClass($free) {
@@ -927,12 +1057,474 @@ function getFreeColorClass($free) {
             box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
         }
         .urgent-btn-book:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
+
+        /* ── カレンダープレビュー・フローティングツールチップ (Dark Modern Floating) ── */
+        .cal-preview-tooltip {
+            position: fixed;
+            z-index: 99999;
+            width: 320px;
+            max-width: 92vw;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1.5px solid rgba(255, 255, 255, 0.16);
+            border-radius: 12px;
+            padding: 12px 14px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25);
+            color: #f8fafc;
+            font-size: 12px;
+            line-height: 1.45;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(6px) scale(0.98);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            display: none;
+        }
+        .cal-preview-tooltip.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            display: block;
+        }
+
+        .cpt-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+            gap: 6px;
+        }
+        .cpt-title {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cpt-dow {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+        .cpt-dow.sat { background: rgba(59, 130, 246, 0.35); color: #93c5fd; }
+        .cpt-dow.sun { background: rgba(239, 68, 68, 0.35); color: #fca5a5; }
+        .cpt-dow.weekday { background: rgba(255, 255, 255, 0.14); color: #e2e8f0; }
+
+        .cpt-closed-badge {
+            background: rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        .cpt-dept-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 7px 9px;
+            margin-bottom: 7px;
+        }
+        .cpt-dept-section:last-of-type {
+            margin-bottom: 0;
+        }
+        .cpt-dept-title {
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding-bottom: 3px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+        .cpt-dept-name {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .cpt-dept-name.gastro { color: #93c5fd; }
+        .cpt-dept-name.proct  { color: #6ee7b7; }
+
+        .cpt-doc-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2.5px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+        }
+        .cpt-doc-row:last-of-type {
+            border-bottom: none;
+        }
+        .cpt-doc-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 17px;
+            height: 17px;
+            min-width: 17px;
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 800;
+            color: #ffffff;
+            flex-shrink: 0;
+        }
+        .cpt-doc-icon.bg-indigo  { background-color: #6366f1; }
+        .cpt-doc-icon.bg-emerald { background-color: #10b981; }
+        .cpt-doc-icon.bg-amber   { background-color: #f59e0b; }
+        .cpt-doc-icon.bg-cyan    { background-color: #06b6d4; }
+        .cpt-doc-icon.bg-purple  { background-color: #8b5cf6; }
+        .cpt-doc-icon.bg-rose    { background-color: #f43f5e; }
+        .cpt-doc-icon.bg-slate   { background-color: #64748b; }
+
+        .cpt-slot-badges {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .cpt-slot-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+        }
+        .cpt-slot-pill.is-full {
+            background: rgba(59, 130, 246, 0.25);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #bfdbfe;
+        }
+        .cpt-slot-pill.is-over {
+            background: rgba(239, 68, 68, 0.35);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #fca5a5;
+            animation: cptPulse 1.2s infinite;
+        }
+        @keyframes cptPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
+
+        .cpt-overall-bar {
+            margin-top: 4px;
+            padding: 2.5px 6px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #6ee7b7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+        }
+        .cpt-overall-bar .overall-label {
+            opacity: 0.85;
+        }
+
+        .cpt-extras {
+            margin-top: 7px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .cpt-memo-item {
+            font-size: 10.5px;
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: #fde68a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1.35;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .cpt-event-item {
+            font-size: 10.5px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1.35;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ── 検索ボタン フワフワ点滅アニメーション ── */
+        @keyframes searchBtnPulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+            }
+            50% {
+                transform: scale(1.04);
+                box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+        .btn-search.pulse {
+            animation: searchBtnPulse 1.6s infinite ease-in-out;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+            position: relative;
+        }
+
+        /* ── 医師ボタン内の診療科バッジ ── */
+        .doc-dept-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 4px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .doc-dept-badge.proct {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .doc-dept-badge.gastro {
+            background: #e0f2fe;
+            color: #075985;
+            border: 1px solid #bae6fd;
+        }
+
+        /* ── 表示切替トグル（テーブル ⇔ コンパクトカード） ── */
+        .custom-view-toggle {
+            display: inline-flex;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 3px;
+            gap: 3px;
+        }
+        .custom-view-btn {
+            border: none;
+            background: transparent;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .custom-view-btn:hover {
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+        .custom-view-btn.active {
+            background: #ffffff;
+            color: #1d4ed8;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ── コンパクトカード用 スタイル ── */
+        .compact-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .compact-card {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 8px;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+        .compact-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border-color: #94a3b8;
+        }
+        .compact-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11.5px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 6px;
+        }
+        .compact-card-date {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .compact-card-dow {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .compact-card-dept {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+        .compact-card-dept.gastro {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+        .compact-card-dept.proct {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .compact-card-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .compact-doc-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .compact-doc-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .compact-doc-name {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .compact-slot-info {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        .compact-slot-count {
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+        .compact-slot-max {
+            font-size: 10.5px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .compact-card-footer {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+            padding-top: 6px;
+            border-top: 1px solid #f8fafc;
+        }
+        .compact-btn {
+            flex: 1;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            line-height: 1.2;
+        }
+        .compact-btn-cal {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #334155;
+        }
+        .compact-btn-cal:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .compact-btn-book {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+        }
+        .compact-btn-book:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+            color: #1e40af;
+        }
+
+        /* リアルタイム検索ローディング表示 */
+        .custom-search-loading {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px;
+            color: #2563eb;
+            font-weight: 700;
+            font-size: 13px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-top: 12px;
+            border: 1px dashed #cbd5e1;
+        }
+        .spinner-dot {
+            width: 8px;
+            height: 8px;
+            background: #2563eb;
+            border-radius: 50%;
+            animation: spinnerDot 0.8s infinite alternate;
+        }
+        @keyframes spinnerDot {
+            0% { transform: scale(0.6); opacity: 0.4; }
+            100% { transform: scale(1.2); opacity: 1; }
+        }
     </style>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
-    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
-    <script src="assets/js/onokai_flatpickr.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
 </head>
 <body>
 
@@ -950,7 +1542,7 @@ function getFreeColorClass($free) {
     <!-- ── 統合モード切替タブ ── -->
     <div class="search-mode-tabs-container">
         <button type="button" class="search-mode-tab <?= $search_mode === 'urgent' ? 'active' : '' ?>" id="tabModeUrgent" onclick="switchSearchMode('urgent')">
-            <span>⚡ 直近空き枠速報（全科横断・30日大腸CF）</span>
+            <span id="urgentTabTitle">⚡ 直近空き枠速報（全科横断・30日大腸CF）</span>
             <span class="tab-badge" id="tabUrgentBadge">速報</span>
         </button>
         <button type="button" class="search-mode-tab <?= $search_mode === 'custom' ? 'active' : '' ?>" id="tabModeCustom" onclick="switchSearchMode('custom')">
@@ -991,6 +1583,8 @@ function getFreeColorClass($free) {
                     <option value="14">直近 14日間</option>
                     <option value="30" selected>直近 30日間（推奨）</option>
                     <option value="45">直近 45日間</option>
+                    <option value="60">直近 60日間</option>
+                    <option value="90">直近 90日間</option>
                 </select>
                 <button type="button" onclick="loadUrgentSlots(true)" class="btn" style="padding:5px 12px; font-size:12px; font-weight:700; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer;">
                     🔄 最新に更新
@@ -1019,12 +1613,12 @@ function getFreeColorClass($free) {
                 期間 <span style="font-size:10px; color:#94a3b8;">(必須)</span>
             </span>
             <div class="btn-group-items">
-                <input type="text" name="date_from" id="date_from" class="date-input onokai-date-picker" 
+                <input type="text" name="date_from" id="date_from" class="onokai-date-picker" 
                        value="<?= htmlspecialchars($date_from, ENT_QUOTES, 'UTF-8') ?>"
                        autocomplete="off"
                        <?= $is_month_mode ? 'disabled' : '' ?>>
-                <span>〜</span>
-                <input type="text" name="date_to" id="date_to" class="date-input onokai-date-picker" 
+                <span style="font-weight: bold; color: #64748b; margin: 0 4px;">〜</span>
+                <input type="text" name="date_to" id="date_to" class="onokai-date-picker" 
                        value="<?= htmlspecialchars($date_to, ENT_QUOTES, 'UTF-8') ?>"
                        autocomplete="off"
                        <?= $is_month_mode ? 'disabled' : '' ?>>
@@ -1099,78 +1693,181 @@ function getFreeColorClass($free) {
         </div>
 
         <div class="actions">
-            <button type="submit" class="btn-search">🔍 検索</button>
+            <button type="submit" class="btn-search" id="btnSearchCustom">🔍 検索</button>
             <button type="button" class="btn-reset" onclick="resetForm()">↺ リセット</button>
         </div>
     </form>
 
-    <?php if ($too_many_count > 0): ?>
-        <div class="error-box">
-            <h3>⚠️ 検索結果が300件を超えました（<?= number_format($too_many_count) ?> 件）</h3>
+    <!-- ローディング表示 -->
+        <div id="customSearchLoading" class="custom-search-loading">
+            <div class="spinner-dot"></div>
+            <span>条件に一致する空き枠を検索しています...</span>
+        </div>
+
+        <div id="customTooManyBox" class="error-box" style="display: <?= $too_many_count > 0 ? 'block' : 'none' ?>;">
+            <h3 id="customTooManyTitle">⚠️ 検索結果が300件を超えました（<span id="customTooManyNum"><?= number_format($too_many_count) ?></span> 件）</h3>
             <p>条件（医師・曜日・月など）を絞り込んで再検索してください。</p>
         </div>
-    <?php endif; ?>
 
-    <?php if ($search_clicked && $too_many_count === 0): ?>
-        <div class="result-header">
-            <div class="count">📊 検索結果: <span><?= $result_count ?></span> 件</div>
-            <span style="font-size:12px; color:#64748b;">💡 行クリックで該当日の予約カレンダーへジャンプ</span>
-        </div>
+        <div id="customResultSection" style="display: <?= ($should_search && $too_many_count === 0) ? 'block' : 'none' ?>;">
+            <div class="result-header">
+                <div class="count">📊 検索結果: <span id="customResultCount"><?= $result_count ?></span> 件</div>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div class="custom-view-toggle" role="group" aria-label="表示形式切替">
+                        <button type="button" class="custom-view-btn" id="btnViewTable" onclick="setCustomViewMode('table')" title="表形式で詳細確認">
+                            📄 テーブル
+                        </button>
+                        <button type="button" class="custom-view-btn" id="btnViewCards" onclick="setCustomViewMode('cards')" title="高密度カード形式で一覧確認">
+                            🗂️ コンパクトカード
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-        <?php if (empty($results)): ?>
-            <div class="no-results">該当する空き枠がありませんでした。</div>
-        <?php else: ?>
-            <table class="result-table" aria-label="空き枠検索結果一覧">
-                <thead>
-                    <tr>
-                        <th scope="col">日付</th>
-                        <th scope="col">曜日</th>
-                        <th scope="col">医師</th>
-                        <th scope="col">検査種別</th>
-                        <th scope="col">残枠 / 定員</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <!-- 0件表示 -->
+            <div id="customNoResults" class="no-results" style="display: <?= ($should_search && $too_many_count === 0 && empty($results)) ? 'block' : 'none' ?>;">
+                該当する空き枠がありませんでした。
+            </div>
+
+            <!-- テーブルコンテナ -->
+            <div id="customTableContainer" style="display: none;">
+                <table class="result-table" aria-label="空き枠検索結果一覧">
+                    <thead>
+                        <tr>
+                            <th scope="col">日付</th>
+                            <th scope="col">曜日</th>
+                            <th scope="col">診療科</th>
+                            <th scope="col">医師</th>
+                            <th scope="col">検査種別</th>
+                            <th scope="col">残枠 / 定員</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customTableBody">
+                        <?php foreach ($results as $row): 
+                            $exam = (string)($row['exam_type'] ?? '');
+                            $date_str = (string)$row['exam_date'];
+                            $dow = (int)date('w', strtotime($date_str));
+                            $dep_name = (string)($row['department_name'] ?? '');
+                            $dep_tag_cls = (string)($row['dept_tag_cls'] ?? 'tag-gastro');
+                        ?>
+                            <tr class="clickable" tabindex="0" role="button" onclick="goToSchedule('<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)($row['department_code'] ?? 'GASTRO'), ENT_QUOTES, 'UTF-8') ?>')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); goToSchedule('<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars((string)($row['department_code'] ?? 'GASTRO'), ENT_QUOTES, 'UTF-8') ?>');}">
+                                <td class="tabular-nums"><?= date('Y/m/d', strtotime($date_str)) ?></td>
+                                <td><?= $week_ja[$dow] ?? '' ?></td>
+                                <td><span class="urgent-dept-tag <?= $dep_tag_cls ?>"><?= htmlspecialchars($dep_name, ENT_QUOTES, 'UTF-8') ?></span></td>
+                                <td><?= htmlspecialchars((string)($row['doctor_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+                                <td><span class="exam-tag <?= getExamClass($exam) ?>"><?= getExamIcon($exam) ?> <?= htmlspecialchars($exam, ENT_QUOTES, 'UTF-8') ?></span></td>
+                                <td class="tabular-nums">
+                                    <span class="free-slots <?= getFreeColorClass((int)$row['free_slots']) ?>"><?= (int)$row['free_slots'] ?></span>
+                                    <span style="color:#64748b; font-size:12px;"> / <?= (int)$row['max_slots'] ?></span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- コンパクトカードコンテナ -->
+            <div id="customCardsContainer" style="display: none;">
+                <div class="compact-cards-grid" id="customCardsGrid">
                     <?php foreach ($results as $row): 
                         $exam = (string)($row['exam_type'] ?? '');
                         $date_str = (string)$row['exam_date'];
                         $dow = (int)date('w', strtotime($date_str));
+                        $dow_ja_str = $week_ja[$dow] ?? '';
+                        $dow_cls = ($dow === 6) ? 'dow-sat' : (($dow === 0) ? 'dow-sun' : 'dow-weekday');
+                        $dep_code = (string)($row['department_code'] ?? 'GASTRO');
+                        $dep_name = (string)($row['department_name'] ?? '胃腸科');
+                        $dep_cls = ($dep_code === 'GASTRO') ? 'gastro' : 'proct';
+                        $doc_name = (string)($row['doctor_name'] ?? '');
+                        $doc_short = (string)($row['doctor_short'] ?? mb_substr($doc_name, 0, 1));
+                        $doc_color = (string)($row['doctor_color'] ?? '#334155');
+                        $free_cls = getFreeColorClass((int)$row['free_slots']);
+                        $y = date('Y', strtotime($date_str));
+                        $m = (int)date('m', strtotime($date_str));
                     ?>
-                        <tr class="clickable" tabindex="0" role="button" aria-label="<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?> <?= $week_ja[$dow] ?? '' ?> <?= htmlspecialchars((string)($row['doctor_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($exam, ENT_QUOTES, 'UTF-8') ?> 残り<?= (int)$row['free_slots'] ?>枠 のカレンダーを開く" onclick="goToSchedule('<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); goToSchedule('<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>');}">
-                            <td class="tabular-nums"><?= date('Y/m/d', strtotime($date_str)) ?></td>
-                            <td><?= $week_ja[$dow] ?? '' ?></td>
-                            <td><?= htmlspecialchars((string)($row['doctor_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-                            <td><span class="exam-tag <?= getExamClass($exam) ?>"><?= getExamIcon($exam) ?> <?= htmlspecialchars($exam, ENT_QUOTES, 'UTF-8') ?></span></td>
-                            <td class="tabular-nums">
-                                <span class="free-slots <?= getFreeColorClass((int)$row['free_slots']) ?>"><?= (int)$row['free_slots'] ?></span>
-                                <span style="color:#64748b; font-size:12px;"> / <?= (int)$row['max_slots'] ?></span>
-                            </td>
-                        </tr>
+                        <div class="compact-card">
+                            <div class="compact-card-header">
+                                <div class="compact-card-date">
+                                    <span>📅 <?= date('Y/m/d', strtotime($date_str)) ?></span>
+                                    <span class="compact-card-dow <?= $dow_cls ?>"><?= $dow_ja_str ?></span>
+                                </div>
+                                <span class="compact-card-dept <?= $dep_cls ?>"><?= htmlspecialchars($dep_name, ENT_QUOTES, 'UTF-8') ?></span>
+                            </div>
+
+                            <div class="compact-card-body">
+                                <div class="compact-doc-info">
+                                    <span class="compact-doc-avatar" style="background: <?= $doc_color ?>;"><?= htmlspecialchars($doc_short, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <div>
+                                        <div class="compact-doc-name"><?= htmlspecialchars($doc_name, ENT_QUOTES, 'UTF-8') ?> 先生</div>
+                                        <span class="exam-tag <?= getExamClass($exam) ?>" style="font-size:10px; padding:1px 6px;">
+                                            <?= getExamIcon($exam) ?> <?= htmlspecialchars($exam, ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="compact-slot-info">
+                                    <span class="compact-slot-count free-slots <?= $free_cls ?>">残 <?= (int)$row['free_slots'] ?> 枠</span>
+                                    <span class="compact-slot-max">定員 <?= (int)$row['max_slots'] ?></span>
+                                </div>
+                            </div>
+
+                            <div class="compact-card-footer">
+                                <a href="month_schedule.php?dept=<?= urlencode($dep_code) ?>&year=<?= $y ?>&month=<?= $m ?>&date=<?= urlencode($date_str) ?>&display_mode=remain" 
+                                   class="compact-btn compact-btn-cal urgent-btn-cal" 
+                                   data-cal-preview-date="<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>" 
+                                   title="当日の予約状況をプレビュー (ホバー)">
+                                    📅 カレンダー
+                                </a>
+                                <button type="button" 
+                                        onclick="jumpAndBookSlot('<?= htmlspecialchars($dep_code, ENT_QUOTES, 'UTF-8') ?>', <?= $y ?>, <?= $m ?>, '<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars($doc_name, ENT_QUOTES, 'UTF-8') ?>')" 
+                                        class="compact-btn compact-btn-book" 
+                                        title="新規予約登録へ">
+                                    ➕ 予約
+                                </button>
+                            </div>
+                        </div>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
+                </div>
+            </div>
+        </div>
 
         <?php if ($debug_mode && !empty($executed_sql)): ?>
             <div class="sql-box"><?= htmlspecialchars($executed_sql, ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
-    <?php endif; ?>
     </div><!-- /#customViewContainer -->
 </div>
 
+<!-- ── カレンダー状況ホバープレビュー用 ツールチップ ── -->
+<div id="calPreviewTooltip" class="cal-preview-tooltip" role="tooltip" aria-hidden="true"></div>
+
 <script>
 const allDoctors = <?= json_encode($all_doctors) ?>;
+const doctorMetaMap = <?= json_encode($doctor_meta_map) ?>;
 let currentSearchMode = '<?= $search_mode ?>';
 let urgentSlotCache = null;
 let currentUrgentDoctor = 'all';
+
+// 条件指定検索用状態
+let calPreviewCache = <?= !empty($initial_cal_previews) ? json_encode($initial_cal_previews, JSON_UNESCAPED_UNICODE) : '{}' ?>;
+let currentCustomViewMode = localStorage.getItem('endoscope_custom_view_mode') || 'table';
+let autoSearchTimer = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     initButtons('doctor', '#doctorContainer');
     initButtons('exam', '#examContainer');
     initButtons('weekday', '#weekdayContainer');
 
+    // 初期表示モード適用
+    setCustomViewMode(currentCustomViewMode);
+
     if (currentSearchMode === 'urgent') {
         loadUrgentSlots(false);
+    } else if (currentSearchMode === 'custom') {
+        // 条件指定検索モードの場合、結果セクションが非表示なら自動検索
+        const resultSection = document.getElementById('customResultSection');
+        if (!resultSection || resultSection.style.display === 'none') {
+            runCustomSearchAjax();
+        }
     }
 });
 
@@ -1196,7 +1893,240 @@ function switchSearchMode(targetMode) {
         tabUrgent.classList.remove('active');
         viewCustom.style.display = 'block';
         viewUrgent.style.display = 'none';
+
+        // 条件指定検索タブ初回表示時、もし結果エリアが空なら自動検索
+        const resultSection = document.getElementById('customResultSection');
+        const tableRows = document.querySelectorAll('#customTableBody tr');
+        const cardItems = document.querySelectorAll('#customCardsGrid .compact-card');
+        if (!resultSection || resultSection.style.display === 'none' || (tableRows.length === 0 && cardItems.length === 0)) {
+            runCustomSearchAjax();
+        }
     }
+}
+
+// ── 表示モード切替（テーブル ⇔ コンパクトカード） ──
+function setCustomViewMode(mode) {
+    currentCustomViewMode = mode;
+    localStorage.setItem('endoscope_custom_view_mode', mode);
+
+    const btnTable = document.getElementById('btnViewTable');
+    const btnCards = document.getElementById('btnViewCards');
+    const containerTable = document.getElementById('customTableContainer');
+    const containerCards = document.getElementById('customCardsContainer');
+    const noResults = document.getElementById('customNoResults');
+
+    const isNoResults = noResults && noResults.style.display === 'block';
+
+    if (mode === 'cards') {
+        if (btnCards) btnCards.classList.add('active');
+        if (btnTable) btnTable.classList.remove('active');
+        if (containerCards && !isNoResults) containerCards.style.display = 'block';
+        if (containerTable) containerTable.style.display = 'none';
+    } else {
+        if (btnTable) btnTable.classList.add('active');
+        if (btnCards) btnCards.classList.remove('active');
+        if (containerTable && !isNoResults) containerTable.style.display = 'block';
+        if (containerCards) containerCards.style.display = 'none';
+    }
+}
+
+// ── 条件変更の検知 ＆ 検索ボタンPulse点滅 ＆ デバウンス自動検索 ──
+function triggerConditionChange() {
+    const btnSearch = document.getElementById('btnSearchCustom');
+    if (btnSearch) {
+        btnSearch.classList.add('pulse');
+    }
+
+    if (autoSearchTimer) {
+        clearTimeout(autoSearchTimer);
+    }
+    // 250ms デバウンスで自動検索
+    autoSearchTimer = setTimeout(() => {
+        runCustomSearchAjax();
+    }, 250);
+}
+
+// ── 条件指定 Ajaxリアルタイム検索 ──
+async function runCustomSearchAjax() {
+    const form = document.getElementById('searchForm');
+    if (!form) return;
+
+    const loading = document.getElementById('customSearchLoading');
+    const resultSection = document.getElementById('customResultSection');
+    const tooManyBox = document.getElementById('customTooManyBox');
+    const noResults = document.getElementById('customNoResults');
+    const btnSearch = document.getElementById('btnSearchCustom');
+
+    const months = document.getElementById('monthsInput').value;
+    const from = document.getElementById('date_from').value;
+    const to = document.getElementById('date_to').value;
+    if (!months && (!from || !to)) {
+        return;
+    }
+
+    if (loading) loading.style.display = 'flex';
+    if (resultSection && resultSection.style.display === 'block') {
+        resultSection.style.opacity = '0.6';
+    }
+
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    params.set('ajax', '1');
+    params.set('search_clicked', '1');
+
+    try {
+        const res = await fetch(`slot_search.php?${params.toString()}&_t=${Date.now()}`);
+        const data = await res.json();
+
+        if (!data.success) {
+            throw new Error(data.error || '検索エラーが発生しました');
+        }
+
+        // プレビューキャッシュのマージ
+        if (data.calendar_previews) {
+            Object.assign(calPreviewCache, data.calendar_previews);
+        }
+
+        if (data.too_many) {
+            if (tooManyBox) {
+                tooManyBox.style.display = 'block';
+                const numSpan = document.getElementById('customTooManyNum');
+                if (numSpan) numSpan.textContent = data.too_many_count.toLocaleString();
+            }
+            if (resultSection) resultSection.style.display = 'none';
+        } else {
+            if (tooManyBox) tooManyBox.style.display = 'none';
+            if (resultSection) {
+                resultSection.style.display = 'block';
+                resultSection.style.opacity = '1';
+            }
+
+            const countSpan = document.getElementById('customResultCount');
+            if (countSpan) countSpan.textContent = data.count;
+
+            if (data.count === 0) {
+                if (noResults) noResults.style.display = 'block';
+                const tbl = document.getElementById('customTableContainer');
+                const crd = document.getElementById('customCardsContainer');
+                if (tbl) tbl.style.display = 'none';
+                if (crd) crd.style.display = 'none';
+            } else {
+                if (noResults) noResults.style.display = 'none';
+                renderCustomTable(data.results || []);
+                renderCustomCards(data.results || []);
+                setCustomViewMode(currentCustomViewMode);
+            }
+        }
+
+        // URLパラメータ同期（リロード時再現用）
+        params.delete('ajax');
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+
+    } catch (err) {
+        console.error('runCustomSearchAjax error:', err);
+    } finally {
+        if (loading) loading.style.display = 'none';
+        if (resultSection) resultSection.style.opacity = '1';
+        if (btnSearch) btnSearch.classList.remove('pulse');
+    }
+}
+
+// ── テーブル動的描画 ──
+function renderCustomTable(results) {
+    const tbody = document.getElementById('customTableBody');
+    if (!tbody) return;
+
+    if (results.length === 0) {
+        tbody.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    results.forEach(r => {
+        const depCls = r.department_code === 'GASTRO' ? 'tag-gastro' : 'tag-proct';
+        html += `
+            <tr class="clickable" tabindex="0" role="button" onclick="goToSchedule('${r.exam_date}', '${r.department_code}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); goToSchedule('${r.exam_date}', '${r.department_code}');}">
+                <td class="tabular-nums">${r.exam_date.replace(/-/g, '/')}</td>
+                <td>${r.dow_ja}</td>
+                <td><span class="urgent-dept-tag ${depCls}">${escapeHtml(r.department_name)}</span></td>
+                <td>${escapeHtml(r.doctor_name)}</td>
+                <td><span class="exam-tag ${r.exam_cls}">${r.exam_icon} ${escapeHtml(r.exam_type)}</span></td>
+                <td class="tabular-nums">
+                    <span class="free-slots ${r.free_color_cls}">${r.free_slots}</span>
+                    <span style="color:#64748b; font-size:12px;"> / ${r.max_slots}</span>
+                </td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+// ── コンパクトカード動的描画 ──
+function renderCustomCards(results) {
+    const grid = document.getElementById('customCardsGrid');
+    if (!grid) return;
+
+    if (results.length === 0) {
+        grid.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    results.forEach(r => {
+        let dowCls = 'dow-weekday';
+        if (r.dow === 6) dowCls = 'dow-sat';
+        else if (r.dow === 0) dowCls = 'dow-sun';
+
+        const depCls = r.department_code === 'GASTRO' ? 'gastro' : 'proct';
+        const docShort = r.doctor_short || r.doctor_name.charAt(0);
+        const docColor = r.doctor_color || '#334155';
+
+        html += `
+            <div class="compact-card">
+                <div class="compact-card-header">
+                    <div class="compact-card-date">
+                        <span>📅 ${r.exam_date.replace(/-/g, '/')}</span>
+                        <span class="compact-card-dow ${dowCls}">${r.dow_ja}</span>
+                    </div>
+                    <span class="compact-card-dept ${depCls}">${escapeHtml(r.department_name)}</span>
+                </div>
+
+                <div class="compact-card-body">
+                    <div class="compact-doc-info">
+                        <span class="compact-doc-avatar" style="background: ${docColor};">${escapeHtml(docShort)}</span>
+                        <div>
+                            <div class="compact-doc-name">${escapeHtml(r.doctor_name)} 先生</div>
+                            <span class="exam-tag ${r.exam_cls}" style="font-size:10px; padding:1px 6px;">
+                                ${r.exam_icon} ${escapeHtml(r.exam_type)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="compact-slot-info">
+                        <span class="compact-slot-count free-slots ${r.free_color_cls}">残 ${r.free_slots} 枠</span>
+                        <span class="compact-slot-max">定員 ${r.max_slots}</span>
+                    </div>
+                </div>
+
+                <div class="compact-card-footer">
+                    <a href="${r.jump_url}" 
+                       class="compact-btn compact-btn-cal urgent-btn-cal" 
+                       data-cal-preview-date="${r.exam_date}" 
+                       title="当日の予約状況をプレビュー (ホバー)">
+                        📅 カレンダー
+                    </a>
+                    <button type="button" 
+                            onclick="jumpAndBookSlot('${r.department_code}', ${r.year}, ${r.month}, '${r.exam_date}', '${escapeHtml(r.doctor_name)}')" 
+                            class="compact-btn compact-btn-book" 
+                            title="新規予約登録へ">
+                        ➕ 予約
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    grid.innerHTML = html;
 }
 
 // ── 直近速報データ取得 ──
@@ -1204,6 +2134,11 @@ async function loadUrgentSlots(forceReload = false) {
     const body = document.getElementById('urgentCardsBody');
     const daysSelect = document.getElementById('urgentDaysSelect');
     const days = daysSelect ? daysSelect.value : 30;
+
+    const tabTitle = document.getElementById('urgentTabTitle');
+    if (tabTitle) {
+        tabTitle.textContent = `⚡ 直近空き枠速報（全科横断・${days}日大腸CF）`;
+    }
 
     if (!urgentSlotCache || forceReload) {
         if (body) {
@@ -1222,6 +2157,9 @@ async function loadUrgentSlots(forceReload = false) {
                 throw new Error(data.error || '空き枠取得エラー');
             }
             urgentSlotCache = data;
+            if (data.calendar_previews) {
+                Object.assign(calPreviewCache, data.calendar_previews);
+            }
             updateUrgentBadges(data);
         } catch (err) {
             console.error('loadUrgentSlots error:', err);
@@ -1386,7 +2324,7 @@ function renderUrgentSlotCards() {
 
             <!-- アクション -->
             <div class="urgent-card-actions">
-                <a href="${s.jump_url}" class="urgent-action-btn urgent-btn-cal" title="該当日のカレンダー・予約一覧へ移動">
+                <a href="${s.jump_url}" class="urgent-action-btn urgent-btn-cal" data-cal-preview-date="${s.date}" title="該当日のカレンダー・予約一覧へ移動 (ホバーで当日の全科枠状況プレビュー)">
                     📅 カレンダー表示
                 </a>
                 <button type="button" onclick="jumpAndBookSlot('${s.dept}', ${s.year}, ${s.month}, '${s.date}', '${s.doctor}')" class="urgent-action-btn urgent-btn-book" title="この枠で新規予約登録を開始">
@@ -1400,6 +2338,213 @@ function renderUrgentSlotCards() {
 
     body.innerHTML = html;
 }
+
+// ── カレンダー状況ホバープレビュー ツールチップ制御 ──
+async function showCalPreviewTooltip(btn, dateStr) {
+    const tooltip = document.getElementById('calPreviewTooltip');
+    if (!tooltip) return;
+
+    let dayData = calPreviewCache[dateStr];
+
+    // キャッシュにない場合、オンデマンドで取得
+    if (!dayData) {
+        try {
+            const res = await fetch(`action_slot_assistant.php?action=get_calendar_preview&date=${dateStr}&_t=${Date.now()}`);
+            const data = await res.json();
+            if (data.success && data.calendar_previews && data.calendar_previews[dateStr]) {
+                dayData = data.calendar_previews[dateStr];
+                calPreviewCache[dateStr] = dayData;
+            }
+        } catch (e) {
+            console.error('Failed to fetch calendar preview on demand:', e);
+        }
+    }
+
+    if (!dayData) return;
+
+    tooltip.innerHTML = generateCalPreviewHTML(dayData);
+    tooltip.classList.add('show');
+    tooltip.setAttribute('aria-hidden', 'false');
+
+    // 位置計算
+    const rect = btn.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const padding = 10;
+
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    if (left < padding) left = padding;
+    if (left + tooltipRect.width > window.innerWidth - padding) {
+        left = window.innerWidth - tooltipRect.width - padding;
+    }
+
+    let top = rect.top - tooltipRect.height - 10;
+    if (top < padding) {
+        top = rect.bottom + 10;
+    }
+
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.style.top = `${Math.round(top)}px`;
+}
+
+function hideCalPreviewTooltip() {
+    const tooltip = document.getElementById('calPreviewTooltip');
+    if (tooltip && tooltip.classList.contains('show')) {
+        tooltip.classList.remove('show');
+        tooltip.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function generateCalPreviewHTML(dayData) {
+    let dowCls = 'weekday';
+    if (dayData.dow === '土') dowCls = 'sat';
+    else if (dayData.dow === '日') dowCls = 'sun';
+
+    let closedBadge = '';
+    if (dayData.is_closed) {
+        const hName = dayData.holiday_name ? ` (${escapeHtml(dayData.holiday_name)})` : '';
+        closedBadge = `<span class="cpt-closed-badge">⛔ 休診${hName}</span>`;
+    }
+
+    let html = `
+        <div class="cpt-header">
+            <span class="cpt-title">
+                <span>📅 ${dayData.date}</span>
+                <span class="cpt-dow ${dowCls}">${dayData.dow}</span>
+            </span>
+            ${closedBadge}
+        </div>
+    `;
+
+    // 胃腸科と肛門科の2段表示
+    const depts = dayData.departments || {};
+    const deptOrder = ['GASTRO', 'PROCT'];
+
+    deptOrder.forEach(depCode => {
+        const depInfo = depts[depCode];
+        if (!depInfo) return;
+
+        const isGastro = depCode === 'GASTRO';
+        const deptIcon = isGastro ? '🔵' : '🟢';
+        const deptClass = isGastro ? 'gastro' : 'proct';
+
+        html += `
+        <div class="cpt-dept-section">
+            <div class="cpt-dept-title">
+                <span class="cpt-dept-name ${deptClass}">
+                    <span>${deptIcon}</span>
+                    <span>${escapeHtml(depInfo.name)}</span>
+                </span>
+            </div>
+        `;
+
+        const docs = depInfo.doctors || [];
+        if (docs.length === 0) {
+            html += `<div style="font-size:10.5px; color:#94a3b8; padding:3px 2px;">枠設定なし / 休診</div>`;
+        } else {
+            docs.forEach(d => {
+                const sGif = d.slots.GIF;
+                const sEcho = d.slots.ECHO;
+                const sTcf = d.slots.TCF;
+
+                let slotBadges = '';
+                if (sGif && (sGif.max > 0 || sGif.used > 0)) {
+                    let cls = '';
+                    if (sGif.used > sGif.max) cls = 'is-over';
+                    else if (sGif.used === sGif.max && sGif.max > 0) cls = 'is-full';
+                    slotBadges += `<span class="cpt-slot-pill ${cls}">🔵${sGif.used}/${sGif.max}</span>`;
+                }
+                if (sEcho && (sEcho.max > 0 || sEcho.used > 0)) {
+                    let cls = '';
+                    if (sEcho.used > sEcho.max) cls = 'is-over';
+                    else if (sEcho.used === sEcho.max && sEcho.max > 0) cls = 'is-full';
+                    slotBadges += `<span class="cpt-slot-pill ${cls}">🟠${sEcho.used}/${sEcho.max}</span>`;
+                }
+                if (sTcf && (sTcf.max > 0 || sTcf.used > 0)) {
+                    let cls = '';
+                    if (sTcf.used > sTcf.max) cls = 'is-over';
+                    else if (sTcf.used === sTcf.max && sTcf.max > 0) cls = 'is-full';
+                    slotBadges += `<span class="cpt-slot-pill ${cls}">🟢${sTcf.used}/${sTcf.max}</span>`;
+                }
+
+                html += `
+                <div class="cpt-doc-row">
+                    <span class="cpt-doc-icon ${d.cls}" title="${escapeHtml(d.name)}">${escapeHtml(d.short)}</span>
+                    <div class="cpt-slot-badges">
+                        ${slotBadges || '<span style="font-size:10px; color:#94a3b8;">枠なし</span>'}
+                    </div>
+                </div>
+                `;
+            });
+
+            // 全体集計バー
+            const ov = depInfo.overall || {};
+            const ovParts = [];
+            if (ov.GIF && (ov.GIF.max > 0 || ov.GIF.used > 0)) {
+                ovParts.push(`🔵${ov.GIF.used}/${ov.GIF.max}`);
+            }
+            if (ov.ECHO && (ov.ECHO.max > 0 || ov.ECHO.used > 0)) {
+                ovParts.push(`🟠${ov.ECHO.used}/${ov.ECHO.max}`);
+            }
+            if (ov.TCF && (ov.TCF.max > 0 || ov.TCF.used > 0)) {
+                ovParts.push(`🟢${ov.TCF.used}/${ov.TCF.max}`);
+            }
+
+            if (ovParts.length > 0) {
+                html += `
+                <div class="cpt-overall-bar">
+                    <span class="overall-label">全体</span>
+                    <span>${ovParts.join(' ')}</span>
+                </div>
+                `;
+            }
+        }
+
+        html += `</div>`;
+    });
+
+    // 日別メモ＆医師予定
+    const memos = dayData.memos || {};
+    const events = dayData.doctor_events || [];
+    const memoKeys = Object.keys(memos);
+
+    if (memoKeys.length > 0 || events.length > 0) {
+        html += `<div class="cpt-extras">`;
+        memoKeys.forEach(mDep => {
+            const mText = memos[mDep];
+            if (mText && mText.trim() !== '') {
+                const depTag = mDep === 'GASTRO' ? '胃腸科' : '肛門科';
+                html += `<div class="cpt-memo-item"><span>📝</span> <span>[${depTag}] ${escapeHtml(mText)}</span></div>`;
+            }
+        });
+        events.forEach(ev => {
+            html += `<div class="cpt-event-item"><span>🙅🏼</span> <span>${escapeHtml(ev.label || ev.raw_title || '医師不在')}</span></div>`;
+        });
+        html += `</div>`;
+    }
+
+    return html;
+}
+
+// イベントリスナーの登録（マウスオーバー・アウト・スクロール・ESC）
+document.addEventListener('mouseover', function(e) {
+    const btn = e.target.closest('.urgent-btn-cal');
+    if (btn && btn.dataset.calPreviewDate) {
+        showCalPreviewTooltip(btn, btn.dataset.calPreviewDate);
+    }
+});
+
+document.addEventListener('mouseout', function(e) {
+    const btn = e.target.closest('.urgent-btn-cal');
+    if (btn) {
+        hideCalPreviewTooltip();
+    }
+});
+
+window.addEventListener('scroll', hideCalPreviewTooltip, { passive: true });
+window.addEventListener('resize', hideCalPreviewTooltip, { passive: true });
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hideCalPreviewTooltip();
+});
 
 function jumpAndBookSlot(dept, year, month, dateStr, doctorName) {
     window.location.href = `month_schedule.php?dept=${encodeURIComponent(dept)}&year=${year}&month=${month}&date=${encodeURIComponent(dateStr)}&open_new=1&target_doctor=${encodeURIComponent(doctorName)}`;
@@ -1444,12 +2589,25 @@ function toggleMonth(btn) {
         
         dateFrom.disabled = true;
         dateTo.disabled = true;
+        if (window.dateFromControl) {
+            window.dateFromControl.setDate(dateFrom.value);
+            window.dateFromControl.setDisabled(true);
+        }
+        if (window.dateToControl) {
+            window.dateToControl.setDate(dateTo.value);
+            window.dateToControl.setDisabled(true);
+        }
     } else {
         dateFrom.disabled = false;
         dateTo.disabled = false;
+        if (window.dateFromControl) window.dateFromControl.setDisabled(false);
+        if (window.dateToControl) window.dateToControl.setDisabled(false);
     }
+
+    triggerConditionChange();
 }
 
+// 診療科選択の切り替え
 document.querySelectorAll('.btn-dept').forEach(function(btn) {
     btn.addEventListener('click', function() {
         var dept = this.dataset.dept;
@@ -1465,6 +2623,8 @@ document.querySelectorAll('.btn-dept').forEach(function(btn) {
         container.innerHTML = html;
         document.getElementById('doctorInput').value = 'all';
         initButtons('doctor', '#doctorContainer');
+
+        triggerConditionChange();
     });
 });
 
@@ -1480,27 +2640,41 @@ function initButtons(groupName, containerSelector) {
             var itemBtns = container.querySelectorAll('.btn[data-group="' + groupName + '"]:not([data-value="all"])');
             
             if (val === 'all') {
+                // 「全医師/全種別/全曜日」ボタンをクリックした時
                 itemBtns.forEach(function(b) { b.classList.remove('active'); });
                 allBtn.classList.add('active-all');
                 input.value = 'all';
+                triggerConditionChange();
                 return;
             }
             
-            allBtn.classList.remove('active-all');
-            this.classList.toggle('active');
+            // 個別ボタンをクリックした時
+            if (allBtn.classList.contains('active-all')) {
+                // 「全」選択状態から個別ボタンを押した場合、そのボタンだけを選択！
+                allBtn.classList.remove('active-all');
+                itemBtns.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+            } else {
+                // 個別選択中ならトグル（複数選択の追加/解除）
+                this.classList.toggle('active');
+            }
             
             var selected = [];
             itemBtns.forEach(function(b) {
                 if (b.classList.contains('active')) selected.push(b.dataset.value);
             });
             
-            if (selected.length === 0 || selected.length === itemBtns.length) {
-                itemBtns.forEach(function(b) { b.classList.remove('active'); });
+            if (selected.length === 0) {
+                // すべて解除されて0人になった場合は自動で「全選択」に戻す
                 allBtn.classList.add('active-all');
                 input.value = 'all';
             } else {
+                // 1人以上選択されている場合はその選択を維持（※全員選ばれても勝手に解除しない！）
+                allBtn.classList.remove('active-all');
                 input.value = selected.join(',');
             }
+
+            triggerConditionChange();
         };
     });
 }
@@ -1514,58 +2688,43 @@ function toggleLabelGroup(groupName) {
     var allBtn = container.querySelector('.btn[data-value="all"]');
     var itemBtns = container.querySelectorAll('.btn[data-group="' + groupName + '"]:not([data-value="all"])');
     
-    var isCurrentlyActive = allBtn.classList.contains('active-all') || 
-        Array.from(itemBtns).some(function(b) { return b.classList.contains('active'); });
+    var isCurrentlyAll = allBtn.classList.contains('active-all');
     
-    if (isCurrentlyActive) {
+    if (isCurrentlyAll) {
+        // 「全」状態からトグル押下 ➔ 全員の個別ボタンをONにして複数選択状態にする
         allBtn.classList.remove('active-all');
-        itemBtns.forEach(function(b) { b.classList.remove('active'); });
-        input.value = '';
+        var selected = [];
+        itemBtns.forEach(function(b) { 
+            b.classList.add('active'); 
+            selected.push(b.dataset.value);
+        });
+        input.value = selected.join(',');
     } else {
-        allBtn.classList.add('active-all');
+        // 個別選択中からトグル押下 ➔ 「全」に戻す
         itemBtns.forEach(function(b) { b.classList.remove('active'); });
+        allBtn.classList.add('active-all');
         input.value = 'all';
     }
+
+    triggerConditionChange();
 }
 
+// フォーム送信時はAjax検索を即時実行
 document.getElementById('searchForm').addEventListener('submit', function(e) {
-    var months = document.getElementById('monthsInput').value;
-    var from = document.getElementById('date_from').value;
-    var to = document.getElementById('date_to').value;
-    
-    if (!months && (!from || !to)) {
-        alert('検索期間または月ショートカットを必ず指定してください。');
-        e.preventDefault();
-        return false;
-    }
-    
-    if (!document.getElementById('doctorInput').value) {
-        alert('医師を1名以上選択するか「全医師」にしてください。');
-        e.preventDefault();
-        return false;
-    }
-    if (!document.getElementById('examInput').value) {
-        alert('検査種別を1つ以上選択するか「全種別」にしてください。');
-        e.preventDefault();
-        return false;
-    }
-    if (!document.getElementById('weekdaysInput').value) {
-        alert('曜日を1日以上選択するか「全曜日」にしてください。');
-        e.preventDefault();
-        return false;
-    }
-    
-    document.getElementById('searchClicked').value = '1';
+    e.preventDefault();
+    if (autoSearchTimer) clearTimeout(autoSearchTimer);
+    runCustomSearchAjax();
 });
 
 function resetForm() {
-    window.location.href = 'slot_search.php';
+    window.location.href = 'slot_search.php?mode=custom';
 }
 
-function goToSchedule(date) {
-    var dept = document.getElementById('deptInput').value || 'GASTRO';
+function goToSchedule(date, dept) {
+    var d = dept || document.getElementById('deptInput').value || 'GASTRO';
+    if (d === 'all') d = 'GASTRO';
     var parts = date.split('-');
-    var url = 'month_schedule.php?dept=' + encodeURIComponent(dept)
+    var url = 'month_schedule.php?dept=' + encodeURIComponent(d)
             + '&year=' + encodeURIComponent(parts[0])
             + '&month=' + encodeURIComponent(parseInt(parts[1], 10))
             + '&date=' + encodeURIComponent(date)
@@ -1576,10 +2735,28 @@ function goToSchedule(date) {
 
 
 <script>
+window.dateFromControl = null;
+window.dateToControl = null;
+
 function initSlotSearchDatePicker() {
     if (window.OnokaiDatePicker) {
-        OnokaiDatePicker.attach('#date_from');
-        OnokaiDatePicker.attach('#date_to');
+        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を期間検索にバインド
+        window.dateFromControl = OnokaiDatePicker.bindControl('#date_from', {
+            onChange: function(dates, dateStr) {
+                if (window.dateToControl && window.dateToControl.flatpickr) {
+                    window.dateToControl.flatpickr.set('minDate', dateStr);
+                }
+                triggerConditionChange();
+            }
+        });
+
+        window.dateToControl = OnokaiDatePicker.bindControl('#date_to', {
+            minDate: document.getElementById('date_from').value || undefined
+        ,
+            onChange: function() {
+                triggerConditionChange();
+            }
+        });
     }
 }
 if (document.readyState === 'loading') {

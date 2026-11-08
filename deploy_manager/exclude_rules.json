@@ -27,6 +27,10 @@
     "sup": [
       "suppliers_multicontact.json"
     ],
-    "rsbase": []
+    "rsbase": [],
+    "endoscope": [
+      "config/printers.json"
+    ],
+    "hp": []
   }
 }

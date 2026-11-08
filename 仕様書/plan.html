@@ -372,13 +372,13 @@
     <header class="spec-header">
         <div class="header-top">
             <span class="header-badge">医療法人小野会 内視鏡予約管理システム</span>
-            <span class="header-date">文書番号: PLAN-202609-02</span>
+            <span class="header-date">文書番号: PLAN-202611-06</span>
         </div>
         <h1 class="main-title">中長期 開発・連携拡張計画書</h1>
         <div class="header-meta">
             <span>対象システム: <strong>内視鏡予約システム ＆ 院内医療DX基盤</strong></span>
-            <span>更新日: <strong>2026年9月27日</strong></span>
-            <span>ステータス: <strong>当日モニター ＆ 医療安全・監査ログ・定型文 ＆ 直近空き枠速報（空き枠検索統合） 実装完了</strong></span>
+            <span>更新日: <strong>2026年11月6日</strong></span>
+            <span>ステータス: <strong>内視鏡シート刷新（Phase 1完了）・次期DB永続化統合 ＆ 時間枠文字列保持（迷子フェイルセーフ）要件策定</strong></span>
         </div>
     </header>
 
@@ -387,9 +387,11 @@
         <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
         <a href="specdoc.html" style="color: #2563eb; text-decoration: none;">📘 システム仕様書 (specdoc.html)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-9-27works.html" style="color: #059669; text-decoration: none;">📄 本日改修報告書 (2026-9-27works.html)</a>
+        <a href="2026-11-6works.html" style="color: #059669; text-decoration: none; font-weight: 800;">📄 本日改修報告書 (2026-11-6works.html)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-9-26works.html" style="color: #2563eb; text-decoration: none;">📄 前日改修報告書 (2026-9-26works.html)</a>
+        <a href="2026-11-4works.html" style="color: #2563eb; text-decoration: none;">📄 前回改修報告書 (2026-11-4works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-9-27works.html" style="color: #2563eb; text-decoration: none;">📄 09-27改修報告書 (2026-9-27works.html)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="../index.php" style="color: #0f172a; text-decoration: none;">🏠 予約システムポータル (index.php)</a>
     </div>
@@ -404,8 +406,11 @@
             <li><a href="#sec-monitor">4. 計画③ 内視鏡室 当日進捗モニター <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">実装完了</span></a></li>
             <li><a href="#sec-safety">5. 計画④ 医療安全（休薬アラート・変更復元・定型文） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">実装完了</span></a></li>
             <li><a href="#sec-patient">6. 計画⑤ 直近空き枠速報 ＆ 予約アシスト（空き枠検索統合） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">実装完了</span></a></li>
-            <li><a href="#sec-freeze">7. 既存機能の整理方針（F/U機能の凍結）</a></li>
-            <li><a href="#sec-roadmap">8. 開発優先度ロードマップ</a></li>
+            <li><a href="#sec-sheet-integration">7. 計画⑥ 内視鏡シートDB永続化 ＆ ホワイトボード双方向データ統合 <span class="badge badge-primary" style="font-size:10px; padding:1px 5px;">2026-11-06 新規策定</span></a></li>
+            <li><a href="#sec-slot-snapshot">8. 計画⑦ 時間枠の文字列保持（スナップショット原則）＆ 迷子フェイルセーフ設計 <span class="badge badge-danger" style="font-size:10px; padding:1px 5px;">2026-11-06 重要要件</span></a></li>
+            <li><a href="#sec-waku-period-matrix">9. 計画⑧ 基本枠マスタ期間対応（2027/2/1切替）＆ マトリクス「医師別限界差し引き・コンパクト全表示」構想 <span class="badge badge-warning" style="font-size:10px; padding:1px 5px;">2026-11-06 検討・設計案</span></a></li>
+            <li><a href="#sec-freeze">10. 既存機能の整理方針（F/U機能の凍結）</a></li>
+            <li><a href="#sec-roadmap">11. 開発優先度ロードマップ</a></li>
         </ul>
     </nav>
 
@@ -706,10 +711,459 @@
         </section>
 
         <!-- ============================================================
-        7. 既存機能の整理方針（F/U機能の凍結）
+        7. 計画⑥ 内視鏡シート（電子記録票）のDB永続化 ＆ ホワイトボード双方向データ統合
+        ============================================================ -->
+        <section class="plan-section" id="sec-sheet-integration">
+            <h2 class="category-title">7. 計画⑥ 内視鏡シート（電子記録票）のDB永続化 ＆ 当日進捗モニター（ホワイトボード）双方向データ統合</h2>
+            <div class="plan-card" style="border-left: 4px solid #0284c7;">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">📋 内視鏡シート マルチ端末DB共有 ＆ 電子ホワイトボード双方向同期（Two-Way Sync）</span>
+                        <span class="plan-tag">endoscopy_sheet.php / progress_monitor.php / t_endoscopy_sheet</span>
+                    </div>
+                    <span class="badge badge-primary">Phase 1完了 / Phase 2-3 計画策定済</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        2026年11月6日、原本Excel（<code>仕様書/内視鏡シート.xls</code>）の全項目をA4縦1ページに完全網羅し、タブレット入力およびサーバー直接印刷に対応した新内視鏡シート（<code>endoscopy_sheet.php</code>）を実装しました（Phase 1）。<br>
+                        次期フェーズ（Phase 2・3）では、現在ブラウザ内一時保持（<code>localStorage</code>）となっているシートの入力データを <strong>PostgreSQLデータベースへ永続化</strong> し、<strong>複数の端末間（受付・前処置室タブレット・検査室PC・診察室・医事課PC）でリアルタイムに情報共有しながらリレー入力</strong>できるようにするとともに、<strong>当日進捗モニター（<code>progress_monitor.php</code>：電子ホワイトボード）と共通するデータをどちらで入力しても即座に相互反映される「データ的統合」</strong>を実現します。
+                    </p>
+                    <div class="note-box" style="margin: 10px 0 16px 0; background: #ecfdf5; border-left: 4px solid #10b981; color: #065f46;">
+                        📄 <strong>Phase 1（シート全面刷新・サーバー直接印刷）作業完了報告書:</strong> <a href="2026-11-6works.html" style="color: #047857; font-weight: bold; text-decoration: underline;">仕様書/2026-11-6works.html (2026-11-06 改修作業報告書)</a> に詳述されています。
+                    </div>
+
+                    <div class="section-subtitle">🏗️ 多職種リレー入力 ＆ ホワイトボード双方向統合アーキテクチャ</div>
+                    <div class="arch-diagram">
+[ 1. 受付・前処置室 (iPad / PC) ]       [ 2. 内視鏡検査室 (看護師・医師端末) ]       [ 3. 医事課・会計窓口 (PC) ]
+  ・来院打刻 / 付添・迎え・ロッカー       ・鎮静剤 / 鎮痙剤 / 色素 / 前処置薬          ・医師サイン済シートを画面一覧確認
+  ・下剤服薬状況 / 排便回数 / 血圧BP      ・開始/終了時刻 / 到達部位 / NBI加算          ・使用薬剤・生検臓器数・ポリペク加算
+  ・休薬確認 / 感染症 / シャント確認      ・生検(部位/容器) / ポリペク(長径/個数)      ・スネア/クリップ材料数を電カル＆
+                                          ・スネア/クリップ / [OK・回復・待合室]        レセプトへ正確に入力 ➔ [医事入力済]
+               │                                        │                                        ▲
+               ▼                                        ▼                                        │
+        ┌────────────────────────────────────────────────────────────────────────────────────────┴───┐
+        │             PostgreSQL 統合データベース基盤 (Single Source of Truth)                       │
+        │  ・t_endoscopy_schedule (予約基本・枠・部屋・下剤・備考)                                   │
+        │  ・t_today_progress     (ホワイトボード7段階ステータス・時刻・鎮静・検体照合)              │
+        │  ・t_endoscopy_sheet    (【新設】内視鏡シート構造化カラム ＋ 全項目JSONB・医事完了フラグ)  │
+        └───────────────────────────────────────────────▲────────────────────────────────────────────┘
+                                                        │ (双方向リアルタイム同期 Two-Way Sync)
+                                                        ▼
+                                  [ 📊 当日進捗モニター (progress_monitor.php) ]
+                                    ・ホワイトボードで打刻・変更 ➔ 内視鏡シートへ即時反映
+                                    ・内視鏡シートで記入・チェック ➔ ホワイトボードへ即時反映
+                    </div>
+
+                    <div class="section-subtitle">1. DB永続化設計（新設テーブル <code>t_endoscopy_sheet</code>）</div>
+                    <p style="font-size: 13px; color: #334155; margin-bottom: 10px;">
+                        予約レコード（<code>t_endoscopy_schedule.schedule_id</code>）と 1対1 で紐付く専用テーブル <code>t_endoscopy_sheet</code> を構築します。検索・集計・他画面連携で頻繁に参照する主要項目は<strong>個別カラム（構造化データ）</strong>として保持し、100個を超えるチェックボックス・部位丸囲み・詳細数値は PostgreSQL の高速 <strong><code>JSONB</code> カラム（<code>sheet_state_json</code>）</strong> に格納するハイブリッド設計を採用します。
+                    </p>
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 24%;">カラム名</th>
+                                <th style="width: 20%;">データ型</th>
+                                <th>用途・設計仕様</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>schedule_id</code></td>
+                                <td><code>INTEGER PK</code></td>
+                                <td><code>t_endoscopy_schedule(schedule_id)</code> と1:1紐付け（外部キー・CASCADE連動）</td>
+                            </tr>
+                            <tr>
+                                <td><code>patient_id</code> / <code>exam_date</code></td>
+                                <td><code>VARCHAR / DATE</code></td>
+                                <td>患者別過去シート履歴参照・日付別医事課一覧抽出用インデックスカラム</td>
+                            </tr>
+                            <tr>
+                                <td><code>bp_sys</code> / <code>bp_dia</code></td>
+                                <td><code>SMALLINT</code></td>
+                                <td>当日血圧（収縮期 / 拡張期 mmHg）</td>
+                            </tr>
+                            <tr>
+                                <td><code>exam_start_time</code> / <code>exam_end_time</code></td>
+                                <td><code>TIME</code></td>
+                                <td>検査開始時刻・終了時刻（<code>t_today_progress</code> の入室・終了時刻と双方向同期）</td>
+                            </tr>
+                            <tr>
+                                <td><code>post_destination</code></td>
+                                <td><code>VARCHAR(20)</code></td>
+                                <td>検査後誘導先スタンプ（<code>OK</code> / <code>RECOVERY</code>［回復］ / <code>WAITING</code>［待合室］）</td>
+                            </tr>
+                            <tr>
+                                <td><code>doctor_sign</code></td>
+                                <td><code>VARCHAR(64)</code></td>
+                                <td>医師署名・確認サイン（記入時に医師確認済タイムスタンプを記録）</td>
+                            </tr>
+                            <tr>
+                                <td><code>is_ready_accounting</code></td>
+                                <td><code>BOOLEAN</code></td>
+                                <td>シート最下部「□会計へ」チェック状態（ONで医事課・受付へ会計可能通知）</td>
+                            </tr>
+                            <tr>
+                                <td><code>is_billing_completed</code></td>
+                                <td><code>BOOLEAN</code></td>
+                                <td><strong>【医事課専用】</strong>カルテオーダー・レセプト入力完了フラグ（未入力の取りこぼし防止）</td>
+                            </tr>
+                            <tr>
+                                <td><code>sheet_state_json</code></td>
+                                <td><code>JSONB</code></td>
+                                <td>全チェックボックス（<code>checks</code>）、全丸囲み選択肢（<code>circles</code>）、全テキスト・薬剤量・部位・デバイス個数（<code>inputs</code>）の完全状態データ</td>
+                            </tr>
+                            <tr>
+                                <td><code>updated_at</code> / <code>updated_by_ip</code></td>
+                                <td><code>TIMESTAMP / VARCHAR</code></td>
+                                <td>最終更新日時・更新端末IP（複数端末からの同時編集時の差分マージ・競合防止用）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-subtitle">2. 内視鏡シート ⇔ 電子ホワイトボード（progress_monitor.php）双方向データ統合マッピング</div>
+                    <p style="font-size: 13px; color: #334155; margin-bottom: 10px;">
+                        「ホワイトボードで入力したのにシートに反映されない」「シートに入力したのにホワイトボードでまた同じことを入力する」という二重作業を徹底排除するため、以下の共通項目を<strong>双方向同期（どちらで操作しても同一DBトランザクションで両方更新）</strong>します。
+                    </p>
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 20%;">共有データ項目</th>
+                                <th style="width: 38%;">内視鏡シート側 (endoscopy_sheet.php)</th>
+                                <th style="width: 42%;">電子ホワイトボード側 (progress_monitor.php)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>① 来院受付時刻</strong></td>
+                                <td>ヘッダー右上「来院: HH:MM」表示</td>
+                                <td>ステップ1「🕒 来院受付 打刻」または時刻修正と完全同期（<code>t_today_progress.arrival_time</code>）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>② 部屋割・下剤種別</strong></td>
+                                <td>ヘッダー「部屋」バッジ ＆「前処置・下剤チェック欄」のチェック・規格丸囲み</td>
+                                <td>マイトイレ部屋番号（<code>toilet_room</code>）・下剤配薬ステータスと連動（<code>t_endoscopy_schedule.room_number / bowel_prep</code>）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>③ 排便回数・前処置完了</strong></td>
+                                <td>問診欄「排便回数：昨日()・今日() 最終()」入力</td>
+                                <td>補助看護師ビューの便チェック・ステップ3「前処置完了（検査待ち）」遷移と連携</td>
+                            </tr>
+                            <tr>
+                                <td><strong>④ 医療安全・休薬確認</strong></td>
+                                <td>問診欄「抗凝固薬・糖尿病薬・インスリン（休薬なし/あり・期間・薬剤名）」「感染症」</td>
+                                <td>患者カードの「💊 要休薬確認 ⚠️ ⇄ 💊 休薬確認済 ✔」および <code>t_patient_medical_alert</code> と連動</td>
+                            </tr>
+                            <tr>
+                                <td><strong>⑤ 鎮静剤（セデーション）</strong></td>
+                                <td>共通薬剤欄「プロポフォール mg」「ジアゼパム ml」「ペチロルファン ml」等のチェック・用量入力</td>
+                                <td>ホワイトボードのセデーション有無（<code>has_sedation</code>）・薬剤名表示・リカバリ安静タイマー起動へ自動連動</td>
+                            </tr>
+                            <tr>
+                                <td><strong>⑥ 検査開始・終了時刻</strong></td>
+                                <td>時間記録欄「開始（時：分）」「終了（時：分）」（現在時刻打刻ボタン付）</td>
+                                <td>ステップ4「🚪 検査開始（入室）」打刻時刻 ＆ ステップ5「✅ 検査終了」打刻時刻と双方向同期</td>
+                            </tr>
+                            <tr>
+                                <td><strong>⑦ 生検・ポリペク部位 ＆<br>病理検体声出し照合</strong></td>
+                                <td>CF/GIF処置欄の部位丸囲み（<code>C, A, T, D, S, Rs, Rb, P</code> / <code>E, C, M, A, D</code>）、生検臓器数、容器数、ポリペク個数</td>
+                                <td>検査終了時の<strong>「🚨 組織採取・病理検体 カルテ声出し照合モーダル」</strong>へ部位・個数を自動プリセット（または声出し照合モーダルで入力した部位・個数をシートへ自動反映）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>⑧ 検査後誘導（OK/回復/待合）<br>＆ 説明・会計完了</strong></td>
+                                <td>・楕円スタンプ <code>[OK] [回復] [待合室]</code><br>・下部 <code>□胃/大腸カメラ説明</code><br>・最下部 <code>□会計へ</code> チェック</td>
+                                <td>・<code>[回復]</code> ➔ ステップ5（リカバリ中）<br>・<code>[待合室]</code> / <code>[OK]</code> ➔ ステップ6（説明待ち）<br>・<code>□会計へ</code> ON ➔ 受付事務ビューで「会計準備完了」をハイライト通知</td>
+                            </tr>
+                            <tr>
+                                <td><strong>⑨ 予約時備考・申し送り</strong></td>
+                                <td>「📝 予約時備考・申し送り事項（追記可）」テキストエリア</td>
+                                <td>予約レコードの備考（<code>t_endoscopy_schedule.remarks</code>）およびホワイトボードの特記事項カードと同期</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-subtitle">3. マルチ端末リアルタイム共有 ＆ 医事課レセプト入力支援の動作仕様</div>
+                    <ul class="plan-list">
+                        <li><strong>デバウンス自動保存（Auto-Save）＆ フィールド単位差分マージ:</strong> タブレットやPCでチェックボックスや数値を操作すると、300msデバウンスで <code>action_endoscopy_sheet.php</code> へ非同期保存。複数端末（例：前処置室と検査室）でほぼ同時に開いていても、変更されたキー単位（<code>key-level merge</code>）でJSONBを更新するため、他方の入力を上書き消去しない安全設計とします。</li>
+                        <li><strong>ホワイトボードからのワンタップ起動:</strong> <code>month_schedule.php</code> や <code>schedule_note.php</code> だけでなく、当日進捗モニター（<code>progress_monitor.php</code>）の各患者行/カードにも「📋 シート」ボタンを配置し、看護師・医師がホワイトボードから1タップで該当患者の内視鏡シートを開けるように直結します。</li>
+                        <li><strong>医事課向け「当日シート入力状況・レセプトチェック一覧」:</strong> 医事課スタッフが当日の全検査患者のシート記入状況（未記入 / 検査中 / 医師サイン済・会計可 / <strong>医事入力完了✔</strong>）を一目で把握し、カルテオーダーやレセプト請求の打ち込み漏れをゼロにします。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        8. 計画⑦ 時間枠の文字列保持（スナップショット原則）と「🚨 迷子」フェイルセーフ設計
+        ============================================================ -->
+        <section class="plan-section" id="sec-slot-snapshot">
+            <h2 class="category-title">8. 計画⑦ 時間枠の文字列保持（スナップショット原則）と「🚨 迷子」フェイルセーフ設計</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--danger);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">🛡️ マスタ改変時の「サイレントすり替わり事故」を防ぐ時間枠文字列保持 ＆ 迷子検知アーキテクチャ</span>
+                        <span class="plan-tag">t_endoscopy_schedule.scheduled_time / lib/slot_helper.php / m2_waku</span>
+                    </div>
+                    <span class="badge badge-success" style="background:#059669; color:#fff;">実装完了 (2026-11-07)</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        予約テーブル（<code>t_endoscopy_schedule</code>）において、時間枠を「マスタのコード（<code>waku_id</code>）」で紐付けて参照解決する方式は、<strong>万一将来マスタ（<code>m2_waku</code>）を修正した際に、すでに確定している予約枠の意味が何の警告もなく別の時間帯・別の検査種別にすり替わってしまう（かつユーザー側で元の枠が何だったか一切判別・修正できなくなる）</strong>という極めて危険なリスクを孕んでいます。<br>
+                        医療情報システムとしての堅牢性と安全性を最優先し、<strong>「予約データの枠名称は確定時点の文字列（<code>scheduled_time</code>）として保持・照合し、マスタと不一致になった場合はあえて『🚨 迷子』として可視化する」</strong>スナップショット＆フェイルセーフ設計へ統一します。
+                    </p>
+
+                    <div class="warn-box">
+                        <strong>⚠️ なぜ「コード（waku_id）参照優先」が医療システムで危険なのか？</strong><br>
+                        例えば、マスタ上で <code>waku_id = 12</code>（旧：<code>GIF 9:00</code>）の行を管理者が <code>CF 14:00</code> に書き換えてしまった場合、<code>waku_id</code> で紐付けていると、すでに患者様へ「朝9時の胃カメラ」と案内して予約票を渡した未来の予約データが、画面上で全て自動的に「14時の大腸カメラ」に化けてしまいます。現場スタッフは「元々何時の何の予約だったか」を知る術を失い、ユーザー側での復旧も不可能になります。
+                    </div>
+
+                    <div class="section-subtitle">📌 コード保持方式 vs 文字列スナップショット保持方式の比較</div>
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">比較観点</th>
+                                <th style="width: 39%; background:#fef2f2; color:#991b1b;">❌ コード（waku_id）優先参照方式（危険）</th>
+                                <th style="width: 39%; background:#ecfdf5; color:#065f46;">⭕ 枠名称文字列（scheduled_time）保持方式（採用）</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>マスタ修正時の挙動</strong></td>
+                                <td>マスタの枠名や時間を変えると、既存予約の表示枠が<strong>裏で勝手に新しい枠名へすり替わる（サイレント改変）</strong>。</td>
+                                <td>マスタと文字列が一致しなくなった予約は、すり替わらずに<strong>「🚨 迷子（旧枠名）」として警告表示</strong>される。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>当時の予約証跡の保全</strong></td>
+                                <td>予約テーブルにコードしか無い（またはコードを優先する）と、患者と約束した元の枠名が完全に消失する。</td>
+                                <td>予約レコード自身が <code>scheduled_time = 'GIF9:00'</code> という<strong>予約確定時の事実（スナップショット）を永久保持</strong>する。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ユーザー側でのリカバリ</strong></td>
+                                <td>どの予約が巻き添えで変わったか判別できず、現場スタッフの手で修正することが一切できない。</td>
+                                <td>カレンダーや一覧で <code>🚨 迷子 (GIF9:00)</code> と明示されるため、スタッフが予約編集（<code>✏️</code>）から<strong>安全に正しい枠へ手動振り替え可能</strong>。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-subtitle">⚙️ 実装・是正する技術要件</div>
+                    <ul class="plan-list">
+                        <li><strong>1. <code>lib/slot_helper.php</code>（<code>getDailyReservationsWithEffectiveSlots()</code>）の照合優先順位の是正:</strong>
+                            <ul>
+                                <li>現在、第1優先として実装されている「<code>waku_id</code> が一致すれば（たとえ枠名文字列が異なっていても）無条件でそのマスタ枠に割り当てる」処理を廃止し、<strong><code>scheduled_time</code>（正規化後の枠名称文字列）の一致を唯一の正（Single Truth）</strong>として枠マッチングを行います。</li>
+                                <li>これにより、マスタ側の枠名が変更された場合、旧枠名の文字列を持つ予約は別枠に化けることなく、確実に <code>is_orphaned = true</code>（<code>🚨 迷子</code>）として検知・保護されます。</li>
+                            </ul>
+                        </li>
+                        <li><strong>2. 予約変更・当日枠名変更時（<code>action_waku_override.php</code>）の安全な扱い:</strong>
+                            <ul>
+                                <li>当日枠設定モーダルでの枠名変更やマスタ保守画面（<code>slot_master_maintenance.php</code>）での枠名変更時、既存予約の <code>scheduled_time</code> を裏で一括書き換えするのではなく、予約が入っている枠の名称変更に対する事前警告ガードおよび明示的な確認フローを徹底します。</li>
+                            </ul>
+                        </li>
+                        <li><strong>3. 迷子予約（Orphaned Slot）の視認性と救済動線の維持強化:</strong>
+                            <ul>
+                                <li>月間カレンダー（<code>month_schedule.php</code>）および予約マトリクス（<code>month_matrix_v2.php</code>）において、有効枠一覧に存在しない <code>scheduled_time</code> を持つ予約を引き続き <code>🚨 迷子 (当時の枠名)</code> として赤枠ハイライト表示し、ワンクリックで編集モーダル（<code>modal_edit.php</code>）を開いて適切な枠へ救済できる運用を堅持します。</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        9. 計画⑧ 基本時間枠マスタ（m2_waku）の期間（世代）対応 ＆ CF枠拡大に伴う「医師別限界数差し引き・コンパクト全表示」視認性革新
+        ============================================================ -->
+        <section class="plan-section" id="sec-waku-period-matrix">
+            <h2 class="category-title">9. 計画⑧ 基本時間枠マスタ（m2_waku）の期間対応 ＆ CF枠拡大に伴う「医師別空き枠・限界数差し引き」視認性革新（複数案検討）</h2>
+            <div class="plan-card" style="border-left: 4px solid var(--purple);">
+                <div class="plan-header">
+                    <div class="plan-title-group">
+                        <span class="plan-title">🗓️ 時間枠マスタ世代管理（〜2026.12.31 ／ 2027.1.1〜9999.9.9）＆ 予約マトリクス俯瞰・差し引き判断DX</span>
+                        <span class="plan-tag">slot_master_maintenance.php / m2_waku / month_matrix_v2.php / modal_edit.php / lib/slot_helper.php</span>
+                    </div>
+                    <span class="badge badge-success" style="background:#059669; color:#fff;">実装完了・検証中 (2026-11-07)</span>
+                </div>
+                <div class="plan-body">
+                    <p class="plan-lead">
+                        2027年2月1日からの運用変更（例：胃腸科のCF物理枠を現行3枠から8枠へ拡大・枠名称刷新）を見据え、<strong>① 基本時間枠マスタ（<code>m2_waku</code>）の期間（世代）対応</strong> と、<strong>② 枠数増大時でも「その日に〇〇先生であと何件入れられるか（枠限界付近での差し引き判断）」を紙ベースの台帳以上に直感的に把握できるUI革新</strong> を推進します。<br>
+                        現時点では設計の可能性を狭めず、来週以降の本格開発に向けて<strong>現場の判断プロセス（本質の整理）と複数の解決アプローチ（案A〜案E）</strong>を網羅的に記録します。
+                    </p>
+
+                    <div class="section-subtitle">🔍 1. 現場の本質的課題：なぜ「紙ベースの台帳」の方が枠限界付近で分かりやすかったのか？</div>
+                    <div class="note-box">
+                        <strong>💬 現場のリアルなCF予約フロー：</strong><br>
+                        大腸内視鏡（CF）の予約は、「〇月〇日に受けたい」という日付先行ではなく、<strong>「〇〇先生に検査してほしい ➔ だいたいこのあたりの時期で空いている日はないか？」</strong>という<strong>【医師指名 × 時期俯瞰】</strong>の順序で決まります。<br>
+                        そして枠が埋まりつつある「枠限界付近」において、スタッフは<strong>「その日の各医師の限界数（定員）」と「現在入っている検査数（どの物理枠に誰先生が入っているか）」の2つを見比べて差し引き計算</strong>し、本当にまだ入れられるかを判断しています。
+                    </div>
+
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">課題の論点</th>
+                                <th style="width: 39%;">現行Webシステム（3枠・複数突っ込み型）の弱点</th>
+                                <th style="width: 39%;">紙ベースの台帳が優れていた理由 ＆ 次期システムが目指す姿</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>① 1枠に複数件入るため<br>「物理的な空き」が見えない</strong></td>
+                                <td>CF枠が3列しかないため、常時1つのマスに2〜3人の患者タイルが縦に重なって入る。結果、「1人入っているマス」が満杯なのかまだ入るのか、今日全体で何件埋まっているのかが直感的に分からない。</td>
+                                <td>紙の台帳は原則<strong>「1物理枠（1行）＝1患者」</strong>（例：8枠）。<br>➔ <strong>2027/2/1からCF枠を8枠に拡大</strong>することで、通常運用時は「原則1マス＝1件」の明快な物理構造を取り戻す（※枠名自体は医師名と連想させない中立な名称とする。また、<strong>急患やイレギュラー検査に対処できるよう、システム上は現状と同じく1つの枠に複数の予約を重ねて入れられる仕様を制限せず維持する</strong>）。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>② 8枠に増やすと横幅が伸び、<br>「医師限界数」と「物理枠」を<br>同時に見比べられない</strong></td>
+                                <td>単純にCF枠を3列➔8列（全体で20列超）に増やすと、<code>month_matrix_v2.php</code> の横スクロールが膨大になる。右側のCF枠を見ると左端の「医師の限界数（例：<code>義 🟢2/3</code>）」が遠く離れ、<strong>視線を左右に往復させて差し引き判断することが困難</strong>になる。</td>
+                                <td>紙の台帳は1枚の紙面上に「その日の医師の限界数（参考枠）」と「8つの物理枠の埋まり具合」が一覧で収まっていた。<br>➔ <strong>情報を間引いてでも全枠が1画面に収まる「コンパクト全表示モード」や「差し引きアシスト表示」</strong>が不可欠。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>③ 枠限界付近での<br>「誰先生なら可能か」の判別</strong></td>
+                                <td>物理枠が8枠あっても、その日の出勤医のCF限界数合計が「5件（例：義智3＋慶太郎2）」の日には、5件埋まった時点で残り3枠は実質予約不可となる。また「4件埋まった時点で、最後の1枠は誰先生の枠か」を瞬時に読み取る必要がある。</td>
+                                <td>「左端の医師別限界数・残数」と「右側の物理枠に入っている医師アイコン」の対比を極限まで近づけ、さらにシステム側で<strong>残枠のある医師や定員到達を視覚的にガイド</strong>することで、紙を超える判断速度を実現する。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-subtitle">⚙️ 2. 基本時間枠マスタ（<code>m2_waku</code>）期間（世代）対応の設計仕様と影響範囲</div>
+                    <p style="font-size: 13px; color: #334155; margin-bottom: 10px;">
+                        まずは時間枠マスタ（<code>slot_master_maintenance.php?tab=waku&amp;dept=GASTRO</code> 等）のみを期間対応（世代管理）とし、<strong>「期間対応一括変更」</strong>によって特定日を境に枠構成・枠名称が丸ごと切り替わる仕組みを構築します。
+                    </p>
+                    <ul class="plan-list">
+                        <li><strong>世代（期間）定義の例:</strong>
+                            <ul>
+                                <li><strong>現行世代:</strong> <code>1900-01-01 〜 2027-01-31</code>（従来の枠構成・名称）</li>
+                                <li><strong>新世代:</strong> <code>2027-02-01 〜 9999-12-31</code>（画面表記 <code>2027.2.1 〜 9999.9.9</code>：CF 8枠化・新名称）</li>
+                            </ul>
+                        </li>
+                        <li><strong>ユーザー体験（自動切替）:</strong> カレンダーや予約モーダルで <code>2027-01-31</code> 以前の日付を開けば現行枠が表示され、<strong><code>2027-02-01</code> 以降の日付を選択した瞬間にたちまち新名称の8枠へ自動切替</strong>されます。予約表示・マトリクス・日別印刷もすべて対象日の世代に従います。</li>
+                        <li><strong>DB変更（1テーブルのみ）:</strong> <code>m2_waku</code> に <code>valid_from DATE NOT NULL DEFAULT '1900-01-01'</code> と <code>valid_to DATE NOT NULL DEFAULT '9999-12-31'</code> を追加。行単位のバラバラな期間設定による設定ミスを防ぐため、診療科ごとの「期間セット（世代）一括変更・新世代コピー生成」方式とします。</li>
+                        <li><strong>【重要要件】イレギュラー対応のための「同一枠への複数予約許容」の維持:</strong> 「1枠1予約」は8枠化によって通常時の見通しを良くするための運用上の原則であり、<strong>システム上で1枠1件にロック（制限）することはせず、現状と同じく同一枠へ複数の予約を登録・移動できる仕様をそのまま残す</strong>ことで、急患・追加・イレギュラー検査に柔軟に対処できるようにします（コンパクトモード時でも1マスに複数件入った場合は縦に2段スタック表示または件数バッジ等で視認可能にします）。</li>
+                    </ul>
+
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 24%;">影響カテゴリ</th>
+                                <th style="width: 34%;">対象ファイル</th>
+                                <th>改修内容</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>① コア枠計算エンジン</strong></td>
+                                <td><code>lib/slot_helper.php</code></td>
+                                <td>・<code>getEffectiveWakuList()</code> に <code>:target_date BETWEEN valid_from AND valid_to</code> を追加。<br>・<code>getEffectiveWakuMapForPeriod()</code> で各日付（<code>$d_str</code>）に応じた世代の基本枠をマッピング（1月〜2月をまたぐ3ヶ月表示等でも1日単位で正確に切替）。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>② マスタ保守画面・API</strong></td>
+                                <td><code>slot_master_maintenance.php</code><br><code>action_slot_master.php</code><br><code>lib/master_audit_helper.php</code></td>
+                                <td>・<code>?tab=waku</code> に世代切替タブ（<code>[〜2027.1.31]</code> / <code>[2027.2.1〜9999.9.9]</code>）と「期間一括変更・新期間枠の作成」機能を新設。<br>・マスタ変更履歴（Undo）に期間カラムを含めて保全。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>③ 予約表示・登録・編集・<br>ホワイトボード</strong></td>
+                                <td><code>month_schedule.php</code><br><code>modal_edit.php</code><br><code>action_waku_override.php</code><br><code>action_schedule.php</code><br><code>api_toggle_no_waku.php</code><br><code>matrix_data_loader.php</code><br><code>schedule_note.php</code><br><code>get_progress_data.php</code></td>
+                                <td>・<code>slot_helper.php</code> 経由の箇所は自動対応。<br>・<code>m2_waku</code> を直接 <code>SELECT / LEFT JOIN</code> している箇所（予約保存時の表示順取得 <code>getWakuDisplayOrderFromM2()</code>、モーダル日付変更時の <code>get_day_slots</code>、枠なしトグル、デイリーノート、進捗モニター）に検査日 <code>BETWEEN valid_from AND valid_to</code> 条件を追加。</td>
+                            </tr>
+                            <tr>
+                                <td><strong>④ 印刷系モジュール</strong></td>
+                                <td><code>print_schedule_daily.php</code><br><code>print_nameplate.php</code><br>（<code>endoscopy_sheet.php</code> は変更不要）</td>
+                                <td>・日別A4印刷（<code>print_schedule_daily.php</code>）およびネームプレート印刷の <code>m2_waku</code> 結合条件に <code>:date BETWEEN w.valid_from AND w.valid_to</code> を追加（または <code>getDailyReservationsWithEffectiveSlots()</code> へ完全統一）。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="section-subtitle">💡 3. 枠拡大（3枠➔8枠）に伴う「見通し改善 ＆ 医師別空き・限界差し引き」の検討案（案A〜案E）</div>
+                    <p style="font-size: 13px; color: #334155; margin-bottom: 12px;">
+                        CF枠が8枠に増えても「左端の医師限界数」と「右側の物理枠」を見比べて瞬時に差し引き判断できるよう、以下の<strong>5つのアプローチ（単独採用または複数組み合わせ可能）</strong>を検討候補として保持します。
+                    </p>
+
+                    <table class="table-custom">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">検討アプローチ</th>
+                                <th style="width: 48%;">具体的な仕組み・画面イメージ</th>
+                                <th style="width: 30%;">メリット・解決できる課題</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>【案A】<br>📐 コンパクト全表示モード<br>（情報の優先度間引き・<br>1画面フルワイド俯瞰）</strong></td>
+                                <td>
+                                    <code>month_matrix_v2.php</code> のツールバーに <code>[📐 コンパクト全表示]</code> 切替を追加。<br>
+                                    ・<strong>画面幅100%開放 ＆ 列ヘッダー2段化:</strong> 枠名を上下2段にして1列幅を <strong>48〜55px</strong> に極限圧縮。20列以上あっても横スクロールなしで1画面に全枠を表示。<br>
+                                    ・<strong>タイルの情報間引き:</strong> カルテID・生年月日・年齢・🗺️アイコン・検査文字バッジを間引き（ホバー時のツールチップへ集約）、タイル内を <strong><code>[義] 山田</code>（担当医1文字アイコン＋苗字＋💊アラート＋検査種別背景色）の1行のみ</strong> に凝縮。<br>
+                                    ・<strong>行高の圧縮 ＆ 複数予約スタック対応:</strong> 1日の縦幅も約28〜32pxに詰め、1画面で半月〜1ヶ月分を縦横俯瞰。原則1枠1予約としつつ、イレギュラーで同一枠に複数件入った場合も1行タイルが縦にコンパクトに2段並び、崩れず視認・操作可能。
+                                </td>
+                                <td>
+                                    ・<strong>横スクロールがゼロ</strong>になり、「左端の医師限界数」と「右側のCF 8枠」が常に同じ視野に入る。<br>
+                                    ・タイル内が <code>[医] 苗字</code> だけになるため、「いま誰先生が何件入っているか」を視線移動だけで一瞬で数えて差し引きできる。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>【案B】<br>🧮 左端「医師別CF残数」の<br>特化強調表示<br>（引き算の自動化）</strong></td>
+                                <td>
+                                    スタッフが目視で「限界数 − 現在数」を引き算する負担自体をなくすため、左端の日付セル（<code>fixed-date-col</code>）や日別ヘッダーにおいて：<br>
+                                    ・<strong>まだCF枠が空いている医師:</strong> <code>🟢 義: あと1 (2/3)</code> のように<strong>「あと何件入れられるか」を大きく色付きバッジで強調</strong>。<br>
+                                    ・<strong>限界数に達した医師:</strong> <code>🈵 慶: 満(2/2)</code> のようにグレーまたは赤で「これ以上不可」を明示。
+                                </td>
+                                <td>
+                                    ・「誰先生があと何件可能か」を頭の中で引き算する必要がなくなる。<br>
+                                    ・枠限界付近（残り1枠）での誤認や計算ミスを防止。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>【案C】<br>🎨 空きマスへの「可能医師<br>参考ガイド」＆「医師限界<br>到達マスの自動グレーアウト」</strong></td>
+                                <td>
+                                    8つの物理枠（箱）は医師固定ではないものの、その日の「医師別限界数」と「予約済件数」の差分から、<strong>空いているCFマスに動的な視覚ガイド</strong>を表示する。<br>
+                                    ・<strong>定員到達グレーアウト:</strong> その日の出勤医のCF限界数合計が「5枠（例：義3＋慶2）」の日に、すでに5枠埋まったら、残りの空いている3マス（6〜8枠目）を<strong>自動的にグレー斜線（<code>医師定員到達</code>）</strong>にして「白い空欄に見えるが実は入れられない」状態を防ぐ。<br>
+                                    ・<strong>可能医師ゴースト表示（参考）:</strong> 5枠中4枠埋まり「義智先生のみ残り1」となった場合、5枠目の空きマスに薄く <code>(残: 義智1)</code> と参考表示する。
+                                </td>
+                                <td>
+                                    ・紙の台帳にあった「物理枠の横に参考として先生の名前が書かれており、限界数との差分で判断できる」良さをデジタルで完全再現・進化。<br>
+                                    ・8枠化による「見せかけの空欄（定員外の空マス）」に騙されなくなる。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>【案D】<br>👨‍⚕️「〇〇先生希望」<br>ワンタップ逆引きフォーカス<br>（医師指名ハイライト）</strong></td>
+                                <td>
+                                    「〇〇先生にしてほしい ➔ だいたいこのあたりで…」という会話そのままに操作できるよう、マトリクス上部に <strong><code>[全医師] [誠吾] [哲也] [義智] [慶太郎]</code> のワンタップ指名ボタン</strong>を設置。<br>
+                                    ・例えば <code>[義智]</code> を押すと、1ヶ月〜3ヶ月マトリクスの中で<strong>「義智先生のCF残枠が1以上ある日（行）」だけが明るくハイライト</strong>され、義智先生が満枠の日・不在の日は行全体が薄暗く（または非表示に）なる。<br>
+                                    ・さらにマトリクス内の患者タイルも、義智先生の予約だけが強調表示される。
+                                </td>
+                                <td>
+                                    ・「〇〇先生で来月あたり空いてる？」と聞かれた際、ボタン1つで<strong>「その先生がまだ入れられる日」だけが浮かび上がり</strong>、その行の空いている物理枠をクリックするだけで予約が完了する。
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>【案E】<br>🔬 CF専用フォーカス表示<br>（GIF・エコー列のワンクリック<br>折りたたみ集約）</strong></td>
+                                <td>
+                                    大腸CFの枠調整や空き探しをする際、GIF（胃カメラ）やエコーの列を一時的に1本の細い集計列（例：<code>[GIF 計8件]</code>）に折りたたみ、<strong>左端の「日付・医師別CF限界数」のすぐ真横に「CF 1〜8枠」を大画面でピタッと隣接表示</strong>させるモード。
+                                </td>
+                                <td>
+                                    ・左端の「医師限界数」と「CF 8枠」の距離がゼロ（隣り合わせ）になるため、詳細情報（3段タイル）を表示したままでも視線移動なしで比較できる。
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="arch-diagram">
+【来週以降の検討・決定フロー】
+  Step 1: 基本時間枠マスタ (m2_waku) の期間対応 (〜2027.1.31 / 2027.2.1〜9999.9.9)
+          ＋ 枠名文字列スナップショット保持（🚨迷子フェイルセーフ）
+          ＋ 原則1枠1予約（8枠化）としつつ、イレギュラー検査対応のため「同一枠への複数予約許容」は完全維持
+             │
+             ▼
+  Step 2: 予約マトリクス (month_matrix_v2.php) における視認性・差し引き判断モードのプロトタイピング
+          ├─ [案A] 📐 コンパクト全表示モード（[医] 苗字 1行化 ＋ 列幅50px化で全枠1画面収容・複数件時は縦スタック）
+          ├─ [案B] 🧮 左端の「医師別 残数/限界数」の強調バッジ化
+          ├─ [案C] 🎨 医師限界合計を超えた空きマスのグレーアウト ＆ 残枠医師の参考ガイド表示
+          ├─ [案D] 👨‍⚕️ 医師指名ワンタップ逆引きハイライト（〇〇先生が可能な日だけ浮かび上がらせる）
+          └─ [案E] 🔬 CF8枠を左端の真横に引き寄せる「CFフォーカス（他種別折りたたみ）」
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        10. 既存機能の整理方針（F/U機能の凍結）
         ============================================================ -->
         <section class="plan-section" id="sec-freeze">
-            <h2 class="category-title">7. 既存機能の整理方針（フォローアップ機能の凍結）</h2>
+            <h2 class="category-title">10. 既存機能の整理方針（フォローアップ機能の凍結）</h2>
             <div class="plan-card" style="border-left: 4px solid #94a3b8; opacity: 0.9;">
                 <div class="plan-header">
                     <div class="plan-title-group">
@@ -731,10 +1185,10 @@
         </section>
 
         <!-- ============================================================
-        8. 開発優先度ロードマップ
+        11. 開発優先度ロードマップ
         ============================================================ -->
         <section class="plan-section" id="sec-roadmap">
-            <h2 class="category-title">8. 開発優先度ロードマップ</h2>
+            <h2 class="category-title">11. 開発優先度ロードマップ</h2>
             <div class="plan-card">
                 <div class="plan-body">
                     <table class="table-custom">
@@ -748,17 +1202,40 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><strong>Phase 1<br>(直近着手)</strong></td>
+                                <td><strong>Phase 1<br>(直近最優先)</strong></td>
+                                <td><strong>内視鏡シート刷新 ＆<br>DB永続化・ホワイトボード<br>双方向データ統合</strong></td>
+                                <td>
+                                    ・<strong>[完了]</strong> A4縦1枚ハイブリッド内視鏡シート（<code>endoscopy_sheet.php</code>）＆ サーバー直接印刷（2026-11-06）<br>
+                                    ・<strong>[次期]</strong> <code>t_endoscopy_sheet</code> テーブル新設 ＆ マルチ端末リアルタイム自動保存・共有<br>
+                                    ・<strong>[次期]</strong> 当日進捗モニター（<code>progress_monitor.php</code>）との双方向データ同期（来院・下剤・鎮静・検査時刻・生検部位照合・会計連動）<br>
+                                    ・<strong>[次期]</strong> 医事課オーダー・レセプト入力完了チェック機能
+                                </td>
+                                <td><span class="badge badge-primary">最優先 (High)</span><br>看護師・医師・医事課</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phase 1.5<br>(時間枠世代管理)</strong></td>
+                                <td><strong>時間枠マスタ期間対応 ＆<br>マトリクス「医師限界差し引き・<br>コンパクト全表示」革新</strong></td>
+                                <td>
+                                    ・<strong>[完了]</strong> <code>m2_waku</code> の期間（世代）管理対応（仮データ <code>〜2026.12.31</code> ／ <code>2027.1.1〜9999.9.9</code> 一括切替）＆ 全14モジュールの期間連動<br>
+                                    ・<strong>[完了]</strong> 予約データの枠名文字列スナップショット保持 ＆ <code>🚨 迷子</code> フェイルセーフ徹底（サイレントすり替わり防止）<br>
+                                    ・<strong>[完了]</strong> <code>modal_edit.php</code> 時間枠リストボックスへの登録済み患者名・医師名表示 ＆ 旧枠からの新枠ワンクリック振替アシスト ＆ 当日医師別枠状況バー<br>
+                                    ・<strong>[完了]</strong> <code>month_matrix_v2.php</code> の視認性革新（案A: <code>🗜️ コンパクト</code> 全表示、案C: <code>🈵医師定員</code> グレーアウト＆空きCFマス <code>残:哲5・義3</code> 参考ガイド、案D: <code>👨‍⚕️指名</code> 逆引きハイライト、案E: <code>🎯 CF集中</code> 隣接フォーカス）<br>
+                                    ・<strong>[完了]</strong> <code>month_schedule.php</code>（上下2ペイン画面）への案C・案D・案E適合実装（上段カレンダーの医師別空き日緑枠ハイライト＆満枠/不在日減光、下段一覧ヘッダーの当日医師残数バー、空き枠行への <code>👨‍⚕️CF可能: ＋哲也(残5)</code> ワンクリック予約チップ＆医師定員到達時の斜線グレーアウト、上下連動 <code>🎯 CF集中</code> モード）
+                                </td>
+                                <td><span class="badge badge-success" style="background:#059669; color:#fff;">実装完了 (2026-11-07)</span><br>予約受付・外来・内視鏡室</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phase 2<br>(機器連携)</strong></td>
                                 <td><strong>DICOM MWL連携<br>(オーダー配信)</strong></td>
                                 <td>
                                     ・<code>api_dicom_orders.php</code> の作成<br>
                                     ・検査場所別 AE Title マッピング<br>
                                     ・Python MWL中継サーバー（<code>mwl_server.py</code>）常駐検証
                                 </td>
-                                <td><span class="badge badge-primary">最優先 (High)</span><br>内視鏡室プロセッサ</td>
+                                <td><span class="badge badge-primary">高 (High)</span><br>内視鏡室プロセッサ</td>
                             </tr>
                             <tr>
-                                <td><strong>Phase 2<br>(基盤保全)</strong></td>
+                                <td><strong>Phase 3<br>(基盤保全)</strong></td>
                                 <td><strong>院内総合リストア<br>システム構築</strong></td>
                                 <td>
                                     ・独立リストアツール（PowerShell / GUI）の開発<br>
@@ -768,7 +1245,7 @@
                                 <td><span class="badge badge-warning">高 (High)</span><br>全院DBインフラ・BCP</td>
                             </tr>
                             <tr>
-                                <td><strong>Phase 3<br>(安全・効率)</strong></td>
+                                <td><strong>Phase 4<br>(安全・効率)</strong></td>
                                 <td><strong>医療安全 ＆<br>当日進捗モニター ＆<br>定型文DX</strong></td>
                                 <td>
                                     ・当日進捗モニター（<code>progress_monitor.php</code>）稼働<br>
@@ -779,7 +1256,7 @@
                                 <td><span class="badge badge-success" style="background:#059669; color:#fff;">完了 (Done)</span><br>v0926/v0927 導入済</td>
                             </tr>
                             <tr>
-                                <td><strong>Phase 4<br>(予約効率化)</strong></td>
+                                <td><strong>Phase 5<br>(予約効率化)</strong></td>
                                 <td><strong>直近空き枠速報 ＆<br>スマート予約アシスト<br>(全科横断・患者DX)</strong></td>
                                 <td>
                                     ・1か月以内の大腸（CF/TCF/W/ポリペク）空き枠速報ウィジェット<br>

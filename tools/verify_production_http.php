@@ -8,6 +8,8 @@ $urls = [
     'http://192.168.1.16/endoscope/index.php',
     'http://192.168.1.16/endoscope/schedule_note.php?dept=PROCT',
     'http://192.168.1.16/endoscope/schedule_note.php?dept=GASTRO',
+    'http://192.168.1.16/endoscope/exam_master_maintenance.php',
+    'http://192.168.1.16/endoscope/master_maintenance.php',
     'http://192.168.1.16/endoscope/slot_master_maintenance.php',
     'http://192.168.1.16/endoscope/slot_search.php',
     'http://192.168.1.16/endoscope/stats.php',
@@ -15,15 +17,23 @@ $urls = [
     'http://192.168.1.16/endoscope/followup/index.php',
     'http://192.168.1.16/endoscope/print_schedule_daily.php',
     'http://192.168.1.16/endoscope/month_schedule.php',
-    'http://192.168.1.16/endoscope/month_schedule.php?doctor=undecided',
     'http://192.168.1.16/endoscope/bulk_edit_prep_room.php',
+    'http://192.168.1.16/endoscope/waku_console_proto.php',
+    'http://192.168.1.16/endoscope/waku_legacy_convert.php',
     'http://192.168.1.16/endoscope/assets/css/month_schedule.css',
     'http://192.168.1.16/endoscope/assets/css/onokai_flatpickr.css',
     'http://192.168.1.16/endoscope/assets/js/onokai_flatpickr.js',
     'http://192.168.1.16/endoscope/assets/vendor/flatpickr/flatpickr.min.js',
     'http://192.168.1.16/endoscope/仕様書/2026-10-20works.html',
     'http://192.168.1.16/endoscope/仕様書/2026-10-21works.html',
-    'http://192.168.1.16/endoscope/仕様書/specdoc.html'
+    'http://192.168.1.16/endoscope/仕様書/2026-10-22works.html',
+    'http://192.168.1.16/endoscope/仕様書/2026-10-24works.html',
+    'http://192.168.1.16/endoscope/仕様書/2026-10-25works.html',
+    'http://192.168.1.16/endoscope/仕様書/2026-10-26works.html',
+    'http://192.168.1.16/endoscope/仕様書/specdoc.html',
+    'http://192.168.1.16/rsbase/canvas_view.php?patient_no=60934&modality=ES&limit=5',
+    'http://192.168.1.16/rsbase/仕様書/canvas_api_spec.html',
+    'http://192.168.1.16/rsbase/仕様書/index.html'
 ];
 
 echo "=== 本番環境 (192.168.1.16) HTTP 疎通テスト ===" . PHP_EOL;

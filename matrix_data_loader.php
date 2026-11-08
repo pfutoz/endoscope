@@ -1,6 +1,12 @@
 <?php
 /**
- * 医療法人小野会 内視鏡予約システム V2 - データ読み込み・マッピング専門プロバイダ
+ * 設置パス: c:\Apache24\htdocs\endoscope\matrix_data_loader.php
+ * ファイル名: matrix_data_loader.php
+ * 概要: 医療法人小野会 内視鏡予約システム V2 - データ読み込み・マッピング専門プロバイダ
+ * 更新日時: 2026-11-06
+ * 
+ * 修正履歴:
+ *   - 2026-11-06: 時間枠世代管理（valid_from 〜 valid_to）に対応。対象年月の期間に有効な時間枠マスタのみを取得するよう改修。
  */
 
 // 1. データベース接続設定 (内視鏡予約用 PostgreSQL)
@@ -21,6 +27,7 @@ try {
 
 // 外部化した小野会専用カレンダーヘルパーを読み込み
 require_once 'calendar_helper_onokai.php';
+require_once __DIR__ . '/lib/slot_helper.php';
 
 // 2. パラメーターの取得
 $year  = isset($_GET['year'])  ? (int)$_GET['year']  : (int)date('Y');
@@ -38,19 +45,40 @@ $prev_year  = date('Y', $prev_month_ts); $prev_month = date('n', $prev_month_ts)
 $next_month_ts = strtotime("+1 month", $first_day_timestamp);
 $next_year  = date('Y', $next_month_ts); $next_month = date('n', $next_month_ts);
 
-// 3. 💡【正規化】専用時間枠マスター（m2_waku）から現在の科の waku_name を自動ロード！
+// 3. 💡【正規化】専用時間枠マスター（m2_waku）および当月オーバーライドから枠名を自動ロード！
+$start_month_date = sprintf('%04d-%02d-01', $year, $month);
+$end_month_date   = sprintf('%04d-%02d-%02d', $year, $month, $days_in_month);
+$effective_map    = getEffectiveWakuMapForPeriod($pdo, $dept, $start_month_date, $end_month_date);
+
 $waku_stmt = $pdo->prepare("
     SELECT waku_name 
     FROM m2_waku 
-    WHERE department_code = :dept AND is_active = TRUE 
+    WHERE department_code = :dept
+      AND is_active = TRUE
+      AND valid_from <= :end_date
+      AND valid_to >= :start_date
     ORDER BY display_order ASC
 ");
-$waku_stmt->execute([':dept' => $dept]);
+$waku_stmt->execute([
+    ':dept'       => $dept,
+    ':start_date' => $start_month_date,
+    ':end_date'   => $end_month_date,
+]);
 $waku_list = $waku_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-// 4. その他の選択肢を汎用マスタから取得
-$doctors   = $pdo->query("SELECT item_value FROM m_input_master WHERE category = 'doctor' ORDER BY display_order ASC")->fetchAll(PDO::FETCH_COLUMN);
-$types     = $pdo->query("SELECT item_value FROM m_input_master WHERE category = 'exam_type' ORDER BY display_order ASC")->fetchAll(PDO::FETCH_COLUMN);
+// 当月オーバーライド枠名も追加（誤迷子化防止）
+foreach ($effective_map as $d_slots) {
+    foreach ($d_slots as $slot) {
+        $wn = (string)$slot['waku_name'];
+        if (!in_array($wn, $waku_list, true)) {
+            $waku_list[] = $wn;
+        }
+    }
+}
+
+// 4. その他の選択肢をマスタから取得
+$doctors   = $pdo->query("SELECT doctor_name FROM m2_doctor WHERE is_active = TRUE ORDER BY display_order ASC")->fetchAll(PDO::FETCH_COLUMN);
+$types     = getExamTypeOptions($pdo);
 $arrivals  = $pdo->query("SELECT item_value FROM m_input_master WHERE category = 'arrival_time' ORDER BY display_order ASC")->fetchAll(PDO::FETCH_COLUMN);
 $locations = $pdo->query("SELECT item_value FROM m_input_master WHERE category = 'exam_location' ORDER BY display_order ASC")->fetchAll(PDO::FETCH_COLUMN);
 

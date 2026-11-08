@@ -7,10 +7,17 @@
  * 医療法人小野会 内視鏡予約・運用プロトタイプ統合ポータル
  * 
  * 修正履歴:
- *   - 2026-09-28: ver0928 リリース、m2_* マスタ管理連携
- *   - 2026-10-04: ver1004 アップデート、総合操作マニュアル help.php へのリンク正規化
+ *   - 2026-11-01: v1101 本番稼働リリース、修正インフォメーション配信バナー新設、進捗モニターUI統合、デイリーノート日付バーピッカー一本化、空き枠検索強化
+ *   - 2026-10-25: ver1025 リリース、RS-Baseキャンバス連携、時間枠統合管理コンソール新設、help.php実機完全同期
+*   - 2026-10-04: ver1004 アップデート、総合操作マニュアル help.php へのリンク正規化
  *   - 2026-10-09: 日別メモ診療科振り分けメンテナンス (furiwake_daymemo.php) へのリンクカードをマスタ管理セクションに追加
  *   - 2026-10-16: ヘッダー最左端に院内総合ポータル(../index.php)直行ボタン[🏥]を設置、ヘッダー表示を「医療法人小野会」に簡素化、フッターに総合ポータルリンクを増設
+ *   - 2026-10-22: 時間枠オーバーライド管理（臨時枠設定・期間オーバーライド・枠休止・設定一覧）へのリンクカードをマスタ管理セクションに追加
+ *   - 2026-10-22: 後任事務長・管理者向け「時間枠統合カスタム管理コンソール (プロトタイプ: waku_console_proto.php)」カードを追加
+ *   - 2026-10-24: 実運用のない旧フォローアップ管理メニューカードを撤去（RS-Base検査タイムラインキャンバスへの移行に伴う整理）
+ *   - 2026-10-26: 検査種別マスターメンテ（exam_master_maintenance.php）新設に伴いマスタ管理セクションを再編、汎用選択肢マスタと一本化整理
+ *   - 2026-10-30: 院内プリンターマスターメンテ（printer_master_maintenance.php）新設に伴いマスタ管理セクションへリンクカードを追加
+ *   - 2026-11-01: 【v1101 本番稼働】修正インフォメーション配信モジュール（inc_system_info.php）導入。日常予約操作の邪魔にならないようボタン群最下部にバナーを配置。マスタ管理セクションに修正インフォメーションメンテ（system_info_maintenance.php）カードを新設
  */
 
 // デバッグ設定ファイルのパス
@@ -39,6 +46,7 @@ if (file_exists($debug_config_file)) {
 
 // データベース接続と当日予約サマリ取得
 require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/inc_system_info.php';
 $pdo = getDbConnection();
 $today_str = date('Y-m-d');
 $today_stats = ['PROCT' => 0, 'GASTRO' => 0, 'total' => 0];
@@ -599,7 +607,7 @@ $today_dow = $week_ja[(int)date('w')];
         <div class="header-badges">
             <a href="./仕様書/specdoc.html" class="help-btn" target="_blank" rel="noopener noreferrer" title="操作マニュアルを表示（別ウィンドウ）" aria-label="操作マニュアルを表示">📖</a>
             <a href="help.php" class="help-btn" target="_blank" rel="noopener noreferrer" title="システム仕様書を表示（別ウィンドウ）" aria-label="仕様書を表示">❓</a>
-            <span class="ver-pill" title="システムバージョン">ver1004</span>
+            <span class="ver-pill" title="システムバージョン">v1101</span>
             <span class="ip-pill" title="クライアントIPアドレス"><?= htmlspecialchars($client_ip, ENT_QUOTES, 'UTF-8') ?></span>
         </div>
     </header>
@@ -754,26 +762,6 @@ $today_dow = $week_ja[(int)date('w')];
                     </div>
                 </a>
 
-                <!-- フォローアップ管理 -->
-                <a href="followup/index.php" class="menu-card menu-card-purple">
-                    <div class="menu-card-header">
-                        <div class="menu-card-title">
-                            <span aria-hidden="true">📋</span>
-                            <h2>フォローアップ管理</h2>
-                        </div>
-                        <div class="card-header-actions">
-                            <span class="badge badge-neutral">F/U</span>
-                            <span class="menu-help-btn" role="button" tabindex="0" onclick="openHelpSection(event, 'sec-followup')" onkeydown="if(event.key==='Enter'||event.key===' '){openHelpSection(event, 'sec-followup');}" title="フォローアップ管理の操作マニュアルを開く">❓</span>
-                        </div>
-                    </div>
-                    <div class="menu-card-desc">
-                        次回受診日・来院目的の登録、検査別F/U期間シートの発行・履歴管理。
-                    </div>
-                    <div class="menu-card-footer">
-                        <span>開く</span>
-                        <span aria-hidden="true">➔</span>
-                    </div>
-                </a>
 
                 <!-- 検査数集計 -->
                 <a href="stats.php" class="menu-card">
@@ -826,23 +814,64 @@ $today_dow = $week_ja[(int)date('w')];
                     </div>
                 </a>
 
-                <!-- 汎用マスタメンテナンス -->
+                <!-- 検査種別マスターメンテナンス -->
+                <a href="exam_master_maintenance.php" class="menu-card" style="border-color: #7dd3fc; background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);">
+                    <div class="menu-card-header">
+                        <div class="menu-card-title">
+                            <span aria-hidden="true">🔬</span>
+                            <h2>検査種別マスターメンテ</h2>
+                        </div>
+                        <div class="card-header-actions">
+                            <span class="badge" style="background:#0284c7; color:#fff; font-size:10.5px; padding:2px 6px;">種別・グループ</span>
+                            <span class="menu-help-btn" role="button" tabindex="0" onclick="openHelpSection(event, 'sec-exam-master')" onkeydown="if(event.key==='Enter'||event.key===' '){openHelpSection(event, 'sec-exam-master');}" title="検査種別マスターメンテの操作マニュアルを開く">❓</span>
+                        </div>
+                    </div>
+                    <div class="menu-card-desc">
+                        検査種別（GIF/TCF/エコー等）の追加・大分類グループ（上部/下部/エコー/その他）・予約選択肢表示順の統合管理。
+                    </div>
+                    <div class="menu-card-footer" style="color: #0284c7;">
+                        <span>開く</span>
+                        <span aria-hidden="true">➔</span>
+                    </div>
+                </a>
+
+                <!-- 汎用選択肢マスタメンテナンス -->
                 <a href="master_maintenance.php" class="menu-card">
                     <div class="menu-card-header">
                         <div class="menu-card-title">
                             <span aria-hidden="true">🔧</span>
-                            <h2>汎用マスタメンテナンス</h2>
+                            <h2>汎用選択肢マスタメンテ</h2>
                         </div>
                         <div class="card-header-actions">
-                            <span class="badge badge-neutral">選択肢</span>
+                            <span class="badge badge-neutral">選択肢・部屋等</span>
                             <span class="menu-help-btn" role="button" tabindex="0" onclick="openHelpSection(event, 'sec-master')" onkeydown="if(event.key==='Enter'||event.key===' '){openHelpSection(event, 'sec-master');}" title="汎用マスタメンテナンスの操作マニュアルを開く">❓</span>
                         </div>
                     </div>
                     <div class="menu-card-desc">
-                        検査種別・来院時刻・実施場所などシステム内の各種選択肢の保守。
+                        部屋番号・前処置下剤・来院時刻・検査場所・備考定型文パレットなど各種選択肢の保守。
                     </div>
                     <div class="menu-card-footer">
                         <span>開く</span>
+                        <span aria-hidden="true">➔</span>
+                    </div>
+                </a>
+
+                <!-- プリンターマスターメンテナンス -->
+                <a href="printer_master_maintenance.php" class="menu-card" style="border-color: #818cf8; background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);">
+                    <div class="menu-card-header">
+                        <div class="menu-card-title">
+                            <span aria-hidden="true">🖨️</span>
+                            <h2>プリンターマスターメンテ</h2>
+                        </div>
+                        <div class="card-header-actions">
+                            <span class="badge" style="background:#4f46e5; color:#fff; font-size:10.5px; padding:2px 6px;">印刷・機器</span>
+                        </div>
+                    </div>
+                    <div class="menu-card-desc">
+                        サーバー内蔵・院内LANプリンターの自動検出、画面表示ラベル（呼称）の変更、有効/無効、デフォルトプリンターの統合管理。
+                    </div>
+                    <div class="menu-card-footer" style="color: #4f46e5;">
+                        <span>設定・一覧を開く</span>
                         <span aria-hidden="true">➔</span>
                     </div>
                 </a>
@@ -855,19 +884,82 @@ $today_dow = $week_ja[(int)date('w')];
                             <h2>日別メモ科振分メンテ</h2>
                         </div>
                         <div class="card-header-actions">
-                            <span class="badge badge-warning">メモ整理</span>
+                            <span class="badge badge-neutral" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1;">移行済・保守</span>
                         </div>
                     </div>
                     <div class="menu-card-desc">
-                        日別カレンダーメモ（休診・体制）の確認、肛門科・胃腸科へのワンクリック振り分け・整理。
+                        （科別独立移行用）旧共通メモの確認・肛門科／胃腸科への振分ツール。※大半の移行は完了済・保守用
                     </div>
                     <div class="menu-card-footer" style="color: #b45309;">
                         <span>開く</span>
                         <span aria-hidden="true">➔</span>
                     </div>
                 </a>
+
+                <!-- 時間枠オーバーライド管理 -->
+                <a href="month_schedule.php?open_override=manage" class="menu-card" style="border-color: #38bdf8; background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);">
+                    <div class="menu-card-header">
+                        <div class="menu-card-title">
+                            <span aria-hidden="true">⏱️</span>
+                            <h2>時間枠オーバーライド管理</h2>
+                        </div>
+                        <div class="card-header-actions">
+                            <span class="badge" style="background:#0284c7; color:#fff; font-size:10.5px; padding:2px 6px;">臨時・期間</span>
+                            <span class="menu-help-btn" role="button" tabindex="0" onclick="openHelpSection(event, 'sec-waku-override')" onkeydown="if(event.key==='Enter'||event.key===' '){openHelpSection(event, 'sec-waku-override');}" title="時間枠オーバーライド管理の操作マニュアルを開く">❓</span>
+                        </div>
+                    </div>
+                    <div class="menu-card-desc">
+                        日別の時間枠休止・臨時枠追加、および特定期間の一括枠オーバーライド・設定一覧の照会・解除。
+                    </div>
+                    <div class="menu-card-footer" style="color: #0284c7;">
+                        <span>設定・一覧を開く</span>
+                        <span aria-hidden="true">➔</span>
+                    </div>
+                </a>
+
+                <!-- 枠統合管理コンソール（プロトタイプ） -->
+                <a href="waku_console_proto.php" class="menu-card" style="border-color: #a855f7; background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%); border-width: 2px;">
+                    <div class="menu-card-header">
+                        <div class="menu-card-title">
+                            <span aria-hidden="true">🎛️</span>
+                            <h2>枠統合管理コンソール</h2>
+                        </div>
+                        <div class="card-header-actions">
+                            <span class="badge" style="background:#9333ea; color:#fff; font-size:10px; font-weight:800; padding:2px 6px;">PROTOTYPE</span>
+                        </div>
+                    </div>
+                    <div class="menu-card-desc">
+                        基本枠・日別休止・期間オーバーライドを月間カレンダー上で俯瞰・一元管理。後任事務長向け引き継ぎガイド内蔵。
+                    </div>
+                    <div class="menu-card-footer" style="color: #9333ea; font-weight: bold;">
+                        <span>コンソールを試す</span>
+                        <span aria-hidden="true">➔</span>
+                    </div>
+                </a>
+                <!-- 修正インフォメーションマスターメンテナンス -->
+                <a href="system_info_maintenance.php" class="menu-card" style="border-color: #86efac; background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);">
+                    <div class="menu-card-header">
+                        <div class="menu-card-title">
+                            <span aria-hidden="true">📢</span>
+                            <h2>修正インフォメーションメンテ</h2>
+                        </div>
+                        <div class="card-header-actions">
+                            <span class="badge" style="background:#16a34a; color:#fff; font-size:10.5px; padding:2px 6px;">更新・告知</span>
+                        </div>
+                    </div>
+                    <div class="menu-card-desc">
+                        ポータル・開始画面に配信する修正内容・新機能お知らせの登録・編集・公開切替。全画面への自動同期。
+                    </div>
+                    <div class="menu-card-footer" style="color: #16a34a;">
+                        <span>インフォメンテを開く</span>
+                        <span aria-hidden="true">➔</span>
+                    </div>
+                </a>
             </div>
         </section>
+
+        <!-- 📢 システム修正インフォメーション / リリース情報 (ボタン群の一番下・非干渉表示) -->
+        <?= renderSystemInfoBanner() ?>
 
     </main>
 

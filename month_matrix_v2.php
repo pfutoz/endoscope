@@ -1,12 +1,17 @@
 <?php
 /**
  * 生成日時: 2026-08-28 01:40:00 JST
+ * 更新日時: 2026-11-06
  * 設置パス: c:\Apache24\htdocs\endoscope\month_matrix_v2.php
  * ファイル名: month_matrix_v2.php
+ * 概要: 内視鏡室 予約管理システム (マトリクス V2) - 統合・一本化版（時間枠世代管理対応）
  * 
- * 内視鏡室 予約管理システム (マトリクス V2) - 統合・一本化版
- 
  * 主な改修:
+ *   - 2026-11-07: 【コンパクト全表示モード（🗜️ コンパクト）新設】2027年以降の時間枠増加（胃腸科21〜23枠等）でも横スクロールなしで全枠を一望できるよう、列幅圧縮・枠名短縮表記・患者タイル情報間引き（氏名＋担当医＋種別バッジ、ホバーで全詳細表示）を即時切替・端末記憶するモードを追加。
+ *   - 2026-11-06: 【時間枠世代管理対応】対象年月ごとの有効時間枠世代（valid_from〜valid_to）を自動取得してマトリクス列を構成するよう改修（1ヶ月表示・3ヶ月表示とも月単位で世代自動切替）。
+ *   - 2026-10-27: 【診療科端末永続記憶 ＆ [1][2]キー即時切替共通化】
+ *       1. 1年間Cookie（endoscope_selected_dept）およびLocalStorage・セッション連携による診療科の永続記憶に対応
+ *       2. [1]キー（🟢 肛門科）／ [2]キー（🔵 胃腸科）の即時切替ショートカットおよびタブUI [1][2] バッジ表示を新設
  *   - 予約登録・編集を modal_edit.php に一本化（インラインdialogおよび重複JSを完全撤去）
  *   - 3ヶ月表示時のパフォーマンス大幅改善（N+1問題解消・全期間一括プリフェッチ）
  *   - 日付枠（左端列）の表現を month_schedule.php のカレンダー部と完全統一
@@ -74,6 +79,14 @@
  * 修正 (2026-10-09):
  *   - 【医師予定表連携 (yotei API)】一番左の日付列（fixed-date-col）に医師の休診・不在予定（🙅🏼医師名 概要）をコンパクトバッジとして表示（month_schedule.php と統一）
  *   - かわらばん情報や小野会全体会日程は除外し、医師個人の休診・不在予定のみを表示。ホバーで詳細ツールチップ展開、医院休診日は非表示
+ * 
+ * 修正 (2026-10-22):
+ *   - 【Phase 2 時間枠オーバーライド構想 画面側反映】
+ *   - getEffectiveWakuMapForPeriod() による期間内有効枠一括プリフェッチ
+ *   - オーバーライド枠名の自動認識による迷子誤認防止
+ *   - 日別休止枠（is_suspended）のマトリクスセル描画連携（🚫バッジ・薄赤背景）
+ *   - 【Phase 3 & UX刷新】時間枠の臨時設定・休止モーダル（waku_override_modal_inc.php）搭載
+ *   - ヘッダーに「⚙️ 枠の臨時設定」ボタン設置、URLパラメータ open_override による自動起動対応
  */
 ini_set('display_errors', "1"); 
 error_reporting(E_ALL); 
@@ -97,7 +110,9 @@ require_once __DIR__ . '/calendar_helper_onokai.php';
 // パラメータ取得（セッション対応版）
 // ============================================================
 $dept = isset($_GET['dept']) ? (string)$_GET['dept'] : 
-        (string)($_SESSION['ui_state']['schedule_dept'] ?? 'PROCT');
+        (isset($_COOKIE['endoscope_selected_dept']) && in_array($_COOKIE['endoscope_selected_dept'], ['PROCT', 'GASTRO'], true)
+            ? (string)$_COOKIE['endoscope_selected_dept']
+            : (string)($_SESSION['ui_state']['schedule_dept'] ?? 'PROCT'));
 
 $year = isset($_GET['year']) ? (int)$_GET['year'] : 
         (isset($_SESSION['ui_state']['schedule_month']) ? (int)substr((string)$_SESSION['ui_state']['schedule_month'], 0, 4) : (int)date('Y'));
@@ -111,6 +126,14 @@ if (!isset($_SESSION['ui_state']) || !is_array($_SESSION['ui_state'])) {
 }
 $_SESSION['ui_state']['schedule_month'] = sprintf('%04d-%02d', $year, $month);
 $_SESSION['ui_state']['schedule_dept'] = $dept;
+
+if (!headers_sent()) {
+    setcookie('endoscope_selected_dept', $dept, [
+        'expires'  => time() + 365 * 86400,
+        'path'     => '/',
+        'samesite' => 'Lax'
+    ]);
+}
 
 $show_canceled = isset($_GET['show_canceled']) && (string)$_GET['show_canceled'] === '1';
 $show_invalid = isset($_GET['show_invalid']) && (string)$_GET['show_invalid'] === '1';
@@ -161,9 +184,9 @@ $next3_year = $year; $next3_month = $month + 3;
 while ($next3_month > 12) { $next3_month -= 12; $next3_year++; }
 
 // ============================================================
-// マスタデータ取得
+// マスタデータ取得（対象年月の世代に基づく初期枠リスト）
 // ============================================================
-$waku_list = getWakuList($pdo, $dept);
+$waku_list = getWakuList($pdo, $dept, sprintf('%04d-%02d-01', $year, $month));
 if (!is_array($waku_list)) { $waku_list = []; }
 
 $waku_group_map = [];
@@ -179,6 +202,17 @@ if (!is_array($doctors_list)) { $doctors_list = []; }
 // ============================================================
 $start_date = sprintf('%04d-%02d-01', $first_month['year'], $first_month['month']);
 $end_date = date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $last_month['year'], $last_month['month'])));
+
+// 時間枠オーバーライドの一括プリフェッチ（0.001ms・誤迷子化防止）
+$effective_waku_period_map = getEffectiveWakuMapForPeriod($pdo, $dept, $start_date, $end_date);
+foreach ($effective_waku_period_map as $d_slots) {
+    foreach ($d_slots as $slot) {
+        $wn = (string)$slot['waku_name'];
+        if (!isset($waku_group_map[$wn])) {
+            $waku_group_map[$wn] = (string)$slot['group_code'];
+        }
+    }
+}
 
 // 1. 予約詳細データ
 $data_sql = "SELECT 
@@ -206,7 +240,10 @@ foreach ($raw_schedules as $row) {
     $monthly_data[$m_key][] = $row;
 
     $is_canceled = isset($row['is_canceled']) && ($row['is_canceled'] === true || $row['is_canceled'] === 1 || $row['is_canceled'] === 't');
-    if (!$is_canceled) {
+    $p_name_chk = trim((string)($row['patient_name'] ?? ''));
+    $rem_chk = trim((string)($row['remarks'] ?? ''));
+    $is_waku_nashi_dummy = ($p_name_chk === '※枠なし' || strpos($rem_chk, '＊＊＊🚫枠なし') !== false);
+    if (!$is_canceled && !$is_waku_nashi_dummy) {
         $d = (string)$row['exam_date'];
         $doc = (string)($row['doctor_name'] ?? '');
         $etype = (string)($row['exam_type'] ?? '');
@@ -230,7 +267,8 @@ $slot_master_cache = [
     'attendance' => [],
     'daily_capacity' => [],
     'patterns' => [],
-    'daily_memo' => []
+    'daily_memo' => [],
+    'effective_waku_map' => $effective_waku_period_map
 ];
 
 // 日別メモプリフェッチ（t_daily_memo）
@@ -598,6 +636,66 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
             border-color: #fca5a5;
             box-shadow: 0 1px 2px rgba(153, 27, 27, 0.12);
         }
+        .btn-slot-toggle.btn-slot-cffocus.active {
+            background: #059669;
+            color: #ffffff;
+            border-color: #047857;
+            box-shadow: 0 1px 3px rgba(5, 150, 105, 0.25);
+        }
+
+        /* 医師指名逆引きフォーカスボタングループ (案D) */
+        .doctor-focus-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 0 6px;
+            height: 32px;
+            box-sizing: border-box;
+            border-radius: 6px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            font-size: 11px;
+        }
+        .btn-doc-focus {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 24px;
+            box-sizing: border-box;
+            line-height: 1;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 0 7px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #f8fafc;
+            color: #64748b;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .btn-doc-focus:hover { background: #e2e8f0; color: #0f172a; }
+        .btn-doc-focus.active {
+            background: #1e293b;
+            color: #ffffff;
+            border-color: #0f172a;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+        }
+        tr.matrix-day-row.doc-focus-dimmed {
+            opacity: 0.25 !important;
+            filter: grayscale(40%);
+        }
+        tr.matrix-day-row.doc-focus-available td.fixed-date-col {
+            border-left: 4px solid #10b981 !important;
+            box-shadow: inset 0 0 0 1px #34d399;
+        }
+        .patient-box.doc-focus-match {
+            box-shadow: 0 0 0 2px #1e293b !important;
+            z-index: 2;
+        }
+        .patient-box.doc-focus-other {
+            opacity: 0.4 !important;
+        }
 
         /* 機能トグルボタン（伏字〜未割当） */
         .setting-group {
@@ -665,6 +763,62 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
             color: #be185d;
             border-color: #f9a8d4;
             box-shadow: 0 1px 2px rgba(190, 24, 93, 0.12);
+        }
+        .btn-feature-toggle.btn-feature-compact.active {
+            background: #ccfbf1;
+            color: #0f766e;
+            border-color: #5eead4;
+            box-shadow: 0 1px 2px rgba(15, 118, 110, 0.15);
+        }
+
+        /* コンパクト全表示モード (matrix-compact-mode) */
+        .slot-label-short { display: none; }
+        body.matrix-compact-mode .slot-label-full { display: none; }
+        body.matrix-compact-mode .slot-label-short { display: inline; }
+        body.matrix-compact-mode .matrix-table {
+            min-width: 600px;
+            table-layout: fixed;
+        }
+        body.matrix-compact-mode .matrix-table thead tr.header-row th.slot-header {
+            padding: 2px 1px;
+            font-size: 9px;
+            height: 28px;
+            letter-spacing: -0.3px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        body.matrix-compact-mode .matrix-table td:not(.fixed-date-col) {
+            min-width: 44px;
+            width: 44px;
+            max-width: 52px;
+            padding: 1px;
+        }
+        body.matrix-compact-mode .waku-cell {
+            min-height: 42px;
+        }
+        body.matrix-compact-mode .patient-box {
+            padding: 2px 2px;
+            margin-bottom: 1px;
+            font-size: 9px;
+            line-height: 1.15;
+        }
+        body.matrix-compact-mode .patient-box .pid-row,
+        body.matrix-compact-mode .patient-box .pbirthday {
+            display: none !important;
+        }
+        body.matrix-compact-mode .patient-box .pname-row {
+            font-size: 9.5px !important;
+            letter-spacing: -0.3px;
+        }
+        body.matrix-compact-mode .patient-box .pinfo-row {
+            margin-top: 1px !important;
+            padding-top: 0 !important;
+            justify-content: flex-end !important;
+        }
+        body.matrix-compact-mode .patient-box .exam-badge {
+            padding: 0 3px !important;
+            font-size: 8px !important;
         }
 
         .display-mode-toggle {
@@ -932,6 +1086,9 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
             <button type="button" onclick="openMedicalAlertScanModal({year: <?=$year?>, month: <?=$month?>, dept: '<?=$dept?>'})" class="header-link-btn" style="background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; border: none; cursor: pointer; font-weight: bold;" title="当月の抗血栓薬・アレルギー・感染症・風邪アラートスキャン">
                 <span>🛡️</span> アラートスキャン
             </button>
+            <button type="button" onclick="openWakuOverrideModal('<?= date('Y-m-d') ?>', '<?=$dept?>')" class="header-link-btn" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; cursor: pointer; font-weight: bold;" title="時間枠の臨時設定・休止を設定">
+                <span>⚙️</span> 枠の臨時設定
+            </button>
         </div>
     </div>
 
@@ -939,8 +1096,8 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
     <div class="top-bar">
         <div class="top-bar-left">
             <div class="dept-tabs">
-                <a href="?dept=PROCT&year=<?=$year?>&month=<?=$month?>&view=<?=$view_mode?>&show_invalid=<?=$show_invalid?'1':'0'?>&show_canceled=<?=$show_canceled?'1':'0'?>&show_unassigned=<?=$show_unassigned?'1':'0'?>&display_mode=<?=$display_mode?>" class="dept-tab <?=$dept==='PROCT'?'active-PROCT':''?>">🟢 肛</a>
-                <a href="?dept=GASTRO&year=<?=$year?>&month=<?=$month?>&view=<?=$view_mode?>&show_invalid=<?=$show_invalid?'1':'0'?>&show_canceled=<?=$show_canceled?'1':'0'?>&show_unassigned=<?=$show_unassigned?'1':'0'?>&display_mode=<?=$display_mode?>" class="dept-tab <?=$dept==='GASTRO'?'active-GASTRO':''?>">🔵 胃</a>
+                <a href="?dept=PROCT&year=<?=$year?>&month=<?=$month?>&view=<?=$view_mode?>&show_invalid=<?=$show_invalid?'1':'0'?>&show_canceled=<?=$show_canceled?'1':'0'?>&show_unassigned=<?=$show_unassigned?'1':'0'?>&display_mode=<?=$display_mode?>" class="dept-tab <?=$dept==='PROCT'?'active-PROCT':''?>" id="matrixDeptProct" title="🟢 肛門科へ切替 [1キー]">🟢 肛 <kbd class="nav-kbd" style="font-size:9px; margin-left:2px; padding:0 3px; border-radius:3px; background:rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.2);">1</kbd></a>
+                <a href="?dept=GASTRO&year=<?=$year?>&month=<?=$month?>&view=<?=$view_mode?>&show_invalid=<?=$show_invalid?'1':'0'?>&show_canceled=<?=$show_canceled?'1':'0'?>&show_unassigned=<?=$show_unassigned?'1':'0'?>&display_mode=<?=$display_mode?>" class="dept-tab <?=$dept==='GASTRO'?'active-GASTRO':''?>" id="matrixDeptGastro" title="🔵 胃腸科へ切替 [2キー]">🔵 胃 <kbd class="nav-kbd" style="font-size:9px; margin-left:2px; padding:0 3px; border-radius:3px; background:rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.2);">2</kbd></a>
             </div>
 
             <?php if ($view_mode === '1month'): ?>
@@ -970,17 +1127,29 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
         </div>
 
         <div class="top-bar-right">
-            <!-- 枠トグルボタングループ (チェックボックス廃止・各枠背景色連動) -->
+            <!-- 枠トグルボタングループ (チェックボックス廃止・各枠背景色連動 + 案E: CF集中フォーカス) -->
             <div class="slot-toggle-group">
                 <span class="toolbar-label">枠:</span>
-                <button type="button" class="btn-slot-toggle btn-slot-gif active" onclick="toggleSlotBtn('GIF', this)" title="GIF(胃カメラ)枠の表示切替">GIF</button>
-                <button type="button" class="btn-slot-toggle btn-slot-echo active" onclick="toggleSlotBtn('ECHO', this)" title="エコー(US)枠の表示切替">エコー</button>
-                <button type="button" class="btn-slot-toggle btn-slot-tcf active" onclick="toggleSlotBtn('TCF', this)" title="TCF(大腸)枠の表示切替">TCF</button>
-                <button type="button" class="btn-slot-toggle btn-slot-mismatch active" onclick="toggleSlotBtn('MISMATCH', this)" title="迷子(枠外予約)の表示切替">迷子</button>
+                <button type="button" id="btn_slot_gif" class="btn-slot-toggle btn-slot-gif active" onclick="toggleSlotBtn('GIF', this)" title="GIF(胃カメラ)枠の表示切替">GIF</button>
+                <button type="button" id="btn_slot_echo" class="btn-slot-toggle btn-slot-echo active" onclick="toggleSlotBtn('ECHO', this)" title="エコー(US)枠の表示切替">エコー</button>
+                <button type="button" id="btn_slot_tcf" class="btn-slot-toggle btn-slot-tcf active" onclick="toggleSlotBtn('TCF', this)" title="TCF(大腸)枠の表示切替">TCF</button>
+                <button type="button" id="btn_slot_mismatch" class="btn-slot-toggle btn-slot-mismatch active" onclick="toggleSlotBtn('MISMATCH', this)" title="迷子(枠外予約)の表示切替">迷子</button>
+                <span style="color:#cbd5e1; margin:0 1px;">|</span>
+                <button type="button" id="btn_slot_cffocus" class="btn-slot-toggle btn-slot-cffocus" onclick="toggleCfFocusBtn(this)" title="【CF集中】GIF・エコー列を折りたたみ、左端の医師別枠数のすぐ隣にCF枠を引き寄せて表示します">🎯 CF集中</button>
+            </div>
+
+            <!-- 医師指名逆引きフォーカス (案D: 〇〇先生希望で空き枠がある日を瞬時にハイライト) -->
+            <div class="doctor-focus-group" title="医師をクリックすると、その先生の空き枠（残枠1以上）がある日だけを明るく浮かび上がらせます">
+                <span class="toolbar-label">👨‍⚕️指名:</span>
+                <button type="button" class="btn-doc-focus active" data-doc="ALL" onclick="setDoctorFocus('ALL', this)">全員</button>
+                <?php foreach ($doctors_list as $doc_item): ?>
+                    <button type="button" class="btn-doc-focus" data-doc="<?= htmlspecialchars((string)$doc_item, ENT_QUOTES, 'UTF-8') ?>" onclick="setDoctorFocus('<?= htmlspecialchars((string)$doc_item, ENT_QUOTES, 'UTF-8') ?>', this)"><?= htmlspecialchars((string)$doc_item, ENT_QUOTES, 'UTF-8') ?></button>
+                <?php endforeach; ?>
             </div>
 
             <!-- 機能トグルボタン (チェックボックス廃止・機能カラー連動) & 表示切替 -->
             <div class="setting-group">
+                <button type="button" id="btn_toggle_compact" class="btn-feature-toggle btn-feature-compact" onclick="toggleCompactBtn(this)" title="列幅・情報を圧縮して全時間枠を一画面に見通しよく収めるコンパクト表示モード">🗜️ コンパクト</button>
                 <button type="button" id="btn_toggle_mask" class="btn-feature-toggle btn-feature-mask" onclick="toggleMaskBtn(this)" title="患者氏名を伏字表示">🥷 伏字</button>
                 <button type="button" id="btn_toggle_auto" class="btn-feature-toggle btn-feature-auto active" onclick="toggleAutoScrollBtn(this)" title="起動時に本日位置へ自動スクロール">📅 起動時</button>
                 <button type="button" class="btn-feature-toggle btn-feature-invalid <?=$show_invalid?'active':''?>" onclick="toggleInvalidBtn(<?=$show_invalid?'false':'true'?>)" title="枠外・エラー予約の表示切替">⚠️ 迷子</button>
@@ -1000,16 +1169,38 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
         <?php
         foreach ($target_months as $m) {
             $m_key = sprintf('%04d-%02d', $m['year'], $m['month']);
+            $m_first_date = sprintf('%04d-%02d-01', $m['year'], $m['month']);
+            $month_waku_list = getWakuList($pdo, $dept, $m_first_date);
+            if (!is_array($month_waku_list)) { $month_waku_list = []; }
+
+            $month_waku_group_map = [];
+            foreach ($month_waku_list as $mw) {
+                $month_waku_group_map[(string)$mw['waku_name']] = (string)$mw['group_code'];
+            }
+            $m_last_date = date('Y-m-t', strtotime($m_first_date));
+            $m_cur_ts = strtotime($m_first_date);
+            $m_end_ts = strtotime($m_last_date);
+            while ($m_cur_ts <= $m_end_ts) {
+                $md_str = date('Y-m-d', $m_cur_ts);
+                foreach (($effective_waku_period_map[$md_str] ?? []) as $slot) {
+                    $wn = (string)$slot['waku_name'];
+                    if (!isset($month_waku_group_map[$wn])) {
+                        $month_waku_group_map[$wn] = (string)$slot['group_code'];
+                    }
+                }
+                $m_cur_ts = strtotime('+1 day', $m_cur_ts);
+            }
+
             $month_data = $monthly_data[$m_key] ?? [];
             $month_matrix = [];
             foreach ($month_data as $row) {
                 $date_str = (string)$row['exam_date'];
                 $waku_name = (string)$row['scheduled_time'];
-                $waku_exists = isset($waku_group_map[$waku_name]);
+                $waku_exists = isset($month_waku_group_map[$waku_name]);
                 $key = $waku_exists ? $waku_name : 'MISMATCH';
                 $month_matrix[$date_str][$key][] = $row;
             }
-            renderMonthMatrixFast($pdo, $m['year'], $m['month'], $dept, $waku_list, $month_matrix, $week_ja, $show_canceled, $show_invalid, $show_unassigned, $simple_mode, $doctors_list, $reserved_counts_cache, $slot_master_cache);
+            renderMonthMatrixFast($pdo, $m['year'], $m['month'], $dept, $month_waku_list, $month_matrix, $week_ja, $show_canceled, $show_invalid, $show_unassigned, $simple_mode, $doctors_list, $reserved_counts_cache, $slot_master_cache);
         }
         ?>
     </div>
@@ -1079,6 +1270,8 @@ function toggleSlotBtn(group, btn) {
     const active = !btn.classList.contains('active');
     btn.classList.toggle('active', active);
     toggleSlotGroup(group, active);
+    const cfFocusBtn = document.getElementById('btn_slot_cffocus');
+    if (cfFocusBtn) cfFocusBtn.classList.remove('active');
 }
 
 function toggleSlotGroup(group, checked) {
@@ -1088,6 +1281,83 @@ function toggleSlotGroup(group, checked) {
     document.querySelectorAll(`td[data-group="${group}"]`).forEach(el => {
         el.style.display = checked ? '' : 'none';
     });
+}
+
+// CF集中フォーカスボタン（案E: GIF・ECHO列を折りたたみ、左端の医師残数のすぐ横にTCF枠を隣接表示）
+function toggleCfFocusBtn(btn) {
+    const active = !btn.classList.contains('active');
+    btn.classList.toggle('active', active);
+    const btnGif = document.getElementById('btn_slot_gif');
+    const btnEcho = document.getElementById('btn_slot_echo');
+    const btnTcf = document.getElementById('btn_slot_tcf');
+
+    if (active) {
+        if (btnGif) btnGif.classList.remove('active');
+        if (btnEcho) btnEcho.classList.remove('active');
+        if (btnTcf) btnTcf.classList.add('active');
+        toggleSlotGroup('GIF', false);
+        toggleSlotGroup('ECHO', false);
+        toggleSlotGroup('TCF', true);
+    } else {
+        if (btnGif) btnGif.classList.add('active');
+        if (btnEcho) btnEcho.classList.add('active');
+        if (btnTcf) btnTcf.classList.add('active');
+        toggleSlotGroup('GIF', true);
+        toggleSlotGroup('ECHO', true);
+        toggleSlotGroup('TCF', true);
+    }
+}
+
+// 医師指名ワンタップ逆引きハイライト（案D: 指定した先生の残枠がある日を浮かび上がらせる）
+let currentFocusedDoctor = 'ALL';
+function setDoctorFocus(docName, btn) {
+    if (currentFocusedDoctor === docName && docName !== 'ALL') {
+        docName = 'ALL';
+    }
+    currentFocusedDoctor = docName;
+    document.querySelectorAll('.btn-doc-focus').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-doc') === docName);
+    });
+
+    const isCfFocus = document.getElementById('btn_slot_cffocus') && document.getElementById('btn_slot_cffocus').classList.contains('active');
+
+    document.querySelectorAll('tr.matrix-day-row').forEach(tr => {
+        tr.classList.remove('doc-focus-dimmed', 'doc-focus-available');
+        if (docName === 'ALL') return;
+
+        const availTcf = (tr.getAttribute('data-avail-tcf-docs') || '').split(',').filter(Boolean);
+        const availAny = (tr.getAttribute('data-avail-any-docs') || '').split(',').filter(Boolean);
+        const targetList = isCfFocus ? availTcf : availAny;
+
+        if (targetList.includes(docName)) {
+            tr.classList.add('doc-focus-available');
+        } else {
+            tr.classList.add('doc-focus-dimmed');
+        }
+    });
+
+    document.querySelectorAll('.patient-box').forEach(box => {
+        box.classList.remove('doc-focus-match', 'doc-focus-other');
+        if (docName === 'ALL') return;
+        const bDoc = box.getAttribute('data-doctor') || '';
+        if (bDoc === docName) {
+            box.classList.add('doc-focus-match');
+        } else if (bDoc !== '') {
+            box.classList.add('doc-focus-other');
+        }
+    });
+}
+
+// コンパクト全表示トグルボタン
+function toggleCompactBtn(btn) {
+    const active = !btn.classList.contains('active');
+    btn.classList.toggle('active', active);
+    toggleCompactMode(active);
+}
+
+function toggleCompactMode(checked) {
+    document.body.classList.toggle('matrix-compact-mode', checked);
+    localStorage.setItem('onokai_matrix_compact', checked ? '1' : '0');
 }
 
 // 伏字トグルボタン
@@ -1283,6 +1553,12 @@ window.addEventListener('focus', function() {
 // 初期化 & スクロール位置復元
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
+    // コンパクト全表示モード初期化
+    const compact = localStorage.getItem('onokai_matrix_compact') || '0';
+    const btnCompact = document.getElementById('btn_toggle_compact');
+    if (btnCompact) btnCompact.classList.toggle('active', compact === '1');
+    if (compact === '1') document.body.classList.add('matrix-compact-mode');
+
     // 伏字モード初期化
     const mask = localStorage.getItem('onokai_mask') || '0';
     const btnMask = document.getElementById('btn_toggle_mask');
@@ -1315,6 +1591,82 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <?php include __DIR__ . '/audit_modal_inc.php'; ?>
 <?php include __DIR__ . '/medical_alert_modal_inc.php'; ?>
+<?php include __DIR__ . '/waku_override_modal_inc.php'; ?>
+
+<?php if (!empty($_GET['open_override'])): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        if (typeof openWakuOverrideModal === 'function') {
+            const viewMode = '<?= ($_GET['open_override'] === 'manage') ? 'manage' : 'day' ?>';
+            openWakuOverrideModal('<?= date("Y-m-d") ?>', '<?= $dept ?>', viewMode);
+        }
+    }, 200);
+});
+</script>
+<?php endif; ?>
+
+<script>
+// ── 診療科端末永続記憶 ＆ [1][2]キー即時切替ショートカット ──
+window.currentScheduleDept = <?= json_encode($dept) ?>;
+window.matrixDeptUrls = {
+    proct: <?= json_encode("?dept=PROCT&year={$year}&month={$month}&view={$view_mode}&show_invalid=" . ($show_invalid ? '1' : '0') . "&show_canceled=" . ($show_canceled ? '1' : '0') . "&show_unassigned=" . ($show_unassigned ? '1' : '0') . "&display_mode={$display_mode}") ?>,
+    gastro: <?= json_encode("?dept=GASTRO&year={$year}&month={$month}&view={$view_mode}&show_invalid=" . ($show_invalid ? '1' : '0') . "&show_canceled=" . ($show_canceled ? '1' : '0') . "&show_unassigned=" . ($show_unassigned ? '1' : '0') . "&display_mode={$display_mode}") ?>
+};
+
+// LocalStorage への端末記憶同期
+try {
+    localStorage.setItem('endoscope_selected_dept', window.currentScheduleDept);
+} catch (e) {}
+
+// [1] [2] キー即時切替（誤爆防止ガード付き）
+document.addEventListener('keydown', function(e) {
+    const active = document.activeElement;
+    const isInputActive = active && (
+        active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.tagName === 'SELECT' ||
+        active.isContentEditable
+    );
+    const isModalOpen = !!document.querySelector('dialog[open]');
+    const isFlatpickrOpen = !!document.querySelector('.flatpickr-calendar.open');
+    if (isInputActive || isModalOpen || isFlatpickrOpen) {
+        return;
+    }
+
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === '1' || e.code === 'Numpad1') {
+            e.preventDefault();
+            if (window.currentScheduleDept === 'PROCT') {
+                if (typeof showToast === 'function') {
+                    showToast('⭐ 既に🟢 肛門科を表示しています', 'info');
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🏥 🟢 肛門科へ切り替え中...', 'info');
+            }
+            try { localStorage.setItem('endoscope_selected_dept', 'PROCT'); } catch(e) {}
+            window.location.href = window.matrixDeptUrls.proct;
+            return;
+        } else if (e.key === '2' || e.code === 'Numpad2') {
+            e.preventDefault();
+            if (window.currentScheduleDept === 'GASTRO') {
+                if (typeof showToast === 'function') {
+                    showToast('⭐ 既に🔵 胃腸科を表示しています', 'info');
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🏥 🔵 胃腸科へ切り替え中...', 'info');
+            }
+            try { localStorage.setItem('endoscope_selected_dept', 'GASTRO'); } catch(e) {}
+            window.location.href = window.matrixDeptUrls.gastro;
+            return;
+        }
+    }
+});
+</script>
 
 </body>
 </html>

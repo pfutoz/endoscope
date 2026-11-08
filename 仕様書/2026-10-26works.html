@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-26)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        header.report-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header.report-header .meta {
+            font-size: 12.5px;
+            color: #cbd5e1;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .content {
+            padding: 36px;
+        }
+
+        section {
+            margin-bottom: 36px;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3 {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 18px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        ul, ol {
+            margin: 8px 0 14px 24px;
+            color: var(--text-sub);
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .card-primary {
+            background: var(--primary-light);
+            border-color: #bae6fd;
+        }
+
+        .card-success {
+            background: var(--success-light);
+            border-color: #a7f3d0;
+        }
+
+        .card-warning {
+            background: var(--warning-light);
+            border-color: #fde68a;
+        }
+
+        table.spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin: 12px 0 20px 0;
+        }
+
+        table.spec-table th, table.spec-table td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        table.spec-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: #f1f5f9;
+            color: #b91c1c;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        kbd {
+            font-family: var(--font-mono);
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            border: 1px solid #475569;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .badge-success { background: #dcfce7; color: #15803d; }
+        .badge-primary { background: #e0f2fe; color: #0369a1; }
+        .badge-warning { background: #fef3c7; color: #b45309; }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            background: #f8fafc;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="report-header">
+        <h1>📑 内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="meta">
+            <span>📅 作業実施日: 2026年10月26日 (月)</span>
+            <span>🏥 対象システム: 内視鏡予約管理システム</span>
+            <span>⚡ デプロイ環境: 本番環境 (192.168.1.16)</span>
+        </div>
+    </header>
+
+    <div class="content">
+        <!-- 概要 -->
+        <section>
+            <h2>📌 1. 作業概要</h2>
+            <div class="card card-primary">
+                <p>本日は、現場運用の効率向上と表示最適化を目的として、以下の主要な機能改善およびマスタ構造刷新・本番デプロイを実施いたしました。</p>
+                <ol>
+                    <li><strong>日別ノート表示（schedule_note.php）の「縦圧縮モード」新設 ＆ 診療科切替（[1][2]キー）対応</strong></li>
+                    <li><strong>印刷画面（print_schedule_daily.php）の手書きメモ余白拡充 ＆ 「枠なし」除外フィルタリング適正化</strong></li>
+                    <li><strong>検査種別マスタの <code>m_exam_type_group</code> 完全一本化およびメンテナンス画面新設</strong></li>
+                    <li><strong>本番データベース（192.168.1.16）への安全マイグレーションおよびファイルデプロイ</strong></li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- デイリーノート縦圧縮モード -->
+        <section>
+            <h2>🗜️ 2. デイリーノート表示の縦圧縮モード ＆ 診療科切替</h2>
+            <p>1画面に多くの予約行を高密度に表示したいというスタッフ要望に基づき、極限まで縦幅を圧縮した「縦圧縮モード」を実装しました。</p>
+            
+            <table class="spec-table">
+                <tr>
+                    <th style="width: 22%;">項目</th>
+                    <th>実装内容・動作仕様</th>
+                </tr>
+                <tr>
+                    <td><strong>縦圧縮表示</strong></td>
+                    <td>備考欄を完全非表示化し、行高を 22px（パディング上下1px、患者名・年齢を1行インライン化）に極限圧縮。スクロールなしで一覧性を最大化。</td>
+                </tr>
+                <tr>
+                    <td><strong>スリムバー集約</strong></td>
+                    <td>通常ヘッダー部を高さ 32px の極小1行バーに集約。日付・件数・科切替タブ・「🚪 部屋・下剤一括」「🖨️ ノート印刷」ボタンおよびマウスクリック可能なナビボタン群を配備。</td>
+                </tr>
+                <tr>
+                    <td><strong>診療科切替（[1] / [2]）</strong></td>
+                    <td>
+                        <kbd>1</kbd>（テンキー含む）で <strong>🟢 肛門科</strong>、<kbd>2</kbd> で <strong>🔵 胃腸科</strong> へ即時切替。<br>
+                        スリムバーにミニ2連タブ <code>[🟢 肛門 (1)] [🔵 胃腸 (2)]</code> を配備し、マウス操作にも完全対応。
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>操作性維持</strong></td>
+                    <td>
+                        キーボードによる日付前後移動（<kbd>←</kbd><kbd>→</kbd>）、診療日スキップ（<kbd>Shift+←</kbd><kbd>Shift+→</kbd>）、週ジャンプ（<kbd>↑</kbd><kbd>↓</kbd>）、今日（<kbd>T</kbd>）、圧縮解除（<kbd>C</kbd>）の全ショートカットを完全維持。
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>状態保持</strong></td>
+                    <td>縦圧縮状態を <code>localStorage</code> に自動記憶し、科切替や日付移動後もモードを自動維持。</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 印刷画面改修 -->
+        <section>
+            <h2>🖨️ 3. 日別予約印刷画面（print_schedule_daily.php）の改修</h2>
+            <table class="spec-table">
+                <tr>
+                    <th style="width: 22%;">項目</th>
+                    <th>実装内容・動作仕様</th>
+                </tr>
+                <tr>
+                    <td><strong>手書きメモ余白の拡充</strong></td>
+                    <td>「備考欄なし」選択時に、スタッフが当日現場で手書きメモを記入できる余白幅を従来の1.5倍に拡大。</td>
+                </tr>
+                <tr>
+                    <td><strong>空き枠・枠なし制御</strong></td>
+                    <td>
+                        「空き枠を含む」チェックボックスをOFFにした際、中止された「枠なし」行も連動して非表示となるようフィルタリング条件を適正化。実予約行のみをコンパクトに印刷可能に。
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>上部ツールバー整理</strong></td>
+                    <td>「枠を印刷 ON/OFF」の独立トグルスイッチを追加し、混雑気味だった上部メニューの文言とレイアウトをすっきり整理。</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 検査種別マスタ一本化 -->
+        <section>
+            <h2>🧬 4. 検査種別マスタの完全一本化 (m_exam_type_group)</h2>
+            <p>従来 <code>m_input_master</code> と <code>m_exam_type_group</code> に二重管理されていた検査種別マスタを <code>m_exam_type_group</code> に一本化しました。</p>
+            
+            <table class="spec-table">
+                <tr>
+                    <th style="width: 22%;">テーブル変更</th>
+                    <td>
+                        <code>m_exam_type_group</code> に <code>display_order INTEGER DEFAULT 100</code> および <code>is_selectable BOOLEAN DEFAULT TRUE</code> カラムを追加。
+                    </td>
+                </tr>
+                <tr>
+                    <th>選択肢の整理</th>
+                    <td>
+                        正式選択肢（TCF, 浣腸CF, GIF, W, ポリペク, エコー, ◆胃がん検診◆）を表示順付きで有効化。<br>
+                        過去の表記揺れ（胃がん検診, ECHO, 浣腸F, ◆◆◆）はプルダウン非表示（<code>is_selectable=FALSE</code>）とし、大分類グループ吸着・表示用として安全に保持。
+                    </td>
+                </tr>
+                <tr>
+                    <th>新画面新設</th>
+                    <td>
+                        <a href="../exam_master_maintenance.php">exam_master_maintenance.php</a>（検査種別マスタメンテナンス）を新設。<br>
+                        <code>master_maintenance.php</code> に各マスタへの分かりやすい専用案内導線を整備。
+                    </td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- 本番デプロイ・安全対策 -->
+        <section>
+            <h2>🛡️ 5. 本番データベース・安全デプロイ手順</h2>
+            <div class="card card-success">
+                <h3>安全対策の実施内容</h3>
+                <ul>
+                    <li><strong>本番DB完全バックアップ</strong>: <code>pg_dump</code> により本番DB全体のバックアップを取得保存（<code>backup/prod_endoscope_backup_20261026_*.sql</code>）。</li>
+                    <li><strong>二重テーブル退避</strong>: マイグレーション実行前に本番テーブルをバックアップテーブル（<code>bak_m_exam_type_group_*</code>）に退避。</li>
+                    <li><strong>トランザクション保護</strong>: すべてのスキーマ・データ更新を <code>BEGIN; ... COMMIT;</code> 内で実行。</li>
+                    <li><strong>既存本番ファイル退避</strong>: 最新ファイルコピー前に本番全ファイルを <code>.bak_YYYYMMDD_HHMMSS</code> 形式で自動退避。</li>
+                    <li><strong>MD5ハッシュ照合</strong>: デプロイ後に全ファイルのMD5チェックサムを照合し、100% の整合性を検証。</li>
+                    <li><strong>全20画面HTTP検証</strong>: 本番環境（http://192.168.1.16/endoscope/）経由で全主要20画面のレンダリング回帰テストを実施し、100% 正常稼働を確認。</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        内視鏡予約管理システム 開発チーム &copy; 2026
+    </footer>
+</div>
+</body>
+</html>

@@ -4,6 +4,9 @@
  * ファイル名: daily_slot_summary.php
  * 
  * 枠・幾何バランス照会サマリ（閲覧専用・更新機能なし）
+ * 修正: 2026-10-23
+ *   - 【ローカルテスト環境（192.168.1.111）誤操作防止】フレーム外側黒背景・環境識別バナー対応
+ *   - 【オーバーライド同期】時間枠キャパシティ集計および予約照合を getEffectiveWakuList() 連携に刷新。枠休止や名称変更による迷子誤検知を解消
  * 修正: 2026-09-18
  *   - 【予約実績・消化率の統合】各検査種別ごとの「予約使用数」「消化率」「残り空き枠」を算出・表示
  *   - 【異常値・トラブル検知】未割当（迷子）予約、枠なし設定、肛門科W制限超過などのアラート表示
@@ -14,6 +17,7 @@ error_reporting(E_ALL);
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/date_helper.php';
 require_once __DIR__ . '/lib/slot_helper.php';
+require_once __DIR__ . '/lib/env_helper.php';
 require_once __DIR__ . '/calendar_helper_onokai.php';
 
 $pdo = getDbConnection();
@@ -39,17 +43,9 @@ $day_check = check_onokai_calendar($date_str, null);
 $is_closed = $day_check['is_closed'] ?? false;
 
 // ---------------------------------------------------------
-// 1. 時間枠キャパシティ（箱の数）の集計 (m2_waku)
+// 1. 時間枠キャパシティ（箱の数）の集計 (オーバーライド考慮)
 // ---------------------------------------------------------
-$stmt_waku = $pdo->prepare("
-    SELECT group_code, waku_name, display_order
-    FROM m2_waku
-    WHERE department_code = :dept
-      AND is_active = TRUE
-    ORDER BY display_order ASC, id ASC
-");
-$stmt_waku->execute([':dept' => $dept]);
-$raw_waku = $stmt_waku->fetchAll(PDO::FETCH_ASSOC);
+$effective_waku = getEffectiveWakuList($pdo, $dept, $date_str);
 
 $waku_boxes = [
     'GIF'  => [],
@@ -58,11 +54,24 @@ $waku_boxes = [
 ];
 $waku_count = ['GIF' => 0, 'ECHO' => 0, 'TCF' => 0];
 $valid_waku_names = [];
+$suspended_waku_count = 0;
 
-foreach ($raw_waku as $w) {
+foreach ($effective_waku as $w) {
     $grp = (string)$w['group_code'];
     $wname = (string)$w['waku_name'];
+    $orig_name = (string)($w['original_name'] ?? '');
+
+    // 枠名・元枠名の両方を有効枠名マップに登録（変更前後の表記揺れで迷子化するのを防止）
     $valid_waku_names[$wname] = $grp;
+    if ($orig_name !== '') {
+        $valid_waku_names[$orig_name] = $grp;
+    }
+
+    if (!empty($w['is_suspended'])) {
+        $suspended_waku_count++;
+        continue; // 休止枠は稼働キャパシティから除外
+    }
+
     if (isset($waku_count[$grp])) {
         $waku_count[$grp]++;
         $waku_boxes[$grp][] = $wname;
@@ -73,12 +82,8 @@ foreach ($raw_waku as $w) {
 // 2. 当日の実際の予約データの取得と実績集計
 // ---------------------------------------------------------
 $stmt_res = $pdo->prepare("
-    SELECT s.*, w.group_code AS waku_group_code
+    SELECT s.*
     FROM t_endoscopy_schedule s
-    LEFT JOIN m2_waku w 
-      ON s.department_code = w.department_code 
-      AND s.scheduled_time = w.waku_name 
-      AND w.is_active = TRUE
     WHERE s.department_code = :dept 
       AND s.exam_date = :date 
       AND s.is_canceled = FALSE
@@ -279,6 +284,8 @@ foreach ($categories as $cat => $cfg) {
 <head>
     <meta charset="UTF-8">
     <title>枠・供給バランス照会 - <?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?></title>
+    <link rel="stylesheet" href="assets/css/theme.css">
+    <script src="assets/js/env_detector.js"></script>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -471,7 +478,8 @@ foreach ($categories as $cat => $cfg) {
         }
     </style>
 </head>
-<body>
+<body class="<?= getBodyEnvClass() ?>">
+<?= renderLocalEnvBanner() ?>
 
 <div class="container">
     <div class="header">

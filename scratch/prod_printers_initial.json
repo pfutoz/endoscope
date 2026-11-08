@@ -1,0 +1,54 @@
+{
+    "default_printer": "FUJIFILM Apeos C2570 (肛)",
+    "printers": [
+        {
+            "name": "FUJIFILM Apeos C2570 (肛)",
+            "label": "Apeos C2570 (肛門科 コピー機)",
+            "ip": "192.168.1.195",
+            "location": "処置室・内視鏡室",
+            "is_active": true
+        },
+        {
+            "name": "FUJIFILM Apeos C2570(胃）",
+            "label": "Apeos C2570 (胃腸科 コピー機)",
+            "ip": "192.168.1.196",
+            "location": "受付・クリニック",
+            "is_active": true
+        },
+        {
+            "name": "OKI B432(PCL6)",
+            "label": "OKI B432 高速モノクロ (肛門科 受付)",
+            "ip": "192.168.1.197",
+            "location": "肛門科受付",
+            "is_active": true
+        },
+        {
+            "name": "RICOH P 501 胃受付",
+            "label": "RICOH P 501 高速モノクロ (胃腸科 受付)",
+            "ip": "192.168.1.185",
+            "location": "胃腸科受付",
+            "is_active": true
+        },
+        {
+            "name": "EPSON5DF052 (EW-M873T Series)",
+            "label": "EPSON カラー (肛門科 診察室)",
+            "ip": "",
+            "location": "肛門科診察室",
+            "is_active": true
+        },
+        {
+            "name": "Brother HL-L5210DN series",
+            "label": "Brother HL-L5210DN 高速モノクロ",
+            "ip": "",
+            "location": "院内",
+            "is_active": false
+        },
+        {
+            "name": "MF260 Series",
+            "label": "Canon MF260 Series",
+            "ip": "",
+            "location": "院内",
+            "is_active": false
+        }
+    ]
+}

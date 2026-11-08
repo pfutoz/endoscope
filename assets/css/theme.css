@@ -1,6 +1,8 @@
 /**
  * 医療法人小野会 内視鏡予約管理システム
  * 共通デザインシステム & アクセシビリティ スタイルシート (theme.css)
+ * 修正履歴:
+ *   - 2026-10-23: ローカル/テスト環境（192.168.1.111）の誤操作防止スタイル（外側ブラック背景・環境識別バナー）を追加
  */
 
 :root {
@@ -384,3 +386,64 @@ a:hover {
 .form-control::placeholder {
     color: var(--slate-400);
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * 【誤操作防止】ローカル/テスト環境（192.168.1.111 / localhost）専用スタイル
+ * フレームの外側（今グレーのbody背景）をブラックにし、本番環境と一目で区別
+ * ───────────────────────────────────────────────────────────── */
+:root[data-env="local"],
+html.is-local-test-env,
+body.is-local-test-env {
+    --color-bg: #090d16;
+}
+
+body.is-local-test-env {
+    background-color: #090d16 !important;
+    background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 0),
+        linear-gradient(to bottom, #0f172a 0%, #090d16 100%) !important;
+    background-size: 24px 24px, 100% 100% !important;
+    background-attachment: fixed !important;
+}
+
+/* メインコンテナ（白いフレーム）を黒背景から立体的に浮き立たせる */
+body.is-local-test-env .container,
+body.is-local-test-env .note-container,
+body.is-local-test-env #mainContainer {
+    border-color: #334155 !important;
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+/* テスト環境識別用の上部リボンバナー */
+.local-env-top-banner {
+    display: none;
+}
+
+body.is-local-test-env .local-env-top-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(90deg, #1e293b, #0f172a, #1e293b);
+    color: #fbbf24;
+    border-bottom: 2px solid #f59e0b;
+    padding: 4px 16px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    margin: -6px -10px 8px -10px;
+}
+
+/* 🖨️ 印刷時は黒背景を無効化（インク・トナー節約＆可読性保護） */
+@media print {
+    body.is-local-test-env {
+        background-color: #ffffff !important;
+        background-image: none !important;
+    }
+    .local-env-top-banner {
+        display: none !important;
+    }
+}
+

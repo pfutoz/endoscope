@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-27)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        header.report-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header.report-header .meta {
+            font-size: 12.5px;
+            color: #cbd5e1;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .content {
+            padding: 36px;
+        }
+
+        section {
+            margin-bottom: 36px;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3 {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 18px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 14px;
+            color: var(--text-sub);
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11.5px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+        .badge-success { background: var(--success-light); color: var(--success); }
+        .badge-primary { background: var(--primary-light); color: var(--primary-dark); }
+        .badge-warning { background: var(--warning-light); color: var(--warning); }
+        .badge-danger  { background: var(--danger-light); color: var(--danger); }
+
+        table.spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin: 14px 0;
+        }
+
+        table.spec-table th, table.spec-table td {
+            border: 1px solid var(--border);
+            padding: 9px 12px;
+            text-align: left;
+        }
+
+        table.spec-table th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 14px 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 12px 0;
+            line-height: 1.5;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .toc-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .toc-card:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <h1>🏥 内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="meta">
+            <span>📅 作業日: 2026-10-27</span>
+            <span>⏱️ 最終更新: 2026-10-27 16:50</span>
+            <span>👤 担当: Google DeepMind Pair Programming</span>
+            <span>🌐 対象環境: ローカル (c:\Apache24\htdocs\endoscope) ＆ 本番 (192.168.1.16 / T:\endoscope)</span>
+        </div>
+    </header>
+
+    <div class="content">
+        <!-- 目次 -->
+        <section>
+            <h2>📑 本日の作業インデックス</h2>
+            <div class="toc-grid">
+                <a href="#sec1" class="toc-card"><span>1.</span> 診療科の端末記憶＆キー切替共通化</a>
+                <a href="#sec2" class="toc-card"><span>2.</span> A4印刷 操作バー2段組化＆一括ボタン新設</a>
+                <a href="#sec3" class="toc-card"><span>3.</span> A4印刷 並び順リスト化＆部屋ソート昇順</a>
+                <a href="#sec4" class="toc-card"><span>4.</span> A4印刷 日付表示刷新＆左右キー移動</a>
+                <a href="#sec5" class="toc-card"><span>5.</span> 部屋・下剤一括 重複検知＆使用中部屋表示</a>
+                <a href="#sec6" class="toc-card"><span>6.</span> カレンダー 左右キー日付移動＆休診日スキップ</a>
+                <a href="#sec7" class="toc-card"><span>7.</span> 直近空き枠速報 検索期間拡張（60日・90日追加）</a>
+                <a href="#sec8" class="toc-card"><span>8.</span> 本番環境への同期・デプロイ検証</a>
+            </div>
+        </section>
+
+        <!-- セクション1: 診療科の端末記憶＆キー切替共通化 -->
+        <section id="sec1">
+            <h2>1. 診療科の端末記憶 ＆ キーボード切替ショートカット共通化</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修背景と課題】</strong><br>
+                    カレンダー（<code>month_schedule.php</code>）、デイリーノート（<code>schedule_note.php</code>）、マトリクス（<code>month_matrix_v2.php</code>）の各画面において、ポータルからの遷移やURLに引数が付いていない場合に毎回診療科（胃腸科/肛門科）を選び直す必要があり、業務のテンポが損なわれていました。
+                </p>
+                <p>
+                    <strong>【実装内容】</strong>
+                </p>
+                <ul>
+                    <li><strong>Cookie ＋ LocalStorage ＋ セッションの3重同期:</strong>
+                        いずれかの画面で診療科を切り替えると、1年間有効なCookie（<code>endoscope_selected_dept</code>）と端末ローカルストレージ、サーバー側セッションへ即座に永続保存されます。
+                    </li>
+                    <li><strong>URL引数なしアクセス時の自動復元:</strong>
+                        ポータルからの遷移やお気に入りからの起動、翌朝のブラウザ再起動時でも、その端末で最後に使っていた診療科が自動的に適用されます。
+                    </li>
+                    <li><strong><code>[1]</code> / <code>[2]</code> キー切替の3画面共通化:</strong>
+                        <kbd>1</kbd> で 🟢 肛門科、<kbd>2</kbd> で 🔵 胃腸科 へ瞬時に切り替わるキーボードショートカットを3画面すべてに配備。入力フォームフォーカス時やモーダル表示中の誤爆防止ガードを完備しています。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション2: A4印刷 操作バー2段組化＆一括ボタン新設 -->
+        <section id="sec2">
+            <h2>2. A4印刷 操作バー2段組化 ＆ 「🚪 部屋・下剤一括」ボタン新設</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修内容】</strong>
+                </p>
+                <ul>
+                    <li><strong>操作バーの2段組化:</strong> 従来の1行詰め込みによるボタンはみ出し・予期せぬ改行を解消し、役割別の2段レイアウトへ再設計。
+                        <ul>
+                            <li><strong>1段目:</strong> <code>🖨️ A4当日一覧印刷</code> ＋ 診療科 ＋ 検査種別 ＋ 空き枠 ＋ ［🚪 部屋・下剤一括］ ＋ ［🖨️ 印刷を実行］ ＋ ［✕ 閉じる］</li>
+                            <li><strong>2段目:</strong> ［📄 ページ構成］ ＋ ［🚪 並び順］ ＋ ［📝 備考を印刷］</li>
+                        </ul>
+                    </li>
+                    <li><strong>「当日ホワイトボード」撤去 ＆ 「🚪 部屋・下剤一括」ボタン新設:</strong>
+                        デイリーノートと同デザインのティール色ボタンを配備。当日の大腸CF（TCF/W/ポリペク）件数バッジ（例: <code>17</code>）を自動表示し、クリックで <code>bulk_edit_prep_room.php</code> をポップアップ起動。モーダルを閉じた際は自動的に印刷プレビューをリロードし、設定した最新の部屋番号が即座に一覧へ反映されます。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション3: A4印刷 並び順リスト化＆部屋ソート昇順 -->
+        <section id="sec3">
+            <h2>3. A4印刷 並び順リストボックス化 ＆ 部屋ソート昇順・空行制御</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修内容】</strong>
+                </p>
+                <ul>
+                    <li><strong>「🚪 並び順:」セレクトボックス化:</strong>
+                        従来のチェックボックスから、<code>時間枠</code> / <code>部屋ソート▲</code>（昇順） / <code>部屋ソート▼</code>（降順）のドロップダウンに変更。
+                    </li>
+                    <li><strong>部屋ソート▲（昇順）の追加:</strong>
+                        未指定患者を最優先で先頭にまとめ、部屋名を自然順昇順（<code>ｺ1 ➔ ｺ2 ➔ ﾏ1 ➔ ﾏ2</code>）で並び替え。
+                    </li>
+                    <li><strong>部屋ソート時の空行撤去:</strong>
+                        部屋ソート時は患者行を隙間なく詰めて一覧化し、時間枠ソート時のみ「診療科境界（肛門科⇔胃腸科）」に区切り空間（spacer-row）を保持する仕様に最適化。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション4: A4印刷 日付表示刷新＆左右キー移動 -->
+        <section id="sec4">
+            <h2>4. A4印刷 日付表示刷新 ＆ 隠し機能: 左右キー日付移動</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修内容】</strong>
+                </p>
+                <ul>
+                    <li><strong>印刷ヘッダー日付の刷新:</strong>
+                        「<code>対象日: YYYY年MM月DD日</code>」から年を省き、「<code>10月27日(火)</code>」のように月・日・一文字曜日のすっきりした表記に変更。
+                        フォントサイズを用紙タイトルと同じ <strong>12.5pt（太字・#0f172a）</strong> へ拡大し、用紙両端の視認性を劇的に向上。
+                    </li>
+                    <li><strong>帳票タイトルの簡潔化:</strong>
+                        「<code>［全診療科（肛門科・胃腸科）］</code>」の補助表記を除去し、「<code>［全診療科］</code>」「<code>［肛門科］</code>」「<code>［胃腸科］</code>」の明瞭な表記に統一。
+                    </li>
+                    <li><strong>隠し機能（左右キーでの日付移動）:</strong>
+                        キーボードの <kbd>←</kbd>（前日） / <kbd>→</kbd>（翌日）キーで、現在の診療科・種別・並び順設定をすべて維持したまま日付を前後移動できる隠し機能を新設。
+                    </li>
+                    <li><strong>「📄 ページ構成」機能の完全復元:</strong>
+                        2ページ分割（エコー/CF）と改ページなし（全件連続一覧）の切り替え機能を完全復元。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション5: 部屋・下剤一括 重複検知＆使用中部屋表示 -->
+        <section id="sec5">
+            <h2>5. 部屋・下剤一括 重複検知 ＆ 使用中部屋の氏名表示 ＆ GIF/エコー注意</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修内容】</strong>
+                </p>
+                <ul>
+                    <li><strong>選択肢で使用中部屋と患者名のリアルタイム表示:</strong>
+                        どの患者のセレクトボックスを開いても、現在誰が部屋を使っているかが一目で判別可能（例: <code>ﾏ101 (土居)</code>、重複時: <code>ﾏ101 (土居, 影山)</code>）。
+                    </li>
+                    <li><strong>設定した瞬間にわかるリアルタイム重複警告:</strong>
+                        誤って他の患者と同じ部屋を選択した瞬間に、該当セレクトボックスが <strong>🔴 鮮やかな赤色（#dc2626）</strong> に変化し、直下に「<code>⚠️ 重複: 相手氏名</code>」と小さく赤字で表示。解消時は瞬時に通常カラーへ自動復帰。
+                    </li>
+                    <li><strong>GIF/エコー時のインライン注意表示:</strong>
+                        通常部屋割り不要のGIF・エコー検査行で部屋を選択した際、ダイアログ等でブロックせず直下に「<code>⚠️ 通常部屋割り不要</code>」と小さくオレンジ色で注意表示。
+                    </li>
+                    <li><strong>重複登録（1日2回利用など）の許容:</strong>
+                        意図した重複登録は保存時の警告バナー経由でそのまま保存可能。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション6: カレンダー 左右キー日付移動＆休診日スキップ -->
+        <section id="sec6">
+            <h2>6. カレンダー 隠し機能: 左右カーソル日付移動 ＆ Shift+矢印で休診日スキップ</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修背景とユーザー要望】</strong><br>
+                    カレンダー画面（<code>month_schedule.php</code>）において、マウスで小さな日付セルをクリックし直すことなく、キーボードから前日/翌日へ素早く日付移動したい、さらに土日や祝日などの休診日をワンタッチで飛ばして「前診療日」「次診療日」へジャンプしたいという要望に対応しました。
+                </p>
+                <p>
+                    <strong>【実装仕様】</strong>
+                </p>
+                <ul>
+                    <li><strong>左右カーソルキー（<kbd>←</kbd> / <kbd>→</kbd>）での日付移動:</strong>
+                        <kbd>←</kbd>（前日: -1日）および <kbd>→</kbd>（翌日: +1日）キーを押すだけで、現在の診療科・医師フィルター・検査種別フィルター・表示モード・空き枠表示を完全保持したまま移動します。
+                    </li>
+                    <li><strong><kbd>Shift</kbd> ＋ 矢印（<kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>Shift</kbd> + <kbd>→</kbd>）での休診日スキップ:</strong>
+                        小野会カレンダー判定（<code>check_onokai_calendar</code>）と連動し、日曜日や国民の祝日（文化の日など）を自動スキップして直近の診療日（前診療日 / 次診療日）へ一発移動します。
+                    </li>
+                    <li><strong>カレンダー表示月（year / month）の自動同期:</strong>
+                        月末（例: 10月31日）から翌日（11月1日）や次診療日（11月2日）へ移動した際、URLの <code>year=2026&month=11</code> も自動連動し、月カレンダーの表示月と下部の当日予約詳細一覧が完全に同期します。
+                    </li>
+                    <li><strong><kbd>T</kbd> / <kbd>Home</kbd> キーでの今日ジャンプ:</strong>
+                        いつでも今日の日付へ即座に戻れるショートカットを完備。
+                    </li>
+                    <li><strong>入力フォーム・ダイアログ誤爆防止ガード:</strong>
+                        テキスト入力中（<code>input</code>, <code>textarea</code>, <code>select</code>）、モーダル表示中（<code>dialog[open]</code>）、Flatpickrカレンダー展開中はキー操作をガードし、誤動作を防ぎます。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション7: 直近空き枠速報 検索期間拡張（60日・90日追加） -->
+        <section id="sec7">
+            <h2>7. 直近空き枠速報 ＆ スマート予約アシスト 検索期間拡張（60日・90日追加）</h2>
+            <div class="card">
+                <p>
+                    <strong>【改修背景とユーザー要望】</strong><br>
+                    大腸内視鏡（CF/TCF/W/ポリペク）の予約逼迫に伴い、従来の「14日間」「30日間」「45日間」の検索範囲では2〜3か月先の手術・検査希望に対応しきれない場面があったため、「直近 60日間」「直近 90日間」の検索選択肢を追加し、中長期の空き枠探索をワンクリックで実行可能にしました。
+                </p>
+                <p>
+                    <strong>【実装仕様】</strong>
+                </p>
+                <ul>
+                    <li><strong>期間選択肢の拡張（14日 / 30日 / 45日 / 60日 / 90日）:</strong>
+                        カレンダー画面右下のフローティングモーダル（<code>urgent_slot_modal_inc.php</code>）および空き枠検索画面（<code>slot_search.php</code>）のドロップダウンに「直近 60日間」「直近 90日間」を追加。
+                    </li>
+                    <li><strong>API取得上限の拡張:</strong>
+                        <code>action_slot_assistant.php</code> の取得日数ガードを <code>min(60, ...)</code> から <code>min(90, ...)</code> へ拡張し、本日より最大90日後までの空き枠を高速集計。
+                    </li>
+                    <li><strong>タイトル・タブ文言の動的連動:</strong>
+                        モーダルヘッダー右上のバッジ（例: <code>大腸内視鏡 (CF/TCF/W/ポリペク) 直近60日</code>）や空き枠検索画面のタブ名称が、選択した日数に応じて動的に切り替わるよう改善。
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション8: 本番環境への同期・デプロイ検証 -->
+        <section id="sec8">
+            <h2>8. 本番環境への同期 ＆ デプロイ検証</h2>
+            <div class="card">
+                <table class="spec-table">
+                    <thead>
+                        <tr>
+                            <th>対象ファイル</th>
+                            <th>変更種別</th>
+                            <th>主要改修概要</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>action_slot_assistant.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>直近空き枠APIの最大集計日数を60日から90日へ拡張</td>
+                        </tr>
+                        <tr>
+                            <td><code>urgent_slot_modal_inc.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>直近空き枠モーダルに「直近 60日間」「直近 90日間」の選択肢を追加、タイトルバッジ動的連動</td>
+                        </tr>
+                        <tr>
+                            <td><code>slot_search.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>空き枠検索画面の速報タブに「直近 60日間」「直近 90日間」の選択肢を追加、タブ名称動的連動</td>
+                        </tr>
+                        <tr>
+                            <td><code>month_schedule.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>隠し機能: キーボード左右キー日付移動、Shift+矢印で休診日スキップ、月跨ぎyear/month同期、診療科端末記憶＆[1][2]キー切替</td>
+                        </tr>
+                        <tr>
+                            <td><code>print_schedule_daily.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>操作バー2段組化、一括ボタン新設、並び順リスト化、日付表示刷新、左右キー移動、ページ構成復元、全診療科表記簡潔化</td>
+                        </tr>
+                        <tr>
+                            <td><code>bulk_edit_prep_room.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>部屋重複リアルタイム検知、使用中部屋の患者名表示、GIF/エコー注意表示、重複保存対応</td>
+                        </tr>
+                        <tr>
+                            <td><code>schedule_note.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>診療科の端末記憶復元およびセッション保存欠落の解消</td>
+                        </tr>
+                        <tr>
+                            <td><code>month_matrix_v2.php</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>診療科の端末記憶および [1]/[2] キー切替ショートカット共通化</td>
+                        </tr>
+                        <tr>
+                            <td><code>仕様書/specdoc.html</code></td>
+                            <td><span class="badge badge-primary">更新</span></td>
+                            <td>全体仕様書の更新履歴および各機能仕様の同期（第27章、第28章）</td>
+                        </tr>
+                        <tr>
+                            <td><code>仕様書/2026-10-27works.html</code></td>
+                            <td><span class="badge badge-success">新規</span></td>
+                            <td>本日の作業完了報告書（本ファイル）</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+</body>
+</html>

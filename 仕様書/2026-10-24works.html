@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-24)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title-badge {
+            background: rgba(14, 165, 233, 0.3);
+            color: #7dd3fc;
+            border: 1px solid rgba(125, 211, 252, 0.4);
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        header.report-header h1 {
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+        }
+
+        .header-meta span strong {
+            color: #e2e8f0;
+        }
+
+        /* 目次 ナビゲーション */
+        nav.report-toc {
+            background: #f1f5f9;
+            padding: 18px 36px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+
+        .toc-grid li a {
+            color: var(--primary-dark);
+            text-decoration: none;
+            font-size: 12.5px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.15s ease;
+        }
+
+        .toc-grid li a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* メインコンテンツ */
+        main.report-body {
+            padding: 36px;
+        }
+
+        section.report-section {
+            margin-bottom: 44px;
+        }
+
+        section.report-section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2.section-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: var(--text-main);
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-num {
+            background: var(--primary);
+            color: #ffffff;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+        }
+
+        h3.sub-title {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin: 20px 0 10px 0;
+            padding-left: 10px;
+            border-left: 3px solid var(--primary);
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: #334155;
+            font-size: 13.5px;
+        }
+
+        ul, ol {
+            padding-left: 22px;
+            margin-bottom: 14px;
+            color: #334155;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        /* カード・コンポーネント */
+        .card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .card-highlight {
+            border-left: 4px solid var(--primary);
+            background: var(--primary-light);
+        }
+
+        .card-success {
+            border-left: 4px solid var(--success);
+            background: var(--success-light);
+        }
+
+        .card-warning {
+            border-left: 4px solid var(--warning);
+            background: var(--warning-light);
+        }
+
+        /* テーブル */
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 12.5px;
+        }
+
+        table.data-table th, table.data-table td {
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        table.data-table th {
+            background: #f8fafc;
+            color: var(--text-sub);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        table.data-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        /* バッジ */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        .badge-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-primary { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-warning { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+
+        /* コードブロック */
+        code {
+            font-family: var(--font-mono);
+            background: #f1f5f9;
+            color: #b91c1c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        pre {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.55;
+            margin-bottom: 16px;
+        }
+
+        /* フッター */
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 20px 36px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ── ヘッダー ── -->
+    <header class="report-header">
+        <div class="header-top">
+            <span class="header-title-badge">DX改修・RS-Baseキャンバス連携</span>
+            <span style="font-size:12px; opacity:0.85;">医療法人小野会 内視鏡予約管理システム</span>
+        </div>
+        <h1>🗺️ 検査実績タイムライン・キャンバス連携 ＆ フォローアップ機能全面刷新</h1>
+        <div class="header-meta">
+            <span>作業日: <strong>2026年10月24日 (土)</strong></span>
+            <span>対象環境: <strong>Local (Apache 2.4 / PHP 8.5.9) ＆ 本番 (192.168.1.16)</strong></span>
+            <span>連携先: <strong>RS-Base 検査タイムライン (canvas_view.php)</strong></span>
+            <span>ステータス: <span class="badge badge-success">検証完了・正常稼働</span></span>
+        </div>
+    </header>
+
+    <!-- ── 目次 ── -->
+    <nav class="report-toc">
+        <div class="toc-title">📑 報告書目次</div>
+        <ul class="toc-grid">
+            <li><a href="#sec1">1. 改修の背景と達成ゴール</a></li>
+            <li><a href="#sec2">2. RS-Base 検査タイムライン外部連携仕様</a></li>
+            <li><a href="#sec3">3. 検査過多時の縮小化解消 ＆ 視認性最適化 (UX刷新)</a></li>
+            <li><a href="#sec4">4. 各画面への動線配備（ノート・カレンダー・編集）</a></li>
+            <li><a href="#sec5">5. 旧フォローアップ機能の整理とポータル刷新</a></li>
+            <li><a href="#sec6">6. 変更・追加ファイル一覧</a></li>
+            <li><a href="#sec7">7. 総合テスト・検証結果 (19項目全件合格)</a></li>
+        </ul>
+    </nav>
+
+    <!-- ── メインボディ ── -->
+    <main class="report-body">
+
+        <!-- 1. 背景とゴール -->
+        <section class="report-section" id="sec1">
+            <h2 class="section-title"><span class="section-num">1</span> 改修の背景と達成ゴール</h2>
+            <div class="card card-highlight">
+                <p><strong>【背景と課題】</strong><br>
+                従来の「フォローアップ管理（次回受診予定管理・シート印刷等）」は現場での実運用利用がなく、仕様書でも長らく開発凍結状態となっていました。<br>
+                一方で、医師や看護師・スタッフが患者の予約・検査を行う際、過去の内視鏡検査画像やエコー検査の経過履歴を素早く確認したいという強いニーズがありました。</p>
+                <p style="margin-bottom:0;"><strong>【本日の達成ゴール】</strong><br>
+                RS-Baseに新設されたオープン規格 <strong>JSON Canvas (v1.0)</strong> 準拠の「検査タイムライン・キャンバス（<code>canvas_view.php</code>）」外部連携APIとシステム全体を直結。<br>
+                デイリーノート（<code>schedule_note.php</code>）、月間カレンダー（<code>month_schedule.php</code>）、予約登録・編集画面（<code>modal_edit.php</code>）からワンクリックで患者の過去検査実績を時系列に別タブ起動できる直感的な連携を実現しました。</p>
+            </div>
+        </section>
+
+        <!-- 2. 連携仕様 -->
+        <section class="report-section" id="sec2">
+            <h2 class="section-title"><span class="section-num">2</span> RS-Base 検査タイムライン外部連携仕様</h2>
+            <p>RS-Base の <code>canvas_api_spec.html</code> 仕様に完全準拠し、共通ヘルパー関数（<code>lib/canvas_helper.php</code>）を新設しました。</p>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">項目</th>
+                        <th style="width: 40%;">連携仕様・実装内容</th>
+                        <th style="width: 35%;">備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>エンドポイントURL</strong></td>
+                        <td><code>../rsbase/canvas_view.php</code>（相対アドレス）</td>
+                        <td>実行階層に応じて直下（<code>../rsbase/</code>）とサブディレクトリ（<code>../../rsbase/</code>）を自動解決</td>
+                    </tr>
+                    <tr>
+                        <td><strong>表示形態</strong></td>
+                        <td>別タブ（<code>target="_blank"</code> / <code>window.open</code>）全画面起動</td>
+                        <td>診療中や予約操作中の画面状態を保持したまま大画面で閲覧可能</td>
+                    </tr>
+                    <tr>
+                        <td><strong>検査種別（modality）自動判定</strong></td>
+                        <td>
+                            ・内視鏡系（GIF/TCF/W/ポリペク/胃がん検診等）➔ <code>modality=ES</code><br>
+                            ・超音波系（エコー/ECHO/US）➔ <code>modality=US</code><br>
+                            ・心電図系（ECG/心電図）➔ <code>modality=ECG</code><br>
+                            ・その他・全件 ➔ <code>modality=ALL</code>
+                        </td>
+                        <td>予約枠の <code>exam_type</code> から最適なモダリティを自動選択</td>
+                    </tr>
+                    <tr>
+                        <td><strong>初期表示件数制御（limit）</strong></td>
+                        <td><code>limit=5</code>（最新5件に初期表示を絞り込み）</td>
+                        <td>過去検査が10〜20件ある患者でもカードが微小縮小されず、等倍可読サイズで即時展開</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 3. 検査過多時の縮小化解消 ＆ 視認性最適化 -->
+        <section class="report-section" id="sec3">
+            <h2 class="section-title"><span class="section-num">3</span> 検査過多時の縮小化解消 ＆ 視認性最適化 (UX刷新)</h2>
+            <div class="card card-highlight">
+                <p><strong>【課題】</strong><br>
+                過去の検査数が10〜20件に及ぶ患者を開いた場合、従来のキャンバスはすべてのノードを1行に横並びさせて <code>fitToView</code>（全体収容）を行っていたため、画面倍率が <strong>0.2x〜0.3x</strong> に縮小され、文字や画像が視認できない問題がありました。</p>
+                <p style="margin-bottom:0;"><strong>【3つの視認性抜本改善策の実施】</strong></p>
+                <ol style="margin-top:8px; margin-bottom:0;">
+                    <li><strong>最新件数制限（デフォルト: 5件）:</strong>
+                        初回起動時は直近5件に絞り込み、瞬時に等倍（約0.85x〜1.0x）で快適に閲覧可能に。画面上部ツールバーに <strong>「⏪ 過去全件を展開」</strong> トグルボタンを配備し、必要に応じて過去の全検査を一括展開可能としました。
+                    </li>
+                    <li><strong>グリッド折り返し配置（1行3件）:</strong>
+                        横一列配置を改め、1行あたり3件（2〜3段）で自動折り返し配置するアルゴリズムを導入。横長画面の上下スペースを有効活用し、アスペクト比を最適化。多件数表示時でも極端な縮小が発生しません。
+                    </li>
+                    <li><strong>本日受診カードの強調表示:</strong>
+                        当日（今日）実施の検査カードを <strong>ゴールド太枠線（3px）＆ グロー光彩シャドウ</strong> で強調し、カード右上に <strong>「⭐ 本日」パルス点滅バッジ</strong> を付与。過去検査と当日の検査を一目で瞬時に識別できるようになりました。
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 4. 各画面への動線配備 -->
+        <section class="report-section" id="sec4">
+            <h2 class="section-title"><span class="section-num">4</span> 各画面への動線配備（ノート・カレンダー・編集モーダル）</h2>
+            <div class="card">
+                <h3 class="sub-title">① デイリーノート（schedule_note.php）</h3>
+                <ul>
+                    <li>テーブル12列目の列見出しを「F/U」から <strong>「実績」</strong> に変更。</li>
+                    <li>予約行に <strong>「🗺️ 実績」</strong> ボタンを配備。内視鏡検査なら <code>ES</code>、エコーなら <code>US</code> のタイムラインキャンバスを別タブで即時展開（<code>limit=5</code> 付与）。</li>
+                </ul>
+
+                <h3 class="sub-title">② 月間カレンダー（month_schedule.php）</h3>
+                <ul>
+                    <li>下部「当日予約詳細一覧」テーブルの12列目を「F/U」から <strong>「実績」</strong>（<code>🗺️ 実績</code> ボタン）へ刷新。</li>
+                    <li><strong>カレンダーマス目内の患者タイル（<code>lib/patient_helper.php</code>）:</strong> 患者IDの横に小さな <code>🗺️</code> アイコンリンクを配備。カレンダーを見ながらワンクリックで該当患者のキャンバスを開くことが可能に（誤クリック防止の <code>stopPropagation()</code> 完備）。</li>
+                </ul>
+
+                <h3 class="sub-title">③ 予約登録・編集画面（modal_edit.php）</h3>
+                <ul>
+                    <li>患者No入力欄横のアクションボタングループに <strong>「🗺️ 検査実績」</strong> ボタンを新設。</li>
+                    <li>予約の新規登録・日時変更の作業中にも、患者の過去実績キャンバスを即座に参照可能（<code>limit=5</code> 付与）。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 5. 旧機能整理とポータル刷新 -->
+        <section class="report-section" id="sec5">
+            <h2 class="section-title"><span class="section-num">5</span> 旧フォローアップ機能の整理とポータル刷新</h2>
+            <div class="card card-success">
+                <ul>
+                    <li><strong>ポータルメニュー（index.php）の整理:</strong> 実運用利用のなかった旧「フォローアップ管理」メニューカードを撤去。</li>
+                    <li><strong>操作マニュアル（help.php / help.html）の同期:</strong> 項目11の解説を「検査実績タイムライン・キャンバス連携」に更新。</li>
+                    <li><strong>検査実績ポータル（followup/index.php）のリニューアル:</strong> 直接アクセスされた場合でも、患者No・氏名クイック検索バーや直近予約一覧からキャンバスを起動できる便利なポータル画面として刷新（全件/内視鏡/エコーの即時切り替え対応）。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 6. 変更・追加ファイル一覧 -->
+        <section class="report-section" id="sec6">
+            <h2 class="section-title"><span class="section-num">6</span> 変更・追加されたファイル一覧</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ファイルパス</th>
+                        <th>区分</th>
+                        <th>主な改修内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>lib/canvas_helper.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>RS-Base canvas_view.php 外部連携用共通ヘルパー（modality自動判定、相対URL解決、limit=5付与、ボタンHTML出力）</td>
+                    </tr>
+                    <tr>
+                        <td><code>lib/patient_helper.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>カレンダーマス目内の患者タイル（ID表示部）に <code>🗺️</code> キャンバス直接起動リンクを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>schedule_note.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>12列目を「F/U」から「実績」に刷新、ワンクリックでキャンバスが別タブ起動するよう更新</td>
+                    </tr>
+                    <tr>
+                        <td><code>month_schedule.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>当日予約詳細一覧の「F/U」列を「実績」に刷新、別タブ起動ボタンを配備</td>
+                    </tr>
+                    <tr>
+                        <td><code>modal_edit.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>患者情報エリアに「🗺️ 検査実績」ボタンを新設、モーダル内からの直接キャンバス起動に対応</td>
+                    </tr>
+                    <tr>
+                        <td><code>index.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>実運用のない旧フォローアップ管理メニューカードを削除</td>
+                    </tr>
+                    <tr>
+                        <td><code>followup/index.php</code></td>
+                        <td><span class="badge badge-primary">全面刷新</span></td>
+                        <td>旧フォローアップ管理画面から「RS-Base検査実績タイムライン連携ポータル」へリニューアル</td>
+                    </tr>
+                    <tr>
+                        <td><code>../rsbase/canvas_view.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>最新N件制限（limitパラメータ）、1行3件折り返しグリッド配置、本日受診カード強調（ゴールド枠線・⭐本日点滅バッジ）、全件展開トグルボタン追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>tests/test_canvas_integration.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>モダリティ判定、URL生成、空番ガード、ボタンHTML生成等の自動リグレッションテストスイート（全19項目）</td>
+                    </tr>
+                    <tr>
+                        <td><code>help.php</code> / <code>help.html</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>操作マニュアルの第11章を「検査実績タイムライン・キャンバス連携」へ更新</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/specdoc.html</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>全体仕様書の第6章（旧凍結セクション）を「検査実績タイムライン・キャンバス系」へ刷新</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 7. 検証結果 -->
+        <section class="report-section" id="sec7">
+            <h2 class="section-title"><span class="section-num">7</span> 総合テスト・検証結果 (19項目全件合格)</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">検証項目</th>
+                        <th style="width: 55%;">検証内容と期待動作</th>
+                        <th style="width: 20%;">判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>PHP構文チェック (lint)</strong></td>
+                        <td>全対象ファイル（内視鏡システムおよび rsbase/canvas_view.php）で構文エラー（SyntaxError）ゼロ</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>modality 自動判定ロジック</strong></td>
+                        <td>GIF/TCF/ポリペク等で <code>ES</code>、エコー/ECHOで <code>US</code>、心電図で <code>ECG</code>、その他/ALLで <code>ALL</code> が返却されること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>初期件数制限 (limit=5)</strong></td>
+                        <td>生成URLに <code>limit=5</code> が正しく付加され、全件指定（<code>ALL</code>）時には制限なしで出力されること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>キャンバス・グリッド配置</strong></td>
+                        <td>1行3件で折り返され、10件以上の検査があっても 0.85x〜1.0x（等倍・可読サイズ）で表示されること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>本日受診カードの強調</strong></td>
+                        <td>当日の検査カードに <code>is-today-exam</code>（ゴールド枠線・グロー光彩）と <code>⭐ 本日</code> バッジが付与されること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>デイリーノート連携</strong></td>
+                        <td><code>schedule_note.php</code> の「実績」ボタンから患者IDとモダリティが別タブURLに正確に渡ること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>月間カレンダー連携</strong></td>
+                        <td><code>month_schedule.php</code> の詳細一覧およびカレンダーマス目タイルからキャンバスが開くこと</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>予約登録・編集連携</strong></td>
+                        <td><code>modal_edit.php</code> の「🗺️ 検査実績」ボタンから入力中患者のキャンバスが別タブ起動すること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>階層相対パス解決</strong></td>
+                        <td>ルート直下（<code>../rsbase/</code>）と <code>followup/</code>（<code>../../rsbase/</code>）で正しいパスが生成されること</td>
+                        <td><span class="badge badge-success">OK (PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>自動テストスイート (CLI)</strong></td>
+                        <td><code>php tests/test_canvas_integration.php</code> 実行による全19項目のテストが完全合格すること</td>
+                        <td><span class="badge badge-success">19/19 PASS</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <!-- ── フッター ── -->
+    <footer class="report-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 開発チーム</div>
+        <div>ファイル名: <code>仕様書/2026-10-24works.html</code></div>
+    </footer>
+
+</div>
+
+</body>
+</html>

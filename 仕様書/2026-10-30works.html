@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡予約システム 改修作業完了報告書 (2026-10-30)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #075985, #0f172a);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+
+        header.report-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header.report-header .meta {
+            font-size: 12.5px;
+            color: #cbd5e1;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .content {
+            padding: 36px;
+        }
+
+        section {
+            margin-bottom: 36px;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+            border-left: 4px solid var(--primary);
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3 {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 20px 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p {
+            margin-bottom: 12px;
+            color: var(--text-sub);
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 14px;
+            color: var(--text-sub);
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .card-highlight {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        .badge-success { background: var(--success-light); color: var(--success); border: 1px solid #a7f3d0; }
+        .badge-primary { background: var(--primary-light); color: var(--primary); border: 1px solid #bae6fd; }
+        .badge-warning { background: var(--warning-light); color: #b45309; border: 1px solid #fde68a; }
+
+        table.spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 10px;
+            margin-bottom: 16px;
+        }
+
+        table.spec-table th, table.spec-table td {
+            border: 1px solid var(--border);
+            padding: 9px 12px;
+            text-align: left;
+        }
+
+        table.spec-table th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        table.spec-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        pre.code-block {
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 14px 18px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .ascii-art {
+            background: #1e293b;
+            color: #38bdf8;
+            padding: 14px 18px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.35;
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+
+        .alert-box {
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-success { background: #ecfdf5; border-left: 4px solid #10b981; color: #065f46; }
+        .alert-info { background: #f0f9ff; border-left: 4px solid #0284c7; color: #075985; }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .toc-item {
+            display: block;
+            padding: 10px 14px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 12.5px;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .toc-item:hover {
+            background: var(--primary-light);
+            border-color: #7dd3fc;
+            color: var(--primary-dark);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <h1>📑 内視鏡予約システム 改修作業完了報告書</h1>
+        <div class="meta">
+            <span>📅 作業実施日: 2026年10月30日</span>
+            <span>⏱️ 対象画面: 予約詳細モーダル / 本日リスト印刷 / ネームプレート印刷 / プリンターマスタ</span>
+            <span>👤 担当: AIペアプログラミング (Antigravity)</span>
+            <span>🔖 バージョン: v2.7.2 (UI/UX向上DX ＆ 印刷・プリンターDX)</span>
+        </div>
+    </header>
+
+    <div class="content">
+        <!-- 目次 -->
+        <div class="toc-grid">
+            <a href="#sec1" class="toc-item">1. 改修の背景と達成ゴール</a>
+            <a href="#sec2" class="toc-item">2. MALL3メモの備考直接転記機能</a>
+            <a href="#sec3" class="toc-item">3. 患者Noソフトウェアテンキーボード</a>
+            <a href="#sec4" class="toc-item">4. 入力優先UIカラー調整（薄黄＆グレー）</a>
+            <a href="#sec5" class="toc-item">5. 電カルボタン独立右寄せ ＆ 最終受診日・科表示DX</a>
+            <a href="#sec6" class="toc-item">6. レコード日時表示 ＆ UIデザイン統一・パレット拡充</a>
+            <a href="#sec7" class="toc-item">7. タブレット対応印刷・ネームプレート・プリンターマスタ</a>
+            <a href="#sec8" class="toc-item">8. 動作検証およびテスト結果</a>
+            <a href="#sec9" class="toc-item">9. 変更ファイル一覧</a>
+        </div>
+
+        <!-- セクション1 -->
+        <section id="sec1">
+            <h2>1. 改修の背景と達成ゴール</h2>
+            <div class="card card-highlight">
+                <p>予約詳細・編集モーダル（<code>modal_edit.php</code>）、日別印刷モジュール（<code>print_schedule_daily.php</code>）、ネームプレート印刷（<code>print_nameplate.php</code>）、およびプリンターマスタ（<code>printer_master_maintenance.php</code>）において、現場の受付端末・タブレットPC、マウス操作における作業効率・視認性・デザイン統一性を極限まで高めるため、以下の改善を実施しました。</p>
+                <ul>
+                    <li><strong>MALL3メモ転記DX:</strong> 従来のクリップボードコピーに加え、ワンクリックで備考・特記事項（Quillエディタ）へ直接ペースト・転記できる機能を追加。</li>
+                    <li><strong>タブレット・マウス対応テンキー:</strong> 患者No入力欄に連動するソフトウェアテンキー（0〜9、00、⌫、Clear、🔍同期）を新設し、ハードウェアキーボードのない環境でも素早く番号入力可能に。</li>
+                    <li><strong>視線誘導カラーデザイン:</strong> 最優先入力要素である「患者No」「検査種別」に加え、「担当医師名」も薄い黄色（#fefce8）でハイライト統一。逆に目立ちすぎていた「仮予約」ボタンを通常グレーに統一。</li>
+                    <li><strong>電カルボタン独立配置 ＆ 最終受診日・科表示DX:</strong> 患者情報行末に埋もれていた「📄 電カル」ボタンをカード右端に独立ブロックとして右寄せ配置。さらに電子カルテ（MALL3/karteview）とリアルタイム連携し、直近受診日・診療科を自動表示。<strong>本日受診は「🔴 本日受診 (胃腸科)」として赤色強調表示</strong>。</li>
+                    <li><strong>レコード作成・更新日時のコンパクト表示:</strong> 最上段ヘッダーの空きエリアに <code>🕒 登録: YYYY/MM/DD HH:mm | 更新: YYYY/MM/DD HH:mm</code> を控えめに常時表示。</li>
+                    <li><strong>基本情報ブロックのデザイン統一:</strong> 時間枠および診療科の背景色・枠線を、検査日ピッカー（特大Flatpickr）と同一の薄いソフトブルー（#eff6ff / #93c5fd）に統一。</li>
+                    <li><strong>電話マーク重複解消:</strong> <code>📞 TEL: ...</code> の二重表記から「TEL:」を撤去し、直感的な <code>📞</code> アイコンのみにシンプル化。</li>
+                    <li><strong>備考カラーパレット大幅拡充:</strong> 文字色（赤・青・橙・緑・紫・ピンク・水色・濃灰の8色）、網掛け蛍光色（薄黄・薄橙・薄緑・薄青・薄桃・薄紫・薄赤・薄灰の8色）へ拡充。</li>
+                    <li><strong>タブレット対応印刷強化 ＆ 出力先個別端末記憶:</strong> <code>print_schedule_daily.php</code> の印刷ボタン名を「🖨️ 本日リスト印刷」に変更し、「🖨️ 出力先:」セレクターを新設。本日リスト用（<code>endoscope_print_dest_daily</code>）とネームプレート用（<code>endoscope_print_dest_nameplate</code>）でそれぞれ独立して出力先プリンタを端末記憶可能に。</li>
+                    <li><strong>下部検査ネームプレート印刷専用モジュール（新設）:</strong> 横147mm × 縦70mm の高精度カードレイアウトで、A4縦用紙に縦4枚を完全面付け。氏名46pt特大・極太、様の下段配置、部屋・下剤のグレー単体表示、キリトリ/時間枠/ID完全排除、白紙ページ挟まり根絶（@page margin:0 ＆ height:297mm完全固定）を実現した <code>print_nameplate.php</code> を開発・配備。</li>
+                    <li><strong>院内プリンターマスターメンテナンス（新設）:</strong> サーバーインストール済みプリンタ自動検出、表示名称（ラベル・呼称）の自由編集、有効/無効トグル、デフォルト指定、テスト印刷機能を備えた <code>printer_master_maintenance.php</code> を開発し、クライアントPCとサーバーのプリンタ名差異を完全解消。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション2 -->
+        <section id="sec2">
+            <h2>2. MALL3メモの備考直接転記機能 (ワンクリック貼付)</h2>
+            <p>MALL3（電子カルテ）から取得した「本日メモ」「カルテメモ」「患者メモ」の各ブロックに、<strong>「📝 備考へ転記」ボタン</strong>を新設しました。</p>
+            
+            <div class="ascii-art">
++---------------------------------------------------------------------------------+
+| MALL3メモ表示                                                                   |
++-----------------------------------+---------------------------------------------+
+| 本日メモ 📋                       | カルテメモ 📋                               |
+| [📋 コピー] [📝 備考へ転記]        | [📋 コピー] [📝 備考へ転記] (NEW!)          |
++-----------------------------------+---------------------------------------------+
+| [メモ本文をクリックしても直接転記] | [メモ本文をクリックしても直接転記]          |
++-----------------------------------+---------------------------------------------+
+            </div>
+
+            <div class="card">
+                <h3>主な機能仕様</h3>
+                <ul>
+                    <li><strong>クリップボード同時コピー保証:</strong> 「📝 備考へ転記」を押すと、備考欄へ直接挿入されると同時にクリップボードにも格納され、他画面への貼り付けも即座に行えます。</li>
+                    <li><strong>スマート改行追記:</strong> 既に備考欄に文章が入力されている場合、自動で改行を挟んで末尾に追記されます。</li>
+                    <li><strong>メモ本文クリック転記:</strong> メモのテキスト枠をクリックするだけでも備考欄へ即座に転記されます（マウスドラッグによるテキスト選択操作時は誤発動しない安全設計）。</li>
+                    <li><strong>トースト通知:</strong> 転記完了時に「📝 カルテメモ を備考・特記事項に転記しました」と上品なトースト通知が表示されます。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション3 -->
+        <section id="sec3">
+            <h2>3. 患者Noソフトウェアテンキーボード（タブレット・マウス操作対応）</h2>
+            <p>診察室・内視鏡室のタブレット端末（Surface/iPad等）やマウス中心の運用向けに、患者No入力用のソフトウェアテンキーパッドを実装しました。</p>
+
+            <div class="ascii-art">
+[ 患者No: 12345 ] [ ⌨️ ] [ 🔍 同期 ]
+  |
+  v (クリック/フォーカスで展開)
++-----------------------------------------+
+| ⌨️ 患者No テンキー                    ✕ |
++---------+---------+---------+-----------+
+|    7    |    8    |    9    |  ⌫ 消去   |
++---------+---------+---------+-----------+
+|    4    |    5    |    6    |  C クリア |
++---------+---------+---------+-----------+
+|    1    |    2    |    3    |           |
++---------+---------+---------+  🔍 同期  |
+|    0    |   00    |    -    |  (確定)   |
++---------+---------+---------+-----------+
+            </div>
+
+            <div class="card">
+                <h3>主な機能仕様</h3>
+                <ul>
+                    <li><strong>快適なキー配列:</strong> 7・8・9〜の電卓配列に、便利な「00」およびハイフンキー、直前の1文字を消す「⌫ (BackSpace)」、全消去の「C (Clear)」を装備。</li>
+                    <li><strong>縦長エンター「🔍 同期」キー:</strong> 入力完了後にそのまま右下の「🔍 同期」をタップするだけで、キーボードが閉じて即座にカルテ情報が同期・展開されます。</li>
+                    <li><strong>カーソル位置完全対応:</strong> テキストボックス内の途中挿入や選択範囲の削除・置換にも完全対応しています。</li>
+                    <li><strong>スムーズな自動開閉:</strong> 患者No入力欄へのフォーカス、または「⌨️」ボタンのクリックで表示され、外部クリックまたはEscキーで自動的にスッと閉じます。</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- セクション4 -->
+        <section id="sec4">
+            <h2>4. 入力優先UIカラー調整（薄黄＆グレー）</h2>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">対象コントロール</th>
+                        <th style="width: 20%;">変更前</th>
+                        <th style="width: 25%;">変更後 (新仕様)</th>
+                        <th>改修効果・目的</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>患者No入力欄</strong><br><code>#patient_id</code></td>
+                        <td>白背景 (#ffffff)</td>
+                        <td><span class="badge badge-warning" style="background:#fefce8; color:#713f12; border-color:#fde047;">薄い黄色 (#fefce8)</span></td>
+                        <td>モーダル表示時に最も最初に入力すべき必須項目として視認性を大幅に強化。フォーカス時は上品なイエローシャドウが点灯。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>検査種別セレクト</strong><br><code>#exam_type</code></td>
+                        <td>白背景 (#ffffff)</td>
+                        <td><span class="badge badge-warning" style="background:#fefce8; color:#713f12; border-color:#fde047;">薄い黄色 (#fefce8)</span></td>
+                        <td>予約枠の中で最重要となる検査種別（GIF/TCF/CF等）の選択欄を患者Noと対をなす重要入力として薄黄ハイライト。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>仮予約ボタン</strong><br><code>.btn-sub-temp</code></td>
+                        <td>黄色背景 (#fffbeb)<br>橙文字 (#b45309)</td>
+                        <td><span class="badge" style="background:#f8fafc; color:#475569; border:1px solid #cbd5e1;">通常グレー (#f8fafc)</span></td>
+                        <td>仮予約ボタンが過度に目立っていた配色を抑え、他のサブアクションボタン（氏名検索・手入力等）と調和した落ち着いたグレーに統一。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- セクション5 -->
+        <section id="sec5">
+            <h2>5. 電カルボタン独立右寄せ ＆ 最終受診日・科表示DX</h2>
+            <p>患者情報カードのレイアウトを整理し、「📄 電カル」ボタンをカード右端に独立ブロックとして配置しました。さらに電子カルテ（MALL3/karteview）から本日以前の最新受診実績を自動照会し、最終受診日・診療科をリアルタイム表示します。</p>
+
+            <div class="ascii-art">
++---------------------------------------------------------------------------------------------------------+
+| 👤 患者情報・検査割当                                                                                   |
++--------------------------+------------------------------------------------------+-----------------------+
+| 🔍 患者No (カルテ同期)   | 氏名: 山田　太郎 (ﾔﾏﾀﾞ ﾀﾛｳ) No: 12345 男 / 65歳      |   [📄 電カル ↗]       |
+| [ 12345 ] [⌨️] [同期]    | 🏠 住所: 高知県高知市...                              |                       |
+| [🔍検索][⚡仮予約][✏️手入力]| 📞 TEL: 088-xxx-xxxx                                 |  🔴 本日受診 (胃腸科) |
++--------------------------+------------------------------------------------------+-----------------------+
+            </div>
+
+            <div class="card">
+                <h3>UIレイアウト・表示仕様</h3>
+                <ul>
+                    <li><strong>独立右寄せブロック:</strong> 患者情報行末の狭小配置から、カード右端に幅145pxの独立エリア（左側破線区切り）を確保。ボタン誤クリックを防止し、ゆとりのある視認性を実現。</li>
+                    <li><strong>大型グラデーションボタン:</strong> ブルーグラデーション（<code>#0284c7</code> → <code>#0369a1</code>）と外部リンクアイコン（↗）で、電子カルテビューア呼び出しボタンであることを強調。</li>
+                    <li><strong>🔴 本日受診の強調バッジ（最重要）:</strong> 当日に電子カルテで受診歴がある場合、赤色ハイライト（<code>.visit-today</code>、背景 <code>#fee2e2</code>、文字 <code>#b91c1c</code>）で <code>🔴 本日受診 (胃腸科)</code> と明示。当日受診患者のカルテ取り違え防止や検査対応の即応性をサポート。</li>
+                    <li><strong>📅 過去受診日・科の通常表示:</strong> 過去日の受診はスッキリとしたスレートグレー（<code>.visit-past</code>）で <code>📅 最終: 2026/10/26 (胃腸科)</code> と表示。新患は <code>最終: なし(新患)</code>。</li>
+                    <li><strong>未来予約カルテの除外:</strong> SQL Server側で <code>ConsultDate &lt;= CONVERT(date, GETDATE())</code> を厳格にフィルタリングし、未来の予約カルテが「最終受診日」として誤表示されないよう完全制御。</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>API整備（karteview ＆ get_mall_patient）</h3>
+                <p>内視鏡予約システムおよびWebカルテビューア（karteview）のバックエンドAPIを共通整備しました。</p>
+                <table class="spec-table">
+                    <thead>
+                        <tr>
+                            <th>APIエンドポイント</th>
+                            <th>整備内容</th>
+                            <th>返却追加フィールド</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>../karteview/api_patient.php</code></td>
+                            <td>SQL Server (<code>T_Karte</code>, <code>M_ConsultCtrl</code>, <code>M_Staff</code>) より本日以前の直近受診日・科・担当医を取得</td>
+                            <td><code>last_visit_date</code>, <code>last_dept_name</code>, <code>last_doctor_name</code>, <code>is_today_visit</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>get_mall_patient.php</code></td>
+                            <td>患者基本属性（住所・TEL）取得時に直近受診日・科・担当医を同時取得・返却</td>
+                            <td><code>last_visit_date</code>, <code>last_dept_name</code>, <code>last_doctor_name</code>, <code>is_today_visit</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- セクション6 -->
+        <section id="sec6">
+            <h2>6. レコード日時表示 ＆ UIデザイン統一・パレット拡充 (5項目改善)</h2>
+            <p>画面全体の情報把握性、操作性、および視覚的調和をさらに洗練させるため、現場の使い勝手に直結する5つの細部ブラッシュアップを実施しました。</p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>改善項目</th>
+                        <th>改修前の状態</th>
+                        <th>改修後の仕様（洗練UI）</th>
+                        <th>改善効果・医療安全メリット</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>① 作成・更新日時の表示</strong></td>
+                        <td>モーダル画面内にレコード登録・更新日時が表示されていなかった</td>
+                        <td>最上段ヘッダー（タイトルと保存ボタンの間）に <code>🕒 登録: YYYY/MM/DD HH:mm | 更新: YYYY/MM/DD HH:mm</code> をコンパクト表示（新規時は <code>🕒 新規予約作成</code>）</td>
+                        <td>いつ登録され、直近いつ変更された予約であるかをモーダルを開いた瞬間に一目で確認可能に。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>② 医師名プルダウンのカラー統一</strong></td>
+                        <td>白背景（#ffffff）の通常コントロール</td>
+                        <td><span class="badge" style="background:#fefce8; color:#713f12; border:1px solid #fde047;">薄い黄色 (#fefce8) / 太字</span></td>
+                        <td>検査種別（#exam_type）と完全に同一の薄黄ハイライトを適用。最重要入力のペアとして視線誘導を強化。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>③ 電話マーク重複の解消</strong></td>
+                        <td><code>📞 TEL: 088-xxx-xxxx</code>（絵文字と英字の二重表記）</td>
+                        <td><code>📞 088-xxx-xxxx</code>（電話アイコンのみのシンプル表記）</td>
+                        <td>ごちゃつきを解消しスッキリ整理。クリックコピー機能（クリップボード格納）はそのまま連動。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>④ 時間枠・診療科のソフトブルー統一</strong></td>
+                        <td>白背景（#ffffff）の通常コントロール</td>
+                        <td><span class="badge" style="background:#eff6ff; color:#1e3a8a; border:1px solid #93c5fd;">薄いソフトブルー (#eff6ff) / 濃紺太字</span></td>
+                        <td>基本情報パネル上段の「検査日ピッカー（特大Flatpickr）」と背景・枠線を統一し、清涼感のあるブロック調和を実現。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>⑤ 備考カラーパレットの大幅拡充</strong></td>
+                        <td>文字色3色、網掛け蛍光色3色のみ</td>
+                        <td>
+                            <strong>文字色（8色）:</strong> 赤、濃赤、橙、緑、水色、青、紫、濃灰<br>
+                            <strong>網掛け（8色）:</strong> 薄黄、薄橙、薄緑、薄青、薄桃、薄紫、薄赤、薄灰
+                        </td>
+                        <td>医療特記・アレルギー・抗血栓薬・注意事項等の重要度やカテゴリーに応じた見やすいカラー色分け・マーキングが可能に。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- セクション7 -->
+        <section id="sec7">
+            <h2>7. タブレット対応印刷強化 ＆ 下部検査ネームプレート印刷モジュール（デザイン徹底洗練）</h2>
+            <div class="card card-highlight">
+                <p>内視鏡室・前処置室におけるタブレット端末（iPad / Android）での利便性向上、および大腸内視鏡（CF）検査患者の病室・トイレ・ベッド等で使用する<strong>「ネームプレート（横147mm × 縦70mm）」</strong>を現場で素早く作成・印刷するための新機能を実装しました。現場ヒアリングに基づき、ネームプレート内の不要文字を完全に排除し、氏名の視認性を限界まで高める徹底的なデザイン洗練を実施しました。</p>
+            </div>
+
+            <h3>(1) 「🖨️ 本日リスト印刷」ハイブリッド印刷 ＆ プリンタ個別設定</h3>
+            <p>日別予約一覧印刷（<code>print_schedule_daily.php</code>）において、従来の「🖨️ 印刷を実行」から<strong>「🖨️ 本日リスト印刷」</strong>にボタン名を変更するとともに、ネームプレート印刷と同様に<strong>「🖨️ 出力先:」セレクター</strong>を新設しました。現場業務の使い分け（一覧は高速モノクロ、ネームプレートは複合機など）に対応できるよう、<strong>本日リスト印刷とネームプレート印刷でそれぞれ独立してプリンタ設定を端末記憶（localStorage）</strong>可能にしました。</p>
+            <ul>
+                <li><strong>独立したプリンタ記憶:</strong> 本日リストは <code>endoscope_print_dest_daily</code>、ネームプレートは <code>endoscope_print_dest_nameplate</code> として個別に端末保存。互いに干渉せず、それぞれの最適な出力先が自動維持されます。</li>
+                <li><strong>自動ハイブリッド動作:</strong> Windows/通常印刷（local）選択時は使い慣れたブラウザ印刷ダイアログ、院内複合機選択時はサーバー直接印刷（Edge headless PDF ＋ SumatraPDF）が自動連動。</li>
+                <li><strong>タップ領域最適化:</strong> <code>touch-action: manipulation; user-select: none;</code> をすべての操作ボタンに適用。</li>
+                <li><strong>左右スワイプ日付移動 (NEW!):</strong> タブレット画面上で指を左右にスワイプするだけで、前日（右スワイプ）／翌日（左スワイプ）へ直感的に日付切り替えが可能（キーボードの ← / → キーとも連動）。</li>
+            </ul>
+
+            <h3>(2) 「🏷️ ネームプレート印刷」ボタンの新設</h3>
+            <p><code>print_schedule_daily.php</code> の上部操作バーに、<strong>「🏷️ ネームプレート印刷」</strong>ボタンを新設しました。当日の大腸CF件数バッジ（例: <code>15</code>）が自動連動し、クリック（タップ）すると別タブで対象患者のネームプレート印刷プレビュー画面（<code>print_nameplate.php</code>）を展開します。</p>
+
+            <h3>(3) 横147mm × 縦70mm A4縦4枚完全面付け ＆ ネームプレート印字デザイン徹底洗練</h3>
+            <p>ハサミでの切り取り作業が現場スタッフの負担にならないよう、A4縦用紙（幅210mm × 高さ297mm）に対して最も無駄なく、最小限のハサミ入れ（縦2回・横3回）で切り離せる面付け設計を採用。さらに、現場からの詳細な要望を反映し、プレート内の印字内容を極限まで研ぎ澄ましました。</p>
+
+            <div class="ascii-art">
++------------------------- A4用紙 (210mm × 297mm) -------------------------+
+|                              [ 上余白 8.5mm ]                             |
+|       左余白 31.5mm          +-------------------------+    右余白 31.5mm |
+|       (縦ハサミ切断線)       | ﾏ101         モビプレップ|    (縦ハサミ線)  |
+|             |                |                         |          |       |
+|             |                |      遠藤　大介         |          |       |
+|             |                |                       様|          |       |
+|             |                + - - - - - - - - - - - - + < 横切断線(1本) |
+|             |                | ﾏ102         モビプレップ|          |       |
+|             |                |      冨岡　笑理         |          |       |
+|             |                |                       様|          |       |
+|             |                + - - - - - - - - - - - - + < 横切断線(1本) |
+|             |                | ﾏ103         モビプレップ|          |       |
+|             |                |      西川　康彦         |          |       |
+|             |                |                       様|          |       |
+|             |                + - - - - - - - - - - - - + < 横切断線(1本) |
+|             |                | ﾏ104         モビプレップ|          |       |
+|             |                |      西森　隆志         |          |       |
+|             |                |                       様|          |       |
+|             |                +-------------------------+          |       |
+|                              [ 下余白 8.5mm ]                             |
++---------------------------------------------------------------------------+
+  ※縦に左右2回、横に3回ハサミを入れるだけで、きれいに4枚のプレート（147×70mm）が完成！
+  ※利用するプレート枠内には「キリトリ」「ID」「時間枠」等の余計な文字は一切印刷されません。
+            </div>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th>最新仕様・寸法</th>
+                        <th>現場メリット・設計意図</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>カード寸法</td>
+                        <td><strong>横 147mm × 縦 70mm</strong></td>
+                        <td>前処置室のドアプレート・ベッドフレーム・トイレ指定プレートにジャストフィット。</td>
+                    </tr>
+                    <tr>
+                        <td>A4面付け配置</td>
+                        <td><strong>縦 4 枚</strong>（中央配置、上下各8.5mm、左右各31.5mm余白）</td>
+                        <td>上下・左右の余白がプリンタの物理印字限界（通常3〜5mm）より十分に広いため、どのプリンタでも枠欠けゼロ。</td>
+                    </tr>
+                    <tr>
+                        <td>外枠・切り取り線</td>
+                        <td><code>border: 1.5px dashed #475569;</code></td>
+                        <td>隣接カードのボーダーを重ねることで、横一直線のハサミ入れ1回で上下が分離可能。<strong>利用するプレート枠内には「キリトリ」文字を一切印刷しない</strong>クリーン仕様。</td>
+                    </tr>
+                    <tr>
+                        <td>上段左: 部屋名</td>
+                        <td><strong>純粋な部屋名のみ（例: <code>ｲ203</code>）</strong><br>フォント 26pt（グレー <code>#64748b</code>・超極太900）</td>
+                        <td>「部屋：」ラベルを完全排除し、純粋な部屋番号のみを落ち着いたグレーで大きく印字。</td>
+                    </tr>
+                    <tr>
+                        <td>上段右: 下剤名</td>
+                        <td><strong>純粋な下剤名のみ（例: <code>モビプレップ</code>）</strong><br>フォント 19pt（グレー <code>#64748b</code>・太字800）</td>
+                        <td>「下剤：」ラベルを完全排除。略称（モビ/マグP/ニフ）を自動的に正式名に変換し、上段右端にグレーで印字。</td>
+                    </tr>
+                    <tr>
+                        <td>中段中央: 氏名</td>
+                        <td><strong>フルネーム 46pt（超極太900 ＆ 太線輪郭補強）</strong><br><code>-webkit-text-stroke: 0.5px #000000;</code></td>
+                        <td>「ネームをもう少し大きく、できるだけ太線で」の要望に応え、限界サイズの46ptかつ極太線で中央配置。文字数に応じて30〜46ptに自動フィット。</td>
+                    </tr>
+                    <tr>
+                        <td>下段右: 敬称「様」</td>
+                        <td><strong>様 24pt（超極太900）を氏名の下段・右下に配置</strong></td>
+                        <td>氏名と同じ行に並べず、下段右下に揃えて配置することで、氏名自体の文字幅・フォントサイズを最大化。</td>
+                    </tr>
+                    <tr>
+                        <td>白紙ページ排出防止<br>（トラブルシューティング）</td>
+                        <td><strong>@page margin:0 ＆ シート高297mm完全固定 ＆ overflow:hidden</strong></td>
+                        <td>3ページ印刷時に空白ページが1枚ずつ挟まり6枚排出されていた原因（@pageマージン8.5mm指定による有効高さ280mmに対し、シートのmin-height:297mmがはみ出して自動改ページを誘発していた不整合）を完全解消。正確に指定ページ数通りに出力されるよう堅牢化。</td>
+                    </tr>
+                    <tr>
+                        <td>時間枠名・患者ID</td>
+                        <td><strong>完全排除（印刷しない）</strong></td>
+                        <td>現場で不要と判断された右下の時間枠名・患者IDを撤去し、ネームプレート本来の目的（名前・部屋・下剤の視認）に完全特化。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>(4) 操作バーと自動制御（非印刷）</h3>
+            <ul>
+                <li><strong>印刷実行ボタン:</strong> 出力先に応じて「🖨️ ネームプレート印刷」（Windows）／「🖨️ サーバ直で印刷」（タブレット）と自動切り替え。</li>
+                <li><strong>出力先プリンタ設定の端末保存（localStorage）:</strong> 選択したプリンタ設定はブラウザの <code>localStorage</code> に自動保存され、端末ごとに固定。次回アクセス時も前回の設定が自動維持されます。</li>
+                <li><strong>左右スワイプ日付移動 (NEW!):</strong> 画面上を左右にスワイプするだけで、前日／翌日へのスムーズな日付切り替えが可能。</li>
+                <li><strong>並び順（ソート）切替:</strong> 前処置室の準備に最も適した「🚪 部屋順（自然順昇順）」をデフォルトとし、「⏰ 時間枠順」への切り替えも可能。</li>
+                <li><strong>対象件数・用紙枚数バッジ:</strong> 例: 「対象: 15名 (4ページ)」とリアルタイム表示。</li>
+            </ul>
+
+            <h3>(5) サーバー直接印刷（リモート印刷）ハイブリッドアーキテクチャ</h3>
+            <div class="card card-highlight">
+                <p>タブレット端末には院内プリンタドライバやWi-Fiプリンタ接続が存在しない環境でも、現場スタッフが手元のタブレットから処置室や受付のプリンタへ直接印刷ジョブを送信できる<strong>「サーバー直接印刷（リモート印刷）」</strong>機能を開発しました。同時に、<strong>「Windows PCからの利用時は従来通りローカル印刷」</strong>を端末判別により自動制御します。</p>
+            </div>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>アクセス端末</th>
+                        <th>初期動作・デフォルト</th>
+                        <th>出力先セレクターの動作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Windows PC</strong></td>
+                        <td><strong>💻 この端末から印刷 (従来通り)</strong><br>ブラウザ標準の <code>window.print()</code> が起動し、端末に接続されているプリンタから印刷。</td>
+                        <td><code>print_nameplate.php</code> 画面上で、必要に応じて「🏢 おの_C2570 複合機」などを選ぶことで、Windowsからでも遠隔処置室プリンタへ直接送信可能。設定は端末記憶。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>タブレット端末<br>(iPad / Android)</strong></td>
+                        <td><strong>🏢 おの_C2570 複合機 (サーバ直)</strong><br>タブレット側にプリンタ接続が一切不要！ボタンを押すだけでサーバーから院内プリンタへ印刷ジョブを直接送信。</td>
+                        <td>「🖨️ 出力先:」プルダウンから、クリニック_C2570、OKI B432など院内の任意プリンタを自由に指示可能。選択したプリンタは端末ごとに自動記憶・固定。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="ascii-art">
+[タブレット端末 (iPad / Android)]
+   | (1) 画面でプリンタを選択（例: おの_C2570 複合機 ➔ 端末に自動記憶）
+   | (2) 「🖨️ サーバ直で印刷」をタップ！
+   v
+[Webサーバー (Apache / PHP: api_server_print.php)]
+   | (3) Edge headless エンジンで対象画面を高精細PDF化
+   | (4) SumatraPDF.exe により指定プリンタのWindowsスプーラーへ送信
+   v
+[院内ネットワークプリンタ (おの_C2570 / OKI B432 等)]
+   ➔ 自動的に用紙が排出される！
+   ➔ タブレット画面に「✅ ［おの_C2570 複合機］へ印刷指示を送信しました」と完了通知表示
+            </div>
+
+            <h3>(6) 院内プリンターマスターメンテナンス（printer_master_maintenance.php）新設 ＆ 差異の根本解決</h3>
+            <div class="card card-highlight">
+                <p><strong>【背景と差異の根本原因】</strong><br>
+                「サーバーのプリントリストと現場PCで印刷可能なプリンタ名に差異がある」という現象は、院内各クライアントPCで個別に分かりやすい名前（例: <code>FUJIFILM Apeos C2570 (肛)</code>、<code>FUJIFILM Apeos C2570 (胃)</code>）にリネームされているのに対し、Webサーバー（Windows Server）上にはOS初期登録名（例: <code>おの_C2570 複合機</code>、<code>クリニック_C2570複合機</code>）で登録されていたことが原因でした。<br>
+                この差異を解消し、現場スタッフがWeb画面上から直感的にプリンタを選択・名称変更できるよう、<strong>「院内プリンターマスターメンテナンス（printer_master_maintenance.php）」</strong>を新設しました。</p>
+            </div>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>機能項目</th>
+                        <th>詳細仕様</th>
+                        <th>現場メリット</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>サーバー検出プリンタ一覧</strong></td>
+                        <td>PowerShell（<code>Get-Printer</code>）を用いてサーバーOS内の全インストール済みプリンタを自動検出し、IPポート・状態とともに一覧表示。未登録プリンタは「➕ 選択肢に追加」ボタン1クリックで取り込み。</td>
+                        <td>新しいプリンタを導入した際も、設定ファイルを手動編集することなく、Web画面から即座に取り込み可能。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>表示名称（ラベル・呼称）の自由編集</strong></td>
+                        <td>サーバー内部名とは別に、現場で親しまれている呼称（例: <code>Apeos C2570 (肛) / おの複合機</code>、<code>Apeos C2570 (胃) / クリニック複合機</code>、<code>OKI B432 高速モノクロ</code>）を自由に編集・保存可能。</td>
+                        <td>現場PCの呼び名とWeb上の選択肢が100%一致し、「どのプリンタを選べば良いか」の迷いが完全ゼロに。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>有効/無効トグルスイッチ</strong></td>
+                        <td>PDF作成ソフト（Microsoft Print to PDF等）や使用しないプリンタはワンクリックで「無効」に設定可能。</td>
+                        <td>印刷画面のセレクトボックスには業務上必要なプリンタだけがすっきり表示され、誤選択を防止。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>デフォルトプリンタ指定</strong></td>
+                        <td>院内で最も標準的に使用するプリンタをラジオボタンで1台指定可能。</td>
+                        <td>初回の端末アクセス時に最適なプリンタが自動選択されるため初期設定の手間を削減。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>テスト印刷実行</strong></td>
+                        <td>マスタ画面内の「🧪 テスト」ボタンから、専用の1枚もの接続テスト用紙（<code>target=test_page</code>）を自動生成し、SumatraPDF経由で実際にプリンターへ印刷ジョブを送信・排紙。※初期実装時にシミュレーションモードで終了していたため物理排紙されなかった問題を完全改修し、実機テスト印刷が確実に動作するよう最適化。</td>
+                        <td>運用開始前の疎通確認・排紙確認が現場スタッフだけで画面から容易に行えます。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3大マスタ＆ポータル統合</strong></td>
+                        <td>「⏱️ 検査枠マスタ」「🔧 汎用選択肢マスタ」「🔬 検査種別マスタ」の各上部タブに「🖨️ プリンターマスタ」を追加。ポータル（<code>index.php</code>）にも管理カードを新設。</td>
+                        <td>どのマスタ画面からもタブ1つで相互に行き来可能。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- セクション8 -->
+        <section id="sec8">
+            <h2>8. 動作検証およびテスト結果</h2>
+            <div class="alert-box alert-success">
+                <span>✓</span>
+                <div>
+                    <strong>総合テスト全項目パス（構文エラー 0 件、ロジックテスト 100% 成功、実データ検証完了）</strong><br>
+                    PHP構文リント、HTMLレンダリングテスト、Node.jsロジック検証、実患者データ（本日受診・過去受診・新患）でのAPI応答検証、modal_editのUI反映テスト、新設ネームプレート印刷（147×70mm・4枚面付け、氏名46pt極太・様下段配置・部屋下剤グレー単体）、出力先プリンタの端末記憶（localStorage）、左右スワイプ日付移動、およびサーバー直接印刷API（PDF生成・プリンタ指示）のすべてにおいて正常動作を確認しました。
+                </div>
+            </div>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>テスト項目</th>
+                        <th>検証内容</th>
+                        <th>判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PHP構文チェック</td>
+                        <td><code>modal_edit.php</code>, <code>print_schedule_daily.php</code>, <code>print_nameplate.php</code>, <code>api_server_print.php</code>, <code>get_mall_patient.php</code> のリント検証</td>
+                        <td><span class="badge badge-success">OK (No syntax errors)</span></td>
+                    </tr>
+                    <tr>
+                        <td>ネームプレート徹底洗練レイアウト検証</td>
+                        <td>不要文字（キリトリ、時間枠、ID、部屋:、下剤:）の完全排除、部屋名・下剤名のグレー単体表示（26pt/19pt）、氏名特大太線（46pt・900）、様の下段右下配置（24pt）の確認（<code>scratch/test_updated_layout.php</code>）</td>
+                        <td><span class="badge badge-success">OK (仕様完全合致・全項目PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td>白紙ページ排出防止・ページ数整合テスト</td>
+                        <td>胃腸科（10名・3シート➔3ページ）、全科（15名・4シート➔4ページ）、肛門科（5名・2シート➔2ページ）の全条件で、余分な白紙が1枚も排出されず指定シート数とPDF出力ページ数が100%完全一致することの自動検証（<code>scratch/verify_all_nameplate_pages.php</code>）</td>
+                        <td><span class="badge badge-success">OK (白紙ゼロ・全条件PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td>プリンタ設定 端末記憶（localStorage）テスト</td>
+                        <td><code>print_nameplate.php</code>（キー: <code>endoscope_print_dest_nameplate</code>）および <code>print_schedule_daily.php</code>（キー: <code>endoscope_print_dest_daily</code>）でそれぞれ独立して出力先プリンタが端末ブラウザの <code>localStorage</code> に保存され、互いに干渉せず復元されることの確認（<code>scratch/test_independent_printers.php</code>）</td>
+                        <td><span class="badge badge-success">OK (独立記憶・完全分離PASS)</span></td>
+                    </tr>
+                    <tr>
+                        <td>タッチ左右スワイプ日付移動テスト</td>
+                        <td><code>print_schedule_daily.php</code> および <code>print_nameplate.php</code> において、左右スワイプ（最小60px、縦ブレ50px以内）で前日/翌日へスムーズに遷移し、縦スクロール誤爆が防止されていることの確認</td>
+                        <td><span class="badge badge-success">OK (両画面スワイプ対応)</span></td>
+                    </tr>
+                    <tr>
+                        <td>本日リスト サーバー直接印刷（target=daily_list）検証</td>
+                        <td><code>api_server_print.php</code> において <code>target=daily_list</code> でEdge headlessによるA4予約一覧PDF生成（700KB）および指定プリンタ（OKI B432等）への送信準備が正常動作することの確認</td>
+                        <td><span class="badge badge-success">OK (PDF生成700KB・正常応答)</span></td>
+                    </tr>
+                    <tr>
+                        <td>サーバー直接印刷API検証</td>
+                        <td><code>api_server_print.php</code> における院内プリンタ一覧（list）およびEdge headless PDF生成（print & test_mode）の検証</td>
+                        <td><span class="badge badge-success">OK (PDF生成・サイズ342KB/712KB確認)</span></td>
+                    </tr>
+                    <tr>
+                        <td>ネームプレート出力検証 (実データ)</td>
+                        <td>本日（2026-10-30）のCF患者15名分が4枚/シート（全4シート・16枠）で正確に出力されることのHTTP検証（<code>test_nameplate_output.php</code>）</td>
+                        <td><span class="badge badge-success">OK (15名完全抽出)</span></td>
+                    </tr>
+                    <tr>
+                        <td>最上段レコード日時表示テスト</td>
+                        <td>既存予約（ID: 2402）および新規予約モードでの <code>.header-record-meta</code> 正常表示確認</td>
+                        <td><span class="badge badge-success">OK (登録・更新日時確認)</span></td>
+                    </tr>
+                    <tr>
+                        <td>医師名・検査種別薄黄CSSテスト</td>
+                        <td><code>#doctor_name</code>, <code>#exam_type</code> への薄黄色（#fefce8）および太字の適用確認</td>
+                        <td><span class="badge badge-success">OK (ハイライト一致)</span></td>
+                    </tr>
+                    <tr>
+                        <td>時間枠・診療科薄青CSSテスト</td>
+                        <td><code>#scheduled_time</code>, <code>#department_code_select</code> への薄青（#eff6ff）適用確認</td>
+                        <td><span class="badge badge-success">OK (ピッカーと統一一致)</span></td>
+                    </tr>
+                    <tr>
+                        <td>電話番号📞アイコンのみ表示テスト</td>
+                        <td>PHP初期表示およびJS描画で「TEL:」が撤去され <code>📞</code> のみでコピー連動することの確認</td>
+                        <td><span class="badge badge-success">OK (完全一致)</span></td>
+                    </tr>
+                    <tr>
+                        <td>Quill 8色カラー/網掛けパレットテスト</td>
+                        <td>文字色8色（#e11d48, #16a34a等）および網掛け8色（#e0f2fe, #fce7f3等）の描画確認</td>
+                        <td><span class="badge badge-success">OK (パレット完全描画)</span></td>
+                    </tr>
+                    <tr>
+                        <td>本日受診患者のAPI＆バッジ判定</td>
+                        <td>実患者（No: 54313）照会時、<code>is_today_visit: true</code> および <code>🔴 本日受診 (胃腸科)</code> の生成確認</td>
+                        <td><span class="badge badge-success">OK (赤色強調バッジ確認)</span></td>
+                    </tr>
+                    <tr>
+                        <td>プリンターマスターメンテナンス 表示＆保存テスト</td>
+                        <td><code>printer_master_maintenance.php</code> のレンダリング、サーバー検出プリンタ列挙、名称（ラベル）変更、有効/無効トグル、デフォルト指定、および <code>config/printers.json</code> への一括保存検証</td>
+                        <td><span class="badge badge-success">OK (検出・保存・反映成功)</span></td>
+                    </tr>
+                    <tr>
+                        <td>プリンター共通ヘルパー動的セレクターテスト</td>
+                        <td><code>lib/printer_helper.php</code> の <code>renderPrinterSelectOptions()</code> が <code>print_schedule_daily.php</code> および <code>print_nameplate.php</code> で正しくマスタの有効プリンタとカスタムラベルを反映することの確認</td>
+                        <td><span class="badge badge-success">OK (動的生成・完全同期)</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- セクション9 -->
+        <section id="sec9">
+            <h2>9. 変更ファイル一覧</h2>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th>ファイルパス</th>
+                        <th>区分</th>
+                        <th>改修要約</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>printer_master_maintenance.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>院内プリンターマスターメンテナンス画面。PowerShell自動検出、表示名称（呼称・ラベル）自由編集、IPポート設定、有効/無効トグル、デフォルト指定、テスト印刷実行、設定一括保存機能を実装</td>
+                    </tr>
+                    <tr>
+                        <td><code>lib/printer_helper.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>共通プリンターヘルパーライブラリ。<code>getPrinterConfig()</code>, <code>savePrinterConfig()</code>, <code>renderPrinterSelectOptions()</code>, <code>getSystemInstalledPrinters()</code> を提供</td>
+                    </tr>
+                    <tr>
+                        <td><code>config/printers.json</code></td>
+                        <td><span class="badge badge-success">新規/更新</span></td>
+                        <td>院内プリンタ定義ファイル。おの_C2570、クリニック_C2570、OKI B432、Brother、RICOH等の表示ラベル・有効無効・デフォルト設定を管理</td>
+                    </tr>
+                    <tr>
+                        <td><code>print_nameplate.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>下部内視鏡検査患者用ネームプレート印刷専用モジュール。横147mm×縦70mm A4縦4枚面付け。白紙ページ排出完全根絶（@page margin:0 ＆ height:297mm完全固定）、氏名特大太線（46pt・900）、様の下段右下配置、部屋・下剤のグレー単体表示、キリトリ/時間枠/ID完全排除、ネームプレート専用プリンタ端末記憶（<code>endoscope_print_dest_nameplate</code>）、動的セレクター生成、左右スワイプ日付移動対応</td>
+                    </tr>
+                    <tr>
+                        <td><code>print_schedule_daily.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>ボタン名を「🖨️ 本日リスト印刷」に変更、「🏷️ ネームプレート印刷」ボタン新設（CF件数バッジ連動）。「🖨️ 出力先:」セレクター新設、本日リスト専用プリンタ端末記憶（<code>endoscope_print_dest_daily</code>）、Windows従来通り／タブレットサーバー直印刷のハイブリッド実行ハンドラ実装、動的セレクター生成、左右スワイプ日付移動対応</td>
+                    </tr>
+                    <tr>
+                        <td><code>api_server_print.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>サーバー直接印刷（リモート印刷）バックエンドAPI。プリンタ一覧返却、Edge headless 高精細PDF生成（ネームプレート＆本日リスト）、SumatraPDFサイレント印刷制御を実装</td>
+                    </tr>
+                    <tr>
+                        <td><code>print_nameplate.php</code></td>
+                        <td><span class="badge badge-success">新規/改修</span></td>
+                        <td>下部検査ネームプレート印刷専用モジュール（A4縦4枚面付け）。「苗字のみ」特大印刷への全面刷新（2〜3文字に合わせた54pt特大化＆ゆったりとした文字間隔）、同姓患者の「苗字＋（名前の1文字目）」自動識別表記、余白枠の手書き用「様」のみ印字対応、完全オフライン対応（Windows標準モリサワUDフォント「BIZ UDPゴシック」標準採用、広い空間での収まり・骨格安定性を強化）、操作バーにフォント切り替えセレクター（BIZ UDP / メイリオ / 游ゴシック / UD教科書体）を搭載、部屋名・下剤名のサイズ適正化（約30%縮小して四隅へ配置）</td>
+                    </tr>
+                    <tr>
+                        <td><code>print_schedule_daily.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>当日リスト印刷画面へのサーバー直接印刷（サイレント印刷）機能追加、操作バー文言整理（「A4当日一覧印刷」等削除、印刷ボタンキャプション「当日リスト印刷」固定化）、部屋・下剤一括ボタンの2段目右端配置への変更</td>
+                    </tr>
+                    <tr>
+                        <td><code>bin/SumatraPDF.exe</code></td>
+                        <td><span class="badge badge-success">新規配備</span></td>
+                        <td>Windowsサーバー上でのサイレント印刷実行用CLIポータブルバイナリ</td>
+                    </tr>
+                    <tr>
+                        <td><code>index.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>統合ポータルのマスタ管理セクションへ「🖨️ プリンターマスターメンテ」カードを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>slot_master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>3大マスタ共通ナビ（master-hub-nav）に「🖨️ プリンターマスタ」タブを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>3大マスタ共通ナビ（master-hub-nav）に「🖨️ プリンターマスタ」タブを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>exam_master_maintenance.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>3大マスタ共通ナビ（master-hub-nav）に「🖨️ プリンターマスタ」タブを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>modal_edit.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>MALL3メモ直接転記ボタン、患者Noテンキー、カラー最適化（患者No/検査種別/医師名:薄黄、時間枠/診療科:薄青、仮予約:グレー）、電カル独立配置＆最終受診日表示、作成更新日時表示、電話TEL重複解消、Quill8色パレット拡充</td>
+                    </tr>
+                    <tr>
+                        <td><code>get_mall_patient.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>MALL3患者情報APIに直近最終受診日・診療科・担当医・本日受診フラグの取得クエリを追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>../karteview/api_patient.php</code></td>
+                        <td><span class="badge badge-primary">改修</span></td>
+                        <td>Webカルテビューア患者APIに直近最終受診日・診療科・担当医・本日受診フラグ取得を追加（バックアップ作成済）</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/2026-10-30works.html</code></td>
+                        <td><span class="badge badge-success">新規/更新</span></td>
+                        <td>本日の改修作業完了報告書（本ファイル）</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/specdoc.html</code></td>
+                        <td><span class="badge badge-primary">更新</span></td>
+                        <td>全体機能仕様書の更新履歴、ネームプレート印刷仕様、本日リスト印刷仕様、および「30. 院内プリンターマスターメンテナンス」の追記</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </div>
+</div>
+
+</body>
+</html>

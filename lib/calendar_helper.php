@@ -1,8 +1,14 @@
 <?php
 /**
- * lib/calendar_helper.php - カレンダー関連関数（高速化版）
- * 修正: 2026-08-28（枠数0かつ予約あり時の異常値検知・残数-1等の赤枠強調対応）
- * 修正: 2026-10-09（医師予定表連携: yotei APIより休診・不在予定を取得し日付セル左端列に🙅🏼コンパクトバッジ表示）
+ * 設置パス: c:\Apache24\htdocs\endoscope\lib\calendar_helper.php
+ * ファイル名: calendar_helper.php
+ * 概要: カレンダー・マトリクス左端日付セル関連関数（高速化版）
+ * 更新日時: 2026-11-07
+ * 修正履歴:
+ *   - 2026-08-28: 枠数0かつ予約あり時の異常値検知・残数-1等の赤枠強調対応
+ *   - 2026-10-09: 医師予定表連携: yotei APIより休診・不在予定を取得し日付セル左端列に🙅🏼コンパクトバッジ表示
+ *   - 2026-11-01: getCalendarPreviewsForDates内の医師予定配列パース時のUndefined key 'title'警告を解消
+ *   - 2026-11-07: getDayDataForCalendarFast() における検査種別集計を resolveExamGroup() に統一（浣腸CF等の全種別を正確にカウント）
  */
 
 require_once __DIR__ . '/slot_helper.php';
@@ -156,9 +162,6 @@ function getDayDataForCalendarFast(string $dept, string $date_str, int $w, array
     $result = [];
     $total_used = 0;
     $total_max = 0;
-    $gif_group = ['GIF', '◆胃がん検診◆', '胃がん検診'];
-    $echo_group = ['ECHO', 'エコー'];
-    $tcf_group = ['TCF', 'W', 'ポリペク'];
     
     $day_cache = $reserved_cache[$date_str] ?? [];
 
@@ -166,13 +169,20 @@ function getDayDataForCalendarFast(string $dept, string $date_str, int $w, array
         $status = getDoctorStatusFromCacheMatrix($doctor_name, $date_str, $w, $master_cache);
         $doc_exams = $day_cache[$doctor_name] ?? [];
         
-        // 予約件数の集計
+        // 予約件数の集計（resolveExamGroup により 浣腸CF・ポリペク・W・胃がん検診等をすべて正確に分類）
         $used_gif = 0;
-        foreach ($gif_group as $g_exam) { $used_gif += (int)($doc_exams[$g_exam] ?? 0); }
         $used_echo = 0;
-        foreach ($echo_group as $e_exam) { $used_echo += (int)($doc_exams[$e_exam] ?? 0); }
         $used_tcf = 0;
-        foreach ($tcf_group as $t_exam) { $used_tcf += (int)($doc_exams[$t_exam] ?? 0); }
+        foreach ($doc_exams as $e_name => $cnt) {
+            $grp = function_exists('resolveExamGroup') ? resolveExamGroup((string)$e_name) : (in_array($e_name, ['TCF', 'W', 'ポリペク', '浣腸CF'], true) ? 'TCF' : (($e_name === 'ECHO' || $e_name === 'エコー') ? 'ECHO' : 'GIF'));
+            if ($grp === 'GIF') {
+                $used_gif += (int)$cnt;
+            } elseif ($grp === 'ECHO') {
+                $used_echo += (int)$cnt;
+            } elseif ($grp === 'TCF') {
+                $used_tcf += (int)$cnt;
+            }
+        }
         
         $has_reservation = ($used_gif > 0 || $used_echo > 0 || $used_tcf > 0);
         
@@ -491,3 +501,264 @@ if (!function_exists('getDailyCfCounts')) {
         return $result;
     }
 }
+
+if (!function_exists('getCalendarPreviewsForDates')) {
+    /**
+     * 指定された複数日付（または単一日付）について、
+     * 胃腸科・肛門科両対応の全医師枠状況・消化数・全体集計・日別メモ・医師不在予定を一括生成して返却
+     * 
+     * @param PDO $pdo
+     * @param array $dates YYYY-MM-DD 形式の日付配列
+     * @return array [ 'YYYY-MM-DD' => [ 'date' => ..., 'departments' => [...], ... ], ... ]
+     */
+    function getCalendarPreviewsForDates(PDO $pdo, array $dates): array {
+        $dates = array_values(array_unique(array_filter($dates, function($d) {
+            return is_string($d) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d);
+        })));
+        if (empty($dates)) {
+            return [];
+        }
+
+        sort($dates);
+        $min_date = reset($dates);
+        $max_date = end($dates);
+
+        $doctor_meta = [
+            '誠吾' => ['dept' => 'PROCT', 'dept_name' => '肛門科', 'short' => '誠', 'cls' => 'doc-seigo', 'color' => '#059669'],
+            '哲也' => ['dept' => 'GASTRO', 'dept_name' => '胃腸科', 'short' => '哲', 'cls' => 'doc-tetsuya', 'color' => '#4f46e5'],
+            '義智' => ['dept' => 'GASTRO', 'dept_name' => '胃腸科', 'short' => '義', 'cls' => 'doc-yoshitomo', 'color' => '#7c3aed'],
+            '慶太郎' => ['dept' => 'GASTRO', 'dept_name' => '胃腸科', 'short' => '慶', 'cls' => 'doc-keitaro', 'color' => '#d97706'],
+        ];
+
+        $doctors_by_dept = [
+            'PROCT'  => ['誠吾'],
+            'GASTRO' => ['哲也', '義智', '慶太郎']
+        ];
+
+        // 1. 予約集計（全科・全医師・全検査種別）
+        $sql_cal_res = "
+            SELECT department_code, exam_date::text AS exam_date, doctor_name, exam_type, COUNT(*) as cnt
+            FROM t_endoscopy_schedule
+            WHERE exam_date >= :start_date AND exam_date <= :end_date
+              AND is_canceled = FALSE
+              AND (remarks IS NULL OR remarks NOT LIKE '%枠なし%')
+            GROUP BY department_code, exam_date, doctor_name, exam_type
+        ";
+        $stmt_cal_res = $pdo->prepare($sql_cal_res);
+        $stmt_cal_res->execute([':start_date' => $min_date, ':end_date' => $max_date]);
+        $all_res_map = [];
+        while ($row = $stmt_cal_res->fetch(PDO::FETCH_ASSOC)) {
+            $d = $row['exam_date'];
+            $dep = $row['department_code'];
+            $doc = $row['doctor_name'];
+            $et = $row['exam_type'] ?? '';
+            $c = (int)$row['cnt'];
+            $all_res_map[$d][$dep][$doc][$et] = ($all_res_map[$d][$dep][$doc][$et] ?? 0) + $c;
+        }
+
+        // 2. 枠マスタ一括取得（出勤例外・日別定員・曜日パターン）
+        $cal_slot_cache = [
+            'PROCT' => ['attendance' => [], 'daily_capacity' => [], 'patterns' => []],
+            'GASTRO' => ['attendance' => [], 'daily_capacity' => [], 'patterns' => []]
+        ];
+
+        // 2-1. 出勤例外
+        $stmt_att_p = $pdo->prepare("
+            SELECT department_code, doctor_name, target_date::text AS target_date, gif_slots, echo_slots, tcf_slots, reason, pattern_name
+            FROM m2_doctor_attendance
+            WHERE target_date >= :start_date AND target_date <= :end_date
+        ");
+        $stmt_att_p->execute([':start_date' => $min_date, ':end_date' => $max_date]);
+        while ($row = $stmt_att_p->fetch(PDO::FETCH_ASSOC)) {
+            $dep = $row['department_code'];
+            if (isset($cal_slot_cache[$dep])) {
+                $cal_slot_cache[$dep]['attendance'][(string)$row['target_date']][(string)$row['doctor_name']] = [
+                    'GIF' => (int)($row['gif_slots'] ?? 0),
+                    'ECHO' => (int)($row['echo_slots'] ?? 0),
+                    'TCF' => (int)($row['tcf_slots'] ?? 0),
+                    'reason' => (string)($row['reason'] ?? $row['pattern_name'] ?? '出勤例外')
+                ];
+            }
+        }
+
+        // 2-2. 日別上書き
+        $stmt_cap_p = $pdo->prepare("
+            SELECT department_code, doctor_name, target_date::text AS target_date, gif_slots, echo_slots, tcf_slots, memo_jp
+            FROM m2_doctor_daily_capacity_v2
+            WHERE target_date >= :start_date AND target_date <= :end_date
+        ");
+        $stmt_cap_p->execute([':start_date' => $min_date, ':end_date' => $max_date]);
+        while ($row = $stmt_cap_p->fetch(PDO::FETCH_ASSOC)) {
+            $dep = $row['department_code'];
+            if (isset($cal_slot_cache[$dep])) {
+                $cal_slot_cache[$dep]['daily_capacity'][(string)$row['target_date']][(string)$row['doctor_name']] = [
+                    'GIF' => (int)($row['gif_slots'] ?? 0),
+                    'ECHO' => (int)($row['echo_slots'] ?? 0),
+                    'TCF' => (int)($row['tcf_slots'] ?? 0),
+                    'reason' => (string)($row['memo_jp'] ?? '日別上書き')
+                ];
+            }
+        }
+
+        // 2-3. 曜日パターン
+        $stmt_pat_p = $pdo->prepare("
+            SELECT department_code, doctor_name, day_of_week, 
+                   MAX(gif_slots) as gif_slots, MAX(echo_slots) as echo_slots, MAX(tcf_slots) as tcf_slots
+            FROM m2_doctor_slot_pattern
+            WHERE is_active = TRUE
+            GROUP BY department_code, doctor_name, day_of_week
+        ");
+        $stmt_pat_p->execute();
+        while ($row = $stmt_pat_p->fetch(PDO::FETCH_ASSOC)) {
+            $dep = $row['department_code'];
+            if (isset($cal_slot_cache[$dep])) {
+                $cal_slot_cache[$dep]['patterns'][(int)$row['day_of_week']][(string)$row['doctor_name']] = [
+                    'GIF' => (int)($row['gif_slots'] ?? 0),
+                    'ECHO' => (int)($row['echo_slots'] ?? 0),
+                    'TCF' => (int)($row['tcf_slots'] ?? 0)
+                ];
+            }
+        }
+
+        // 3. 日別メモ一括取得
+        $memos_map = [];
+        try {
+            $stmt_memos = $pdo->prepare("
+                SELECT target_date::text as target_date, department_code, memo
+                FROM t_daily_memo
+                WHERE target_date >= :start_date AND target_date <= :end_date
+            ");
+            $stmt_memos->execute([':start_date' => $min_date, ':end_date' => $max_date]);
+            while ($row = $stmt_memos->fetch(PDO::FETCH_ASSOC)) {
+                $memos_map[(string)$row['target_date']][(string)$row['department_code']] = (string)$row['memo'];
+            }
+        } catch (Exception $e) {
+            // テーブル未存在等の場合はスキップ
+        }
+
+        // 4. 医師予定（不在等）一括取得 (yotei API)
+        $events_map = [];
+        if (function_exists('fetchDoctorEventsFromYotei')) {
+            try {
+                $raw_events = fetchDoctorEventsFromYotei($min_date, $max_date);
+                foreach ($raw_events as $ev) {
+                    if (empty($ev['doctor']) || empty($ev['doctor']['id'])) continue;
+                    $ev_type = $ev['event_type'] ?? '';
+                    if ($ev_type === 'meeting' || $ev_type === 'memo') continue;
+                    $d_key = $ev['date'] ?? $ev['start_date'] ?? '';
+                    if (empty($d_key) || !in_array($d_key, $dates, true)) continue;
+
+                    $fmt = formatDoctorEventSummary($ev);
+                    $events_map[$d_key][] = [
+                        'doctor' => $ev['doctor']['name'] ?? '',
+                        'short' => $fmt['doctor_short'] ?? ($ev['doctor']['short_name'] ?? '医師'),
+                        'label' => $fmt['badge_label'] ?? ($ev['title'] ?? '不在'),
+                        'raw_title' => $ev['title'] ?? ''
+                    ];
+                }
+            } catch (Exception $e) {
+                // yotei API通信失敗等はスキップ
+            }
+        }
+
+        $dow_names = ['日', '月', '火', '水', '木', '金', '土'];
+        $calendar_previews = [];
+
+        foreach ($dates as $cur_d) {
+            $dow_num = (int)date('w', strtotime($cur_d));
+            $dow_str = $dow_names[$dow_num];
+
+            $onokai_check = check_onokai_calendar($cur_d, null);
+            $is_closed_day = (bool)($onokai_check['is_closed'] ?? false);
+            $h_name = (string)($onokai_check['holiday_name'] ?? '');
+
+            // 医師予定のフォーマット
+            $day_events = [];
+            if (!empty($events_map[$cur_d])) {
+                foreach ($events_map[$cur_d] as $ev) {
+                    $d_short = $ev['short'] ?? ($doctor_meta[$ev['doctor']]['short'] ?? $ev['doctor']);
+                    $raw_title = $ev['raw_title'] ?? ($ev['title'] ?? '');
+                    $label = !empty($ev['label']) ? $ev['label'] : ($raw_title !== '' ? "{$d_short}医師 不在 ({$raw_title})" : "{$d_short}医師 不在");
+                    $day_events[] = [
+                        'doctor' => $ev['doctor'] ?? '',
+                        'short' => $d_short,
+                        'label' => $label,
+                        'raw_title' => $raw_title
+                    ];
+                }
+            }
+
+            $day_preview = [
+                'date' => $cur_d,
+                'dow' => $dow_str,
+                'is_closed' => $is_closed_day,
+                'holiday_name' => $h_name,
+                'memos' => $memos_map[$cur_d] ?? [],
+                'doctor_events' => $day_events,
+                'departments' => []
+            ];
+
+            // 胃腸科と肛門科の集計
+            foreach (['GASTRO' => '胃腸科', 'PROCT' => '肛門科'] as $dep_code => $dep_name) {
+                $dep_cache = $cal_slot_cache[$dep_code];
+                $dep_doc_list = $doctors_by_dept[$dep_code] ?? [];
+
+                $doc_list_res = [];
+                $tot_used = ['GIF' => 0, 'ECHO' => 0, 'TCF' => 0];
+                $tot_max  = ['GIF' => 0, 'ECHO' => 0, 'TCF' => 0];
+
+                foreach ($dep_doc_list as $doc_name) {
+                    $st = getDoctorStatusFromCacheMatrix($doc_name, $cur_d, $dow_num, $dep_cache);
+                    if (!$st['present']) {
+                        continue;
+                    }
+
+                    $d_meta = $doctor_meta[$doc_name] ?? ['short' => mb_substr($doc_name, 0, 1), 'cls' => ''];
+                    $d_res = $all_res_map[$cur_d][$dep_code][$doc_name] ?? [];
+
+                    $u_gif = 0; $u_echo = 0; $u_tcf = 0;
+                    foreach ($d_res as $etype => $cnt) {
+                        $grp = resolveExamGroup((string)$etype);
+                        if ($grp === 'GIF') $u_gif += $cnt;
+                        elseif ($grp === 'ECHO') $u_echo += $cnt;
+                        elseif ($grp === 'TCF') $u_tcf += $cnt;
+                    }
+
+                    $m_gif = (int)($st['slots']['GIF'] ?? 0);
+                    $m_echo = (int)($st['slots']['ECHO'] ?? 0);
+                    $m_tcf = (int)($st['slots']['TCF'] ?? 0);
+
+                    $doc_list_res[] = [
+                        'name' => $doc_name,
+                        'short' => $d_meta['short'],
+                        'cls' => $d_meta['cls'],
+                        'slots' => [
+                            'GIF'  => ['used' => $u_gif,  'max' => $m_gif,  'remain' => $m_gif - $u_gif],
+                            'ECHO' => ['used' => $u_echo, 'max' => $m_echo, 'remain' => $m_echo - $u_echo],
+                            'TCF'  => ['used' => $u_tcf,  'max' => $m_tcf,  'remain' => $m_tcf - $u_tcf],
+                        ]
+                    ];
+
+                    $tot_used['GIF'] += $u_gif;   $tot_max['GIF'] += $m_gif;
+                    $tot_used['ECHO'] += $u_echo; $tot_max['ECHO'] += $m_echo;
+                    $tot_used['TCF'] += $u_tcf;   $tot_max['TCF'] += $m_tcf;
+                }
+
+                $day_preview['departments'][$dep_code] = [
+                    'code' => $dep_code,
+                    'name' => $dep_name,
+                    'doctors' => $doc_list_res,
+                    'overall' => [
+                        'GIF'  => ['used' => $tot_used['GIF'],  'max' => $tot_max['GIF'],  'remain' => $tot_max['GIF'] - $tot_used['GIF']],
+                        'ECHO' => ['used' => $tot_used['ECHO'], 'max' => $tot_max['ECHO'], 'remain' => $tot_max['ECHO'] - $tot_used['ECHO']],
+                        'TCF'  => ['used' => $tot_used['TCF'],  'max' => $tot_max['TCF'],  'remain' => $tot_max['TCF'] - $tot_used['TCF']],
+                    ]
+                ];
+            }
+
+            $calendar_previews[$cur_d] = $day_preview;
+        }
+
+        return $calendar_previews;
+    }
+}

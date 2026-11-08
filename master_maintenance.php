@@ -15,6 +15,9 @@
  *       4. カテゴリ選択直下に「影響範囲と破綻リスク案内パネル」（exam_type/doctorは警告強調）を新設
  *       5. 削除確認ダイアログを「削除すると既存データと不整合が起きる可能性があります」に強化
  *       6. 画面最下部に「📜 マスタ変更履歴・復元（直近20件）」および「🗑️ 履歴一括削除」機能を新設
+ *   - 2026-10-26: 【検査種別マスタ一本化】exam_type を m_exam_type_group と完全一体化。大分類グループ（GIF/TCF/ECHO）と表示順・選択肢表示フラグを1画面で安全に管理可能に改修。3大マスタ統合ヘッダーナビゲーション導入、lib/env_helper.php 読込追加
+ *   - 2026-10-26: 【医師マスタ一本化】doctor を m2_doctor へ完全一体化。m_input_master の doctor 参照を廃止し、検査枠マスタへの誘導案内バナーを配備
+ *   - 2026-11-01: 【修正インフォメーション連携】system_info を新設管理画面（system_info_maintenance.php）へ誘導案内。統合ヘッダーナビに「📢 修正インフォメーション」タブを追加
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -32,17 +35,19 @@ try {
     ]);
 
     require_once __DIR__ . '/lib/master_audit_helper.php';
+    require_once __DIR__ . '/lib/env_helper.php';
 
     // 定義済み有効カテゴリ一覧（英名 ➔ 日本語名・危険度フラグ）
     $category_master_defs = [
-        'exam_type'      => ['label' => 'exam_type（検査種別）',        'danger' => true],
-        'doctor'         => ['label' => 'doctor（医師名）',           'danger' => true],
         'toilet_room'    => ['label' => 'toilet_room（マイトイレ部屋番号）', 'danger' => false],
         'bowel_prep'     => ['label' => 'bowel_prep（前処置下剤）',      'danger' => false],
         'arrival_time'   => ['label' => 'arrival_time（来院時間）',     'danger' => false],
         'exam_location'  => ['label' => 'exam_location（検査場所）',    'danger' => false],
         'remarks_phrase' => ['label' => 'remarks_phrase（備考パレット定型文）', 'danger' => false],
         'toiawase'       => ['label' => 'toiawase（案内票問い合わせ先）', 'danger' => false],
+        'system_info'    => ['label' => '📢 system_info（修正インフォメーション ➔ 専用画面で管理）', 'danger' => false],
+        'doctor'         => ['label' => '👨‍⚕️ doctor（医師名 ➔ 検査枠マスタへ一本化済）', 'danger' => false],
+        'exam_type'      => ['label' => '🔬 exam_type（検査種別 ➔ 専用画面へ一本化済）', 'danger' => false],
     ];
 
     // DB内に存在するカテゴリを取得
@@ -65,18 +70,18 @@ try {
     // カテゴリ別の説明・影響範囲・システム破綻リスクの案内文辞書
     $category_guides = [
         'exam_type' => [
-            'title'       => '⚠️ 【極めて危険・変更注意】検査種別マスタ',
-            'desc'        => '予約管理システム全体の基幹となる検査種別（GIF、TCF、エコー、ポリペク等）の定義です。',
-            'impact'      => '予約登録モーダル（modal_edit）、月間予約枠カレンダー（month_schedule）、日次進行一覧、患者案内票、統計集計など全システムに直結しています。',
-            'risk'        => 'システム内部のプログラムコードで「GIF」「TCF」「エコー」などの文字列が直接参照され、枠数計算や色分け処理が行われています。既存の種別名称を書き換えたり削除すると、予約枠の計算不良やカレンダー上の表示消滅など重大なシステム破綻を招きます。新規種別の追加や表示順の調整にとどめてください。',
-            'is_critical' => true
+            'title'       => '✅ 【一本化完了】検査種別マスタ（m_exam_type_group 連動）',
+            'desc'        => '予約管理システム全体の基幹となる検査種別（GIF、TCF、エコー、ポリペク等）の定義および大分類グループ（上部/下部/エコー）の統合マスタです。',
+            'impact'      => '予約登録モーダル（modal_edit）、月間カレンダー（month_schedule）、デイリーノート（schedule_note）、印刷、進捗モニター、空き枠検索、統計集計の全てに1箇所で連動します。',
+            'risk'        => '【安全に管理可能】検査種別ごとに大分類グループ（GIF/TCF/ECHO）を選択でき、表示順や予約画面での選択可否を1箇所で調整できます。新しい検査種別を追加すると全画面へ自動的に反映されます。',
+            'is_critical' => false
         ],
         'doctor' => [
-            'title'       => '⚠️ 【極めて危険・変更注意】担当医師マスタ',
-            'desc'        => '予約枠や診療科に紐づく担当医師の表示名マスタです。',
-            'impact'      => '予約画面、月間カレンダー、および検査枠マスタ（m2_doctor、m2_doctor_slot_pattern）と完全連動しています。',
-            'risk'        => 'ここで医師名を安易に変更・削除すると、「検査枠マスタメンテナンス」に登録されている枠数パターンや過去・未来の予約データとの紐付けが切れてデータ不整合が発生します。医師の登録・名称管理は、ページ上部の「⏱️ 検査枠マスタメンテナンス」画面を基準として行ってください。',
-            'is_critical' => true
+            'title'       => '✅ 【一本化完了】担当医師マスタ（m2_doctor 連動）',
+            'desc'        => '予約枠や診療科に紐づく担当医師の定義は、検査枠マスタ（m2_doctor）へ完全一本化されました。',
+            'impact'      => '予約画面、月間カレンダー、デイリーノート、当日進捗モニター、空き枠検索など全システムの医師情報は m2_doctor を参照します。',
+            'risk'        => '【汎用マスタでの管理不要】医師の追加・所属科設定・表示順・出勤管理は、すべて上部ナビの「⏱️ 検査枠マスタ」画面で一元管理されています。二重管理防止のため、本画面（m_input_master）での登録・編集は停止されました。',
+            'is_critical' => false
         ],
         'toilet_room' => [
             'title'       => 'ℹ️ マイトイレ部屋番号マスタ',
@@ -120,6 +125,13 @@ try {
             'risk'        => '【極めて安全】電話番号の変更や診療受付時間の文言修正を安全に行うことができます。',
             'is_critical' => false
         ],
+        'system_info' => [
+            'title'       => '📢 修正インフォメーションマスタ（専用画面管理）',
+            'desc'        => 'ポータル画面（index.php）および index.html に配信するシステムの修正告知・新機能リリース情報です。',
+            'impact'      => 'ポータル画面の最下部バナー、および index.html の案内カードに自動同期されます。',
+            'risk'        => '【極めて安全】専用画面（system_info_maintenance.php）にて、タイトル、日付、バッジ色、改修項目、公開／非公開を安全に管理できます。',
+            'is_critical' => false
+        ],
     ];
 
     // 操作履歴（Audit Log）の集計情報
@@ -138,9 +150,25 @@ try {
     // アイテム取得
     $items = [];
     if (!empty($selected_category)) {
-        $stmt = $pdo->prepare("SELECT master_id, item_value, display_order FROM m_input_master WHERE category = :category ORDER BY display_order ASC, master_id ASC");
-        $stmt->execute([':category' => $selected_category]);
-        $items = $stmt->fetchAll();
+        if ($selected_category === 'exam_type') {
+            // m_exam_type_group から取得（一本化マスタ）
+            $stmt = $pdo->query("
+                SELECT 
+                    id AS master_id, 
+                    exam_type AS item_value, 
+                    slot_group, 
+                    display_order, 
+                    is_selectable, 
+                    is_active 
+                FROM m_exam_type_group 
+                ORDER BY is_selectable DESC, display_order ASC, id ASC
+            ");
+            $items = $stmt->fetchAll();
+        } else {
+            $stmt = $pdo->prepare("SELECT master_id, item_value, display_order FROM m_input_master WHERE category = :category ORDER BY display_order ASC, master_id ASC");
+            $stmt->execute([':category' => $selected_category]);
+            $items = $stmt->fetchAll();
+        }
         
         if (empty($items) && $op_mode !== 'add') {
             $op_mode = 'add';
@@ -223,25 +251,80 @@ $is_error = isset($_GET['error']) ? (int)$_GET['error'] : 0;
         .badge-insert { background: #d1fae5; color: #065f46; }
         .badge-update { background: #dbeafe; color: #1e40af; }
         .badge-delete { background: #fee2e2; color: #991b1b; }
-        .badge-restore { background: #fef3c7; color: #92400e; }
-        .badge-undone { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; }
+        /* 3大マスタ統合ヘッダーナビ */
+        .master-hub-nav {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .master-hub-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 6px;
+        }
+        .hub-tab {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .hub-tab:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .hub-tab.active {
+            background: #0284c7;
+            color: #fff;
+            border-color: #0284c7;
+            box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+        }
+        .hub-tab.home-link {
+            margin-left: auto;
+            background: #fff;
+            border-color: #cbd5e1;
+        }
+        .hub-tab.home-link:hover {
+            background: #f1f5f9;
+        }
     </style>
 </head>
-<body>
+<body <?= getBodyEnvClass() ?>>
+<?= renderLocalEnvBanner() ?>
 
 <div class="container">
-    <h2>
-        <span>🔧 汎用選択肢マスタメンテナンス</span>
-        <div class="header-nav">
-            <a href="index.php" class="home-btn">🏠 メニューへ</a>
-        </div>
-    </h2>
 
-    <!-- 関連マスタリンク -->
-    <div style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
-        <a href="slot_master_maintenance.php" class="btn" style="background: #2563eb; color: #fff; text-decoration: none; padding: 6px 14px; font-size: 12px; border-radius: 4px;">
-            ⏱️ 関連マスタ：検査枠マスタメンテナンスへ ➔
-        </a>
+    <!-- 3大マスタ統合ヘッダーナビゲーション -->
+    <nav class="master-hub-nav" aria-label="マスタ管理ナビゲーション">
+        <span class="master-hub-title">📋 院内マスタ管理:</span>
+        <a href="slot_master_maintenance.php" class="hub-tab">⏱️ 検査枠マスタ</a>
+        <a href="exam_master_maintenance.php" class="hub-tab">🔬 検査種別マスタ</a>
+        <a href="master_maintenance.php" class="hub-tab active">🔧 汎用選択肢マスタ</a>
+        <a href="printer_master_maintenance.php" class="hub-tab">🖨️ プリンターマスタ</a>
+        <a href="system_info_maintenance.php" class="hub-tab">📢 修正インフォメーション</a>
+        <a href="furiwake_daymemo.php" class="hub-tab">📝 日別メモ科振分</a>
+        <a href="index.php" class="hub-tab home-link">🏠 ポータルへ</a>
+    </nav>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+            <span>🔧 汎用選択肢マスタメンテナンス</span>
+            <code style="font-size: 11px; font-weight: 600; font-family: ui-monospace, monospace; background: #f1f5f9; color: #475569; padding: 2px 7px; border-radius: 4px; border: 1px solid #cbd5e1;" title="PostgreSQL 対象テーブル">TABLE: m_input_master</code>
+        </h2>
     </div>
 
     <?php if (!empty($message)): ?>
@@ -327,6 +410,57 @@ $is_error = isset($_GET['error']) ? (int)$_GET['error'] : 0;
             </div>
         </div>
 
+        <?php if ($selected_category === 'exam_type'): ?>
+            <!-- 検査種別マスタ専用画面への誘導バナー -->
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border: 2px solid #0284c7; border-radius: 8px; padding: 18px 22px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <div>
+                    <strong style="font-size: 15px; color: #0369a1; display: block; margin-bottom: 4px;">
+                        🔬 検査種別は専用画面（m_exam_type_group）へ完全一本化されました
+                    </strong>
+                    <span style="font-size: 12.5px; color: #334155;">
+                        検査種別名、大分類グループ（上部/下部/エコー）、表示順、予約選択肢の管理は、新設の専用画面からより直感的に操作できます。
+                    </span>
+                </div>
+                <a href="exam_master_maintenance.php" class="btn btn-primary" style="padding: 10px 20px; font-size: 13px; font-weight: 800; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);">
+                    🔬 検査種別マスターメンテナンスを開く ➔
+                </a>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($selected_category === 'doctor'): ?>
+            <!-- 担当医師マスタ専用画面への誘導バナー -->
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border: 2px solid #0284c7; border-radius: 8px; padding: 18px 22px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <div>
+                    <strong style="font-size: 15px; color: #0369a1; display: block; margin-bottom: 4px;">
+                        👨‍⚕️ 医師マスタは検査枠マスタ（m2_doctor）へ完全一本化されました
+                    </strong>
+                    <span style="font-size: 12.5px; color: #334155;">
+                        医師の所属診療科（肛門科／胃腸科）、表示順、有効/無効、基本枠数パターン、出勤例外の管理は、検査枠マスタ画面から一元管理されています。
+                    </span>
+                </div>
+                <a href="slot_master_maintenance.php?tab=doctor" class="btn btn-primary" style="padding: 10px 20px; font-size: 13px; font-weight: 800; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);">
+                    ⏱️ 検査枠マスタ（医師タブ）を開く ➔
+                </a>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($selected_category === 'system_info'): ?>
+            <!-- 修正インフォメーション専用画面への誘導バナー -->
+            <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #16a34a; border-radius: 8px; padding: 18px 22px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <div>
+                    <strong style="font-size: 15px; color: #15803d; display: block; margin-bottom: 4px;">
+                        📢 修正インフォメーションは専用管理画面でリッチに編集できます
+                    </strong>
+                    <span style="font-size: 12.5px; color: #334155;">
+                        タイトル、バージョン、バッジ色、改修項目リストの登録・編集、公開／非公開の切替、および index.html への自動同期を専用画面から安全に行えます。
+                    </span>
+                </div>
+                <a href="system_info_maintenance.php" class="btn btn-success" style="padding: 10px 20px; font-size: 13px; font-weight: 800; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.3);">
+                    📢 修正インフォメーション管理を開く ➔
+                </a>
+            </div>
+        <?php endif; ?>
+
         <div class="mode-tabs">
             <a href="?category=<?= urlencode($selected_category) ?>&op_mode=edit" class="mode-tab <?= $op_mode === 'edit' ? 'active' : '' ?>">✏️ 修正モード</a>
             <a href="?category=<?= urlencode($selected_category) ?>&op_mode=add" class="mode-tab <?= $op_mode === 'add' ? 'active' : '' ?>">✨ 追加モード</a>
@@ -343,10 +477,14 @@ $is_error = isset($_GET['error']) ? (int)$_GET['error'] : 0;
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 70px; text-align: center;">ID</th>
+                                <th style="width: 60px; text-align: center;">ID</th>
                                 <th>値（画面表示名）</th>
-                                <th style="width: 120px; text-align: center;">表示順</th>
-                                <th style="width: 100px; text-align: center;">操作</th>
+                                <?php if ($selected_category === 'exam_type'): ?>
+                                    <th style="width: 140px; text-align: center;">大分類グループ</th>
+                                    <th style="width: 100px; text-align: center;">予約選択肢</th>
+                                <?php endif; ?>
+                                <th style="width: 100px; text-align: center;">表示順</th>
+                                <th style="width: 90px; text-align: center;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -359,11 +497,27 @@ $is_error = isset($_GET['error']) ? (int)$_GET['error'] : 0;
                                     <td>
                                         <input type="text" name="items[<?= $row['master_id'] ?>][item_value]" value="<?= htmlspecialchars($row['item_value'], ENT_QUOTES, 'UTF-8') ?>" class="input-text" required>
                                     </td>
+                                    <?php if ($selected_category === 'exam_type'): ?>
+                                        <td style="text-align: center;">
+                                            <select name="items[<?= $row['master_id'] ?>][slot_group]" class="input-text" style="font-weight: bold;">
+                                                <option value="GIF" <?= ($row['slot_group'] ?? '') === 'GIF' ? 'selected' : '' ?>>🔵 GIF (上部)</option>
+                                                <option value="TCF" <?= ($row['slot_group'] ?? '') === 'TCF' ? 'selected' : '' ?>>🟢 TCF (下部)</option>
+                                                <option value="ECHO" <?= ($row['slot_group'] ?? '') === 'ECHO' ? 'selected' : '' ?>>🟡 ECHO (エコー)</option>
+                                                <option value="OTHER" <?= ($row['slot_group'] ?? '') === 'OTHER' ? 'selected' : '' ?>>⚪ OTHER (その他)</option>
+                                            </select>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; font-size: 11px;">
+                                                <input type="checkbox" name="items[<?= $row['master_id'] ?>][is_selectable]" value="1" <?= !empty($row['is_selectable']) ? 'checked' : '' ?>>
+                                                <?= !empty($row['is_selectable']) ? '<span style="color:#059669;">表示</span>' : '<span style="color:#94a3b8;">非表示</span>' ?>
+                                            </label>
+                                        </td>
+                                    <?php endif; ?>
                                     <td style="text-align: center;">
                                         <input type="number" name="items[<?= $row['master_id'] ?>][display_order]" value="<?= $row['display_order'] ?>" class="input-text display-order-input" required>
                                     </td>
                                     <td style="text-align: center;">
-                                        <a href="action_master.php?action=single_delete&master_id=<?= $row['master_id'] ?>&category=<?= urlencode($selected_category) ?>" class="btn btn-danger" onclick="return confirm('削除すると既存データと不整合が起きる可能性があります。本当に削除しますか？');" style="padding: 3px 8px; font-size: 11px;">削除</a>
+                                        <a href="action_master.php?action=single_delete&master_id=<?= $row['master_id'] ?>&category=<?= urlencode($selected_category) ?>" class="btn btn-danger" onclick="return confirm('本当に削除しますか？');" style="padding: 3px 8px; font-size: 11px;">削除</a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -390,9 +544,28 @@ $is_error = isset($_GET['error']) ? (int)$_GET['error'] : 0;
                         <label for="item_value" style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 4px;">値（画面表示名）:</label>
                         <input type="text" id="item_value" name="item_value" class="input-text" style="max-width: 450px;" required autofocus placeholder="追加する名称を入力...">
                     </div>
+                    <?php if ($selected_category === 'exam_type'): ?>
+                        <div style="margin-bottom: 12px;">
+                            <label for="slot_group" style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 4px;">大分類グループ:</label>
+                            <select id="slot_group" name="slot_group" class="input-text" style="width: 200px; font-weight: bold;">
+                                <option value="GIF">🔵 GIF (上部・胃カメラ)</option>
+                                <option value="TCF" selected>🟢 TCF (下部・大腸内視鏡)</option>
+                                <option value="ECHO">🟡 ECHO (エコー・超音波)</option>
+                                <option value="OTHER">⚪ OTHER (その他)</option>
+                            </select>
+                            <span style="font-size: 11px; color: #64748b; margin-left: 8px;">※枠判定・色分け・前処置下剤・集計の紐付け先</span>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-weight: bold; font-size: 13px;">
+                                <input type="checkbox" name="is_selectable" value="1" checked>
+                                <span>予約入力プルダウンの選択肢として表示する</span>
+                            </label>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 2px;">※チェックを外すとプルダウンには表示されず、過去データや表記揺れのグループ判定用として登録されます。</div>
+                        </div>
+                    <?php endif; ?>
                     <div style="margin-bottom: 20px;">
                         <label for="display_order" style="font-weight: bold; font-size: 12px; display: block; margin-bottom: 4px;">表示順（小さいほど先頭）:</label>
-                        <input type="number" id="display_order" name="display_order" class="input-text" value="0" style="width: 100px;" required>
+                        <input type="number" id="display_order" name="display_order" class="input-text" value="50" style="width: 100px;" required>
                     </div>
                     <div>
                         <button type="submit" class="btn btn-success" style="padding: 8px 18px; font-size: 13px;">➕ このカテゴリに新しく追加</button>

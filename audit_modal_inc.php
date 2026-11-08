@@ -2,6 +2,11 @@
 /**
  * audit_modal_inc.php
  * 予約操作履歴（Audit Log）＆ ワンクリック復元（Undo）共通UIモーダル
+ * 
+ * 生成日時: 2026-10-22 10:00
+ * 修正履歴:
+ *   - 2026-10-22: 初版作成（予約移動・削除・更新・登録の操作履歴一覧 & ワンクリックUndo）
+ *   - 2026-10-22: 時間枠オーバーライド操作（枠休止・復帰・臨時枠・設定解除）の復元文言・表示対応
  */
 require_once __DIR__ . '/lib/audit_helper.php';
 $audit_curr_client = getAuditClientInfo();
@@ -870,14 +875,21 @@ function showAuditToast(msg, type = 'success') {
 }
 
 function executeAuditUndo(logId, patientName, actionType, summary) {
+    const isWaku = (summary && (summary.includes('枠') || summary.includes('オーバーライド'))) || (patientName && patientName.includes('枠'));
     let actionDesc = '直前の状態';
-    if (actionType === 'move') actionDesc = '移動前の日時・時間枠';
-    else if (actionType === 'delete') actionDesc = '削除前の予約データ（削除取り消し）';
-    else if (actionType === 'update') actionDesc = '変更前の内容';
-    else if (actionType === 'insert') actionDesc = '新規登録前の状態（登録取り消し）';
+    if (isWaku) {
+        if (actionType === 'delete') actionDesc = '解除前のオーバーライド設定（解除取り消し・再登録）';
+        else if (actionType === 'insert') actionDesc = '登録前の通常状態（追加取り消し）';
+        else if (actionType === 'update') actionDesc = '変更前の時間枠状態';
+    } else {
+        if (actionType === 'move') actionDesc = '移動前の日時・時間枠';
+        else if (actionType === 'delete') actionDesc = '削除前の予約データ（削除取り消し）';
+        else if (actionType === 'update') actionDesc = '変更前の内容';
+        else if (actionType === 'insert') actionDesc = '新規登録前の状態（登録取り消し）';
+    }
 
-    const pName = patientName || '患者様';
-    const msg = `【ワンクリック復元】\n\n対象: ${pName}\n操作: ${summary}\n\nこの操作を取り消して、${actionDesc} へ完全復元しますか？`;
+    const targetDesc = isWaku ? (patientName || '時間枠設定') : (patientName ? `${patientName} 様` : '患者様');
+    const msg = `【ワンクリック復元】\n\n対象: ${targetDesc}\n操作: ${summary}\n\nこの操作を取り消して、${actionDesc} へ完全復元しますか？`;
 
     if (!confirm(msg)) return;
 

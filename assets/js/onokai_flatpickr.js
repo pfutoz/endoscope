@@ -1,16 +1,19 @@
 /**
- * assets/js/onokai_flatpickr.js
- * 医療法人小野会 特大Flatpickr共通初期化スクリプト
- * 生成日時: 2026-10-20 23:35
- * 
- * 機能:
- *   - 完全オフラインでの小野会公休日（日曜・祝日・年末年始公休12/30〜1/3）自動判定（再帰なし安全版）
- *   - 木曜日の青色判定
- *   - 横幅440px特大カレンダーの安定バインド
- *   - カレンダー上部に「令和〇年」和暦元号バッジを表示
- *   - カレンダー下部に「選択日の和暦・曜日・公休情報」リアルタイム表示バー
- *   - 画面端でのカレンダーはみ出し自動補正
- *   - 画面デザイン・ツライチ寸法を1pxも狂わせない安全初期化
+ * ============================================================================
+ * 設置パス: c:\Apache24\htdocs\endoscope\assets\js\onokai_flatpickr.js
+ * ファイル名: onokai_flatpickr.js
+ * 概要: 医療法人小野会 特大Flatpickr共通初期化スクリプト（共通カレンダーAPI連携対応）
+ * 更新日時: 2026-11-06 18:15
+ * 修正履歴:
+ *   - 2026-10-20: 初版作成（小野会公休判定・特大Flatpickr共通初期化）
+ *   - 2026-10-22: 【小野会日付ピッカー（Onokai Date Picker）簡単呼び出しAPI新設】
+ *       1. OnokaiDatePicker.bindControl(target, options): 既存の input をワンコールで小野会角丸ピル日付ピッカーに自動変換
+ *       2. 「西暦 (YYYY/MM/DD)」⇔「和暦 (令和X年M/D)」のワンクリック切替（localStorage記憶・画面全同期）
+ *       3. HTML5 <dialog> Top Layer での裏隠れ防止（static: true & appendTo 自動解決）
+ *       4. disabled 状態・minDate/maxDate 連動・change/input イベント透過発火を完備
+ *   - 2026-11-04: 院内共通カレンダーAPI（/api/v1/calendar/holidays.php）非同期連携（OnokaiHolidayAPI）追加
+ *   - 2026-11-06: 【緊急修正】2026-11-04の共通API統合時にPowerShell文字列展開によりテンプレートリテラルのバッククォートと変数（${year}, ${m}, ${d}）が消失し構文エラー（SyntaxError）となっていた不具合を修正。年変更時（onYearChange）およびフッター表示のAPIキャッシュ連動を強化
+ * ============================================================================
  */
 
 (function(window) {
@@ -68,6 +71,55 @@
     /**
      * 日本の祝日および小野会特別公休判定（振替休日・国民の休日含む）
      */
+    /**
+     * 小野会共通カレンダーAPI連携＆インメモリキャッシュ
+     */
+    const OnokaiHolidayAPI = {
+        _cache: {},
+        _fetching: {},
+
+        async fetchMonth(year, month) {
+            const mStr = String(month).padStart(2, '0');
+            const key = year + '-' + mStr;
+            if (this._cache[key]) return this._cache[key];
+            if (this._fetching[key]) return this._fetching[key];
+
+            this._fetching[key] = (async () => {
+                try {
+                    const url = '/api/v1/calendar/holidays.php?year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month);
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.status === 'success' && json.data) {
+                            this._cache[key] = json.data;
+                            return json.data;
+                        }
+                    }
+                } catch (e) {
+                    // API到達不能時は内蔵ロジックへフォールバック
+                } finally {
+                    delete this._fetching[key];
+                }
+                return null;
+            })();
+
+            return this._fetching[key];
+        },
+
+        getHolidayInfo(year, month, day) {
+            const mStr = String(month).padStart(2, '0');
+            const dStr = String(day).padStart(2, '0');
+            const key = year + '-' + mStr;
+            const dKey = key + '-' + dStr;
+            if (this._cache[key] && this._cache[key][dKey]) {
+                const item = this._cache[key][dKey];
+                return item.reason || (item.is_closed ? '日曜休診' : null);
+            }
+            return checkOnokaiHoliday(year, month, day);
+        }
+    };
+    window.OnokaiHolidayAPI = OnokaiHolidayAPI;
+
     function checkOnokaiHoliday(year, month, day) {
         // 1. 小野会年末年始公休 (12/30 〜 1/3)
         if ((month === 12 && day >= 30) || (month === 1 && day <= 3)) {
@@ -113,7 +165,7 @@
         if (!dateObj) return false;
         const dow = dateObj.getDay();
         if (dow === 0) return true; // 日曜
-        const reason = checkOnokaiHoliday(dateObj.getFullYear(), dateObj.getMonth() + 1, dateObj.getDate());
+        const reason = OnokaiHolidayAPI.getHolidayInfo(dateObj.getFullYear(), dateObj.getMonth() + 1, dateObj.getDate());
         return !!reason;
     }
 
@@ -223,7 +275,7 @@
         const dowStr = dowNames[dow];
 
         const wareki = formatToWareki(dateStr, false);
-        const hReason = checkOnokaiHoliday(y, parseInt(m, 10), parseInt(d, 10));
+        const hReason = OnokaiHolidayAPI.getHolidayInfo(y, parseInt(m, 10), parseInt(d, 10));
 
         let badgeHtml = '';
         if (dow === 0 || hReason) {
@@ -244,13 +296,9 @@
     }
 
     /**
-     * 既存の input[type="date"] や input[type="text"] に
-     * 小野会特大Flatpickrをバインドする共通関数
-     * 
-     * @param {string|HTMLInputElement} target 要素またはセレクタ
-     * @param {Object} options カスタムオプション
+     * 内部用: 素の input に特大Flatpickrのみをバインドする関数（生年月日等で使用）
      */
-    function attachOnokaiDatePicker(target, options) {
+    function createRawFlatpickr(target, options) {
         if (typeof flatpickr === 'undefined') {
             console.warn('flatpickr is not loaded');
             return null;
@@ -259,14 +307,16 @@
         const el = (typeof target === 'string') ? document.querySelector(target) : target;
         if (!el) return null;
 
-        // 既にFlatpickrがアタッチされていれば既存インスタンスを返す
         if (el._flatpickr) {
             return el._flatpickr;
         }
 
         options = options || {};
 
-        // 元が type="date" の場合は type="text" に変換（標準ブラウザカレンダーの二重起動防止）
+        const inDialog = el.closest ? el.closest('dialog') : null;
+        const appendTarget = (options.appendTo !== undefined) ? options.appendTo : (inDialog ? inDialog : undefined);
+        const isStatic = (options.static !== undefined) ? options.static : (inDialog ? true : false);
+
         if (el.getAttribute('type') === 'date' || el.type === 'date') {
             try { 
                 el.type = 'text'; 
@@ -276,12 +326,8 @@
         }
         el.setAttribute('autocomplete', 'off');
 
-        // デザイン崩れ防止・カレンダーアイコン付与クラスを追加
-        el.classList.add('onokai-date-picker');
-
         const initialVal = el.value || options.defaultDate || '';
 
-        // タイトル属性に和暦・曜日を初期セット
         if (initialVal) {
             el.title = `${initialVal} 【${formatToWareki(initialVal, true)}】`;
         }
@@ -293,24 +339,31 @@
             monthSelectorType: 'static',
             disableMobile: true,
             position: options.position || 'auto center',
+            appendTo: appendTarget,
+            static: isStatic,
             onDayCreate: function(dObj, dStr, fpInstance, dayElem) {
                 const dt = dayElem.dateObj;
                 const y = dt.getFullYear();
                 const m = dt.getMonth() + 1;
                 const d = dt.getDate();
 
-                // 1. 小野会公休（日曜・祝日）最優先: 赤
-                const hReason = checkOnokaiHoliday(y, m, d);
+                const hReason = OnokaiHolidayAPI.getHolidayInfo(y, m, d);
                 if (dt.getDay() === 0 || hReason) {
                     dayElem.classList.add('onokai-holiday');
                     if (hReason) dayElem.title = hReason;
                 } else if (dt.getDay() === 4) {
-                    // 2. 木曜: 青
                     dayElem.classList.add('onokai-thursday');
                 }
             },
             onReady: function(selectedDates, dateStr, instance) {
                 updateCalendarHeaderWareki(instance);
+                if (typeof OnokaiHolidayAPI !== 'undefined') {
+                    OnokaiHolidayAPI.fetchMonth(instance.currentYear, instance.currentMonth + 1).then(data => {
+                        if (data && instance.calendarContainer) {
+                            instance.redraw();
+                        }
+                    });
+                }
                 if (selectedDates && selectedDates.length > 0) {
                     updateCalendarFooter(instance, selectedDates[0]);
                 } else {
@@ -319,9 +372,23 @@
             },
             onMonthChange: function(selectedDates, dateStr, instance) {
                 updateCalendarHeaderWareki(instance);
+                if (typeof OnokaiHolidayAPI !== 'undefined') {
+                    OnokaiHolidayAPI.fetchMonth(instance.currentYear, instance.currentMonth + 1).then(data => {
+                        if (data && instance.calendarContainer) {
+                            instance.redraw();
+                        }
+                    });
+                }
             },
             onYearChange: function(selectedDates, dateStr, instance) {
                 updateCalendarHeaderWareki(instance);
+                if (typeof OnokaiHolidayAPI !== 'undefined') {
+                    OnokaiHolidayAPI.fetchMonth(instance.currentYear, instance.currentMonth + 1).then(data => {
+                        if (data && instance.calendarContainer) {
+                            instance.redraw();
+                        }
+                    });
+                }
             },
             onOpen: function(selectedDates, dateStr, instance) {
                 updateCalendarHeaderWareki(instance);
@@ -331,13 +398,25 @@
                     updateCalendarFooter(instance, null);
                 }
 
-                // 画面左端のはみ出し防止補正
+                // 画面およびモーダル枠内での左右はみ出し防止自動補正（見切れ完全追放）
                 requestAnimationFrame(function() {
                     if (instance.calendarContainer) {
                         const rect = instance.calendarContainer.getBoundingClientRect();
-                        if (rect.left < 10) {
-                            const curLeft = parseFloat(instance.calendarContainer.style.left) || 0;
-                            instance.calendarContainer.style.left = (curLeft + (10 - rect.left)) + 'px';
+                        const pEl = instance.calendarContainer.parentElement;
+                        const pRect = (pEl && pEl !== document.body) ? pEl.getBoundingClientRect() : { left: 0, right: window.innerWidth };
+                        
+                        const minLeft = Math.max(10, pRect.left + 10);
+                        const maxRight = Math.min(window.innerWidth - 10, pRect.right - 10);
+
+                        let curLeft = parseFloat(instance.calendarContainer.style.left) || rect.left;
+
+                        if (rect.right > maxRight) {
+                            curLeft -= (rect.right - maxRight);
+                            instance.calendarContainer.style.left = curLeft + 'px';
+                        }
+                        if (rect.left < minLeft) {
+                            curLeft += (minLeft - rect.left);
+                            instance.calendarContainer.style.left = curLeft + 'px';
                         }
                     }
                 });
@@ -356,7 +435,6 @@
                     options.onChange(selectedDates, dateStr, instance);
                 }
 
-                // 既存の onchange / input イベントをバブリング発火
                 el.dispatchEvent(new Event('change', { bubbles: true }));
                 el.dispatchEvent(new Event('input', { bubbles: true }));
             },
@@ -371,13 +449,284 @@
     }
 
     /**
-     * .onokai-date-picker クラスを持つ全要素を一括初期化
+     * 既存の input[type="date"] や input[type="text"] に
+     * 小野会日付ピッカー（角丸ピル形状・西暦和暦バッジ・仕切り線📅アイコン）をバインドする共通関数
+     * 
+     * @param {string|HTMLInputElement} target 要素またはセレクタ
+     * @param {Object} options カスタムオプション
+     */
+    function attachOnokaiDatePicker(target, options) {
+        options = options || {};
+        const el = (typeof target === 'string') ? document.querySelector(target) : target;
+        if (!el) return null;
+
+        // 生年月日等、素の input のまま使用したい場合（options.raw === true または data-no-pill 属性）
+        if (options.raw === true || el.dataset.noPill !== undefined || el.classList.contains('no-pill') || el.classList.contains('raw-input')) {
+            return createRawFlatpickr(el, options);
+        }
+
+        // それ以外はすべて「小野会日付ピッカー（角丸ピル形状・西暦和暦切替・📅仕切りアイコン）」に自動変換！
+        const ctrl = bindOnokaiDateControl(el, options);
+        return ctrl ? ctrl.flatpickr : null;
+    }
+
+    /**
+     * 和暦フォーマット文字列を生成
+     * @param {string} dateStr 'YYYY-MM-DD'
+     * @param {string} dowStr '木' など
+     * @returns {string} 例: '令和8年10/22 (木)'
+     */
+    function formatWarekiShort(dateStr, dowStr) {
+        if (!dateStr || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr || '';
+        const parts = dateStr.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const d = parseInt(parts[2], 10);
+        let g = '令和';
+        let gy = y - 2018;
+        if (y < 2019) {
+            g = '平成';
+            gy = y - 1988;
+        }
+        const gStr = (gy === 1) ? '元' : gy;
+        const dowPart = dowStr ? ` (${dowStr})` : '';
+        return `${g}${gStr}年${m}/${d}${dowPart}`;
+    }
+
+    /**
+     * 西暦フォーマット文字列を生成
+     * @param {string} dateStr 'YYYY-MM-DD'
+     * @param {string} dowStr '木' など
+     * @returns {string} 例: '2026/10/22 (木)'
+     */
+    function formatSeirekiShort(dateStr, dowStr) {
+        if (!dateStr || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr || '';
+        const parts = dateStr.split('-');
+        const dowPart = dowStr ? ` (${dowStr})` : '';
+        return `${parts[0]}/${parts[1]}/${parts[2]}${dowPart}`;
+    }
+
+    /**
+     * 日付文字列から曜日文字（'日'〜'土'）を取得
+     */
+    function getDowChar(dateStr) {
+        if (!dateStr || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return '';
+        const dt = new Date(dateStr + 'T00:00:00');
+        const dowArr = ['日', '月', '火', '水', '木', '金', '土'];
+        return dowArr[dt.getDay()] || '';
+    }
+
+    /**
+     * 院内共通の現在の表示モード（西暦または和暦）
+     */
+    function getDateDisplayMode() {
+        try {
+            return localStorage.getItem('onokai_date_picker_mode') || localStorage.getItem('schedule_note_date_mode') || 'seireki';
+        } catch(e) {
+            return 'seireki';
+        }
+    }
+
+    function setDateDisplayMode(mode) {
+        try {
+            localStorage.setItem('onokai_date_picker_mode', mode);
+            localStorage.setItem('schedule_note_date_mode', mode);
+            localStorage.setItem('waku_modal_date_mode', mode);
+        } catch(e) {}
+    }
+
+    /**
+     * 既存の input 要素（またはセレクタ）を「小野会日付ピッカー」UIに自動変換・バインドする
+     * 
+     * @param {string|HTMLInputElement} target input要素またはセレクタ
+     * @param {Object} options
+     *   - onChange: function(selectedDates, dateStr, instance)
+     *   - minDate, maxDate
+     *   - static: true/false
+     *   - appendTo: 要素
+     *   - width: string
+     */
+    function bindOnokaiDateControl(target, options) {
+        const input = (typeof target === 'string') ? document.querySelector(target) : target;
+        if (!input) return null;
+
+        // 既に小野会コントロールがバインドされていれば返す
+        if (input._onokaiControl) {
+            return input._onokaiControl;
+        }
+
+        // 既に旧Flatpickrが存在する場合は安全に破棄して小野会コントロール用に再構築
+        if (input._flatpickr) {
+            try { input._flatpickr.destroy(); } catch(e) {}
+            input._flatpickr = null;
+        }
+        input.classList.remove('onokai-date-picker');
+
+        options = options || {};
+
+        // 既存のピルコンテナが既に存在するかチェック（事前レンダリング・既存手動HTML対応・二重生成絶対防止）
+        let control = input.closest ? input.closest('.onokai-date-control, .wom-custom-date-control, .custom-date-control') : null;
+        let textToggle = control ? control.querySelector('.onokai-date-text-toggle, .wom-date-text-toggle, .date-text-toggle') : null;
+        let valText = control ? control.querySelector('.onokai-date-val-text, .wom-date-val-text, .date-val-text') : null;
+        let modeBadge = control ? control.querySelector('.onokai-date-mode-badge, .wom-date-mode-badge, .date-mode-badge') : null;
+        let iconBtn = control ? control.querySelector('.onokai-date-calendar-icon-btn, .wom-date-calendar-icon-btn, .date-calendar-icon-btn, #calendarTriggerBtn, #womCalendarTriggerBtn') : null;
+
+        if (!control) {
+            // 1. ラッパーコンテナの作成
+            control = document.createElement('div');
+            control.className = 'onokai-date-control';
+            if (input.disabled) control.classList.add('disabled');
+            if (options.width) control.style.width = options.width;
+            control.title = 'クリックで特大カレンダー展開、文字部クリックで西暦/和暦切替';
+
+            // 2. テキスト＋バッジ部分
+            textToggle = document.createElement('div');
+            textToggle.className = 'onokai-date-text-toggle';
+            textToggle.title = 'クリックで西暦／和暦 表示切替';
+
+            valText = document.createElement('span');
+            valText.className = 'onokai-date-val-text';
+
+            modeBadge = document.createElement('span');
+            modeBadge.className = 'onokai-date-mode-badge';
+
+            textToggle.appendChild(valText);
+            textToggle.appendChild(modeBadge);
+
+            // 3. カレンダーアイコン部分
+            iconBtn = document.createElement('div');
+            iconBtn.className = 'onokai-date-calendar-icon-btn';
+            iconBtn.title = '特大カレンダーを開く';
+            iconBtn.textContent = '📅';
+
+            // 4. 元のinputをコントロール内に隠し配置
+            input.classList.add('onokai-date-control-hidden');
+            input.setAttribute('autocomplete', 'off');
+            input.readOnly = true;
+
+            // DOM挿入（inputの位置にcontrolを置き、中にinputを入れる）
+            if (input.parentNode) {
+                input.parentNode.insertBefore(control, input);
+            }
+            control.appendChild(textToggle);
+            control.appendChild(iconBtn);
+            control.appendChild(input);
+        } else {
+            if (options.width) control.style.width = options.width;
+            input.classList.add('onokai-date-control-hidden');
+            input.setAttribute('autocomplete', 'off');
+            input.readOnly = true;
+        }
+
+        // 5. 表示更新関数
+        function updateDisplay() {
+            const val = input.value || '';
+            const dow = getDowChar(val);
+            const mode = getDateDisplayMode();
+
+            if (!val) {
+                valText.textContent = '日付を選択';
+                modeBadge.style.display = 'none';
+                return;
+            }
+
+            modeBadge.style.display = 'inline-block';
+            if (mode === 'wareki') {
+                valText.textContent = formatWarekiShort(val, dow);
+                modeBadge.textContent = '和暦';
+                modeBadge.style.background = '#fef3c7';
+                modeBadge.style.color = '#92400e';
+            } else {
+                valText.textContent = formatSeirekiShort(val, dow);
+                modeBadge.textContent = '西暦';
+                modeBadge.style.background = '#bfdbfe';
+                modeBadge.style.color = '#1e40af';
+            }
+        }
+        updateDisplay();
+
+        // 6. テキストクリックで西暦/和暦切替
+        textToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const curMode = getDateDisplayMode();
+            const newMode = (curMode === 'seireki') ? 'wareki' : 'seireki';
+            setDateDisplayMode(newMode);
+            // ページ上の全小野会日付ピッカーの表示を同期更新
+            document.querySelectorAll('.onokai-date-control').forEach(function(ctrl) {
+                if (ctrl._updateDisplay) ctrl._updateDisplay();
+            });
+        });
+
+        // 7. 特大Flatpickrのバインド
+        const inDialog = control.closest ? control.closest('dialog') : null;
+        const appendTarget = (options.appendTo !== undefined) ? options.appendTo : (inDialog ? inDialog : document.body);
+        const isStatic = (options.static !== undefined) ? options.static : false;
+
+        const fpOpts = Object.assign({}, options, {
+            defaultDate: input.value || undefined,
+            positionElement: control,
+            position: options.position || 'auto center',
+            appendTo: appendTarget,
+            static: isStatic,
+            onChange: function(selectedDates, dateStr, instance) {
+                input.value = dateStr;
+                updateDisplay();
+                if (typeof options.onChange === 'function') {
+                    options.onChange(selectedDates, dateStr, instance);
+                }
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+
+        const fp = createRawFlatpickr(input, fpOpts);
+
+        // 8. コントロール全体またはアイコンクリックでカレンダー展開
+        control.addEventListener('click', function(e) {
+            if (control.classList.contains('disabled')) return;
+            if (e.target === textToggle || textToggle.contains(e.target)) return;
+            if (fp) fp.open();
+        });
+
+        // 9. オブジェクト参照保持
+        const api = {
+            control: control,
+            input: input,
+            flatpickr: fp,
+            updateDisplay: updateDisplay,
+            setDate: function(newDate, triggerChange) {
+                input.value = newDate;
+                if (fp) fp.setDate(newDate, false);
+                updateDisplay();
+                if (triggerChange) {
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            },
+            setDisabled: function(disabled) {
+                input.disabled = !!disabled;
+                if (disabled) {
+                    control.classList.add('disabled');
+                } else {
+                    control.classList.remove('disabled');
+                }
+            }
+        };
+
+        control._updateDisplay = updateDisplay;
+        control._onokaiControl = api;
+        input._onokaiControl = api;
+
+        return api;
+    }
+
+    /**
+     * .onokai-date-picker または .onokai-date-control-auto クラスを持つ全要素を一括初期化
      */
     function initAllOnokaiDatePickers() {
         try {
-            var autoTargets = document.querySelectorAll('.onokai-date-picker');
+            var autoTargets = document.querySelectorAll('.onokai-date-picker, .onokai-date-control-auto');
             autoTargets.forEach(function(el) {
-                if (!el._flatpickr) {
+                if (!el._onokaiControl && !el._flatpickr) {
                     attachOnokaiDatePicker(el);
                 }
             });
@@ -392,10 +741,16 @@
         isHoliday: isOnokaiHoliday,
         isThursday: isOnokaiThursday,
         formatWareki: formatToWareki,
+        formatWarekiShort: formatWarekiShort,
+        formatSeirekiShort: formatSeirekiShort,
         getYearGengou: getYearGengou,
         attach: attachOnokaiDatePicker,
+        bindControl: bindOnokaiDateControl,
+        createControl: bindOnokaiDateControl,
         initAll: initAllOnokaiDatePickers
     };
+    window.attachOnokaiDatePicker = attachOnokaiDatePicker;
+    window.bindOnokaiDateControl = bindOnokaiDateControl;
 
     // DOMContentLoaded 時に自動初期化
     if (document.readyState === 'loading') {

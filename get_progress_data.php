@@ -1,9 +1,14 @@
 <?php
 /**
- * get_progress_data.php
- * 当日進捗ステータスモニタ用 リアルタイムデータ取得API (JSON)
+ * 設置パス: c:\Apache24\htdocs\endoscope\get_progress_data.php
+ * ファイル名: get_progress_data.php
+ * 概要: 当日進捗ステータスモニタ用 リアルタイムデータ取得API (JSON)
  * 生成日時: 2026-09-28 19:05:00 JST
+ * 更新日時: 2026-11-06
  * 修正履歴:
+ *   - 2026-11-06: 時間枠世代管理（valid_from 〜 valid_to）に対応。LEFT JOIN m2_waku にて検査日の世代を結合するよう改修。
+ *   - 2026-10-26: 検査種別グループ判定・フィルタ条件を共通関数 resolveExamGroup() / getExamTypesByGroup() に一元化し、m_exam_type_group マスターと完全連動
+ *   - 2026-10-23: 時間枠オーバーライド対応。waku_display_order で s.waku_no を優先し、枠名変更後や臨時枠のソート順崩れを防止
  *   - 2026-09-29: 五十音インデックス・クイック頭文字フィルター対応
  *       1. SELECTクエリに s.patient_kana を追加し、カナ頭文字絞り込みに対応
  *   - 2026-09-28: 新検査種別「浣腸CF」対応
@@ -17,6 +22,7 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/slot_helper.php';
 require_once __DIR__ . '/lib/progress_db.php';
 require_once __DIR__ . '/lib/date_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
@@ -46,14 +52,21 @@ if ($dept !== 'ALL') {
     $dept_condition = "s.department_code = " . $pdo->quote($dept);
 }
 
-// エコーはホワイトボード不要のため完全除外！
-$exam_condition = "s.exam_type NOT IN ('ECHO', 'エコー')";
+// エコーはホワイトボード不要のため完全除外！（m_exam_type_group連動）
+$echo_types = getExamTypesByGroup('ECHO', $pdo);
+$echo_in = implode(',', array_map(fn($t) => $pdo->quote($t), $echo_types));
+$exam_condition = "s.exam_type NOT IN ($echo_in)";
+
 if ($exam_filter === 'CF') {
-    $exam_condition .= " AND s.exam_type IN ('TCF', 'ポリペク', 'W')";
+    $cf_types = array_values(array_diff(getExamTypesByGroup('TCF', $pdo), ['浣腸CF', '浣腸F']));
+    $cf_in = implode(',', array_map(fn($t) => $pdo->quote($t), $cf_types));
+    $exam_condition .= " AND s.exam_type IN ($cf_in)";
 } elseif ($exam_filter === 'ENEMA') {
     $exam_condition .= " AND s.exam_type IN ('浣腸CF', '浣腸F')";
 } elseif ($exam_filter === 'GIF') {
-    $exam_condition .= " AND s.exam_type IN ('GIF', '◆胃がん検診◆', '胃がん検診')";
+    $gif_types = getExamTypesByGroup('GIF', $pdo);
+    $gif_in = implode(',', array_map(fn($t) => $pdo->quote($t), $gif_types));
+    $exam_condition .= " AND s.exam_type IN ($gif_in)";
 }
 
 // ★ 当日進捗ステータスモニターでは空き枠・枠なしは表示不要（患者がいる予約のみ表示）
@@ -94,12 +107,13 @@ try {
             s.remarks,
             s.has_sedation AS sched_has_sedation,
             s.has_drive_caution AS sched_has_drive_caution,
-            COALESCE(w.display_order, 999) AS waku_display_order
+            COALESCE(s.waku_no, w.display_order, 999) AS waku_display_order
         FROM t_endoscopy_schedule s
         LEFT JOIN m2_waku w 
             ON s.department_code = w.department_code 
             AND s.scheduled_time = w.waku_name
             AND w.is_active = TRUE
+            AND s.exam_date BETWEEN w.valid_from AND w.valid_to
         WHERE s.exam_date = :date
           AND s.is_canceled = FALSE
           AND {$dept_condition}
@@ -140,12 +154,14 @@ try {
         $check_stmt->execute([':id' => $sid]);
         $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
-        $is_gif = in_array($row['exam_type'], ['GIF', '◆胃がん検診◆', '胃がん検診'], true);
-        $is_enema = in_array($row['exam_type'], ['浣腸CF', '浣腸F'], true);
+        $etype_raw = (string)($row['exam_type'] ?? '');
+        $egroup = resolveExamGroup($etype_raw, $pdo);
+        $is_gif = ($egroup === 'GIF');
+        $is_enema = in_array($etype_raw, ['浣腸CF', '浣腸F'], true);
         $is_prep_skipped = ($is_gif || $is_enema); // 胃カメラおよび浣腸CFは前処置スキップ
 
         // 鎮静判定（s.has_sedation が明示指定されていれば最優先、なければカルテ備考から自動判定）
-        $is_echo = ($row['exam_type'] === 'エコー' || mb_strpos((string)$row['exam_type'], 'エコー') !== false);
+        $is_echo = ($egroup === 'ECHO');
         $remarks_text = strip_tags($row['remarks'] ?? '');
 
         if ($row['sched_has_sedation'] !== null) {
@@ -225,7 +241,7 @@ try {
             s.remarks,
             s.has_sedation AS sched_has_sedation,
             s.has_drive_caution AS sched_has_drive_caution,
-            COALESCE(w.display_order, 999) AS waku_display_order,
+            COALESCE(s.waku_no, w.display_order, 999) AS waku_display_order,
             p.current_status_id,
             p.is_arrived,
             COALESCE(p.arrival_time, s.arrival_time) AS arrival_time,
@@ -263,6 +279,7 @@ try {
             ON s.department_code = w.department_code 
             AND s.scheduled_time = w.waku_name
             AND w.is_active = TRUE
+            AND s.exam_date BETWEEN w.valid_from AND w.valid_to
         WHERE s.exam_date = :date
           AND s.is_canceled = FALSE
           AND {$dept_condition}

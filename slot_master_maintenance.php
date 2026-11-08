@@ -1,14 +1,20 @@
 <?php
 /**
  * 生成日時: 2026-09-29 14:35:00 JST
+ * 更新日時: 2026-11-06
  * 設置パス: c:\Apache24\htdocs\endoscope\slot_master_maintenance.php
  * ファイル名: slot_master_maintenance.php
+ * 概要: 検査枠マスターメンテナンス（時間枠世代管理 valid_from〜valid_to・期間一括変更・監査ログ＆ワンクリック復元対応版）
  * 
- * 検査枠マスターメンテナンス（監査ログ＆ワンクリック復元・履歴一括削除対応版）
  * 修正履歴:
  *   - 2026-09-18: 枠数パターンの横持ち入力を縦持ちテーブルへ確実にするUPSERT処理、出勤例外タブ復元
  *   - 2026-09-29: 検査枠マスタ変更履歴（t_master_audit_log）の自動差分記録、ワンクリックUndo（復元）、履歴一括削除パネルを新設
  *   - 2026-10-20: 特大Flatpickr（小野会カレンダー・公休日色分け）日付ピッカー導入
+ *   - 2026-10-22: 時間枠オーバーライド（m2_waku_override）連携導線および安全ガイドバナーを新設
+ *   - 2026-10-23: lib/slot_helper.php との getWakuList 関数二重定義エラーを解消、ローカル環境（192.168.1.111）の誤操作防止UI（外側黒背景＆警告バナー）を適用
+ *   - 2026-10-26: 3大マスタ統合ヘッダーナビゲーション導入、検査種別マスタ(exam_master_maintenance.php)連携
+ *   - 2026-11-01: 統合ヘッダーナビに「📢 修正インフォメーション」タブを追加
+ *   - 2026-11-06: 【時間枠世代管理対応】基本時間枠タブ（?tab=waku）に世代（valid_from〜valid_to）切替タブ、世代期間一括変更（前後世代の境界日自動連動対応）、新世代作成（複製・期間分割）、世代別枠追加フォームを実装。
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -32,6 +38,8 @@ try {
 }
 
 require_once __DIR__ . '/lib/master_audit_helper.php';
+require_once __DIR__ . '/lib/slot_helper.php';
+require_once __DIR__ . '/lib/env_helper.php';
 
 // ============================================================
 // 1.5. POST処理（一括保存などのバックエンド処理）
@@ -40,6 +48,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $dept_post = $_POST['dept'] ?? 'GASTRO';
     $doctor_post = $_POST['doctor_name'] ?? '';
+
+    if ($action === 'update_override_permission') {
+        $allowed = !empty($_POST['allow_period_override']);
+        $res = setPeriodOverrideAllowed($pdo, $allowed);
+        if ($res) {
+            header("Location: slot_master_maintenance.php?tab=waku&dept={$dept_post}&msg=" . urlencode("時間枠オーバーライド運用設定を更新しました（期間指定: " . ($allowed ? '許可' : '禁止 [現場保護・単一日のみ]') . "）"));
+            exit;
+        } else {
+            header("Location: slot_master_maintenance.php?tab=waku&dept={$dept_post}&msg=" . urlencode("設定保存エラー") . "&error=1");
+            exit;
+        }
+    }
 
     if ($action === 'pattern_update') {
         try {
@@ -143,6 +163,14 @@ $tabs = ['doctor', 'waku', 'pattern', 'attendance'];
 if (!in_array($tab, $tabs)) { $tab = 'doctor'; }
 if (!in_array($dept, ['PROCT', 'GASTRO'])) { $dept = 'GASTRO'; }
 
+$tab_table_map = [
+    'doctor'     => 'm2_doctor',
+    'waku'       => 'm2_waku',
+    'pattern'    => 'm2_doctor_slot_pattern',
+    'attendance' => 'm2_doctor_attendance',
+];
+$current_table = $tab_table_map[$tab] ?? 'm2_doctor';
+
 $message = isset($_GET['msg']) ? trim($_GET['msg']) : '';
 $is_error = isset($_GET['error']) ? (int)$_GET['error'] : 0;
 
@@ -174,17 +202,6 @@ function getSlotGroups($pdo, $dept) {
     return $stmt->fetchAll();
 }
 
-function getWakuList($pdo, $dept) {
-    $stmt = $pdo->prepare("
-        SELECT w.*, g.group_name 
-        FROM m2_waku w
-        LEFT JOIN m2_slot_group g ON w.group_code = g.group_code AND w.department_code = g.department_code
-        WHERE w.department_code = :dept AND w.is_active = TRUE
-        ORDER BY w.display_order
-    ");
-    $stmt->execute([':dept' => $dept]);
-    return $stmt->fetchAll();
-}
 
 function getDoctorPatterns($pdo, $dept, $doctor_name) {
     $stmt = $pdo->prepare("
@@ -247,7 +264,45 @@ function getAttendanceList($pdo, $dept, $year, $show_past = true) {
 // ============================================================
 $doctors = getDoctors($pdo, null);
 $slot_groups = getSlotGroups($pdo, $dept);
-$waku_list = getWakuList($pdo, $dept);
+
+// 時間枠世代（valid_from 〜 valid_to）一覧と選択世代の決定
+$waku_generations = getWakuGenerations($pdo, $dept);
+$req_gen_from = isset($_GET['gen_from']) ? trim($_GET['gen_from']) : '';
+$req_gen_to   = isset($_GET['gen_to']) ? trim($_GET['gen_to']) : '';
+
+$selected_gen = null;
+if ($req_gen_from !== '' && $req_gen_to !== '') {
+    foreach ($waku_generations as $g) {
+        if ($g['valid_from'] === $req_gen_from && $g['valid_to'] === $req_gen_to) {
+            $selected_gen = $g;
+            break;
+        }
+    }
+}
+if ($selected_gen === null) {
+    foreach ($waku_generations as $g) {
+        if (!empty($g['is_current'])) {
+            $selected_gen = $g;
+            break;
+        }
+    }
+}
+if ($selected_gen === null && !empty($waku_generations)) {
+    $selected_gen = $waku_generations[0];
+}
+if ($selected_gen === null) {
+    $selected_gen = [
+        'gen_index'    => 1,
+        'valid_from'   => '1900-01-01',
+        'valid_to'     => '9999-12-31',
+        'total_count'  => 0,
+        'active_count' => 0,
+        'is_current'   => true,
+        'label'        => '全期間（〜 9999.9.9）',
+    ];
+}
+
+$waku_list = getWakuListForGeneration($pdo, $dept, $selected_gen['valid_from'], $selected_gen['valid_to']);
 $pattern_data = $doctor ? getDoctorPatterns($pdo, $dept, $doctor) : [];
 $pattern_names = $doctor ? getPatternNames($pdo, $dept, $doctor) : [];
 $attendance_list = getAttendanceList($pdo, $dept, $year, $show_past);
@@ -312,6 +367,57 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
         }
         .home-btn:hover { background: #34495e; }
         
+        /* 3大マスタ統合ヘッダーナビ */
+        .master-hub-nav {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .master-hub-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 6px;
+        }
+        .hub-tab {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .hub-tab:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .hub-tab.active {
+            background: #0284c7;
+            color: #fff;
+            border-color: #0284c7;
+            box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+        }
+        .hub-tab.home-link {
+            margin-left: auto;
+            background: #fff;
+            border-color: #cbd5e1;
+        }
+        .hub-tab.home-link:hover {
+            background: #f1f5f9;
+        }
+
         .tabs {
             display: flex;
             gap: 2px;
@@ -589,17 +695,34 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
         });
     </script>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
-    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
+    <link rel="stylesheet" href="assets/css/theme.css">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
-    <script src="assets/js/onokai_flatpickr.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
 </head>
-<body>
+<body <?= getBodyEnvClass() ?>>
+<?= renderLocalEnvBanner() ?>
 
 <div class="container">
 
-    <h2>
-        ⚙️ 検査枠マスターメンテナンス
+    <!-- 3大マスタ統合ヘッダーナビゲーション -->
+    <nav class="master-hub-nav" aria-label="マスタ管理ナビゲーション">
+        <span class="master-hub-title">📋 院内マスタ管理:</span>
+        <a href="slot_master_maintenance.php" class="hub-tab active">⏱️ 検査枠マスタ</a>
+        <a href="exam_master_maintenance.php" class="hub-tab">🔬 検査種別マスタ</a>
+        <a href="master_maintenance.php" class="hub-tab">🔧 汎用選択肢マスタ</a>
+        <a href="printer_master_maintenance.php" class="hub-tab">🖨️ プリンターマスタ</a>
+        <a href="system_info_maintenance.php" class="hub-tab">📢 修正インフォメーション</a>
+        <a href="furiwake_daymemo.php" class="hub-tab">📝 日別メモ科振分</a>
+        <a href="index.php" class="hub-tab home-link">🏠 ポータルへ</a>
+    </nav>
+
+    <h2 style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <span style="display: inline-flex; align-items: center; gap: 8px;">
+            <span>⚙️ 検査枠マスターメンテナンス</span>
+            <code style="font-size: 11px; font-weight: 600; font-family: ui-monospace, monospace; background: #f1f5f9; color: #475569; padding: 2px 7px; border-radius: 4px; border: 1px solid #cbd5e1;" title="PostgreSQL 対象テーブル (選択中タブ連動)">TABLE: <?= htmlspecialchars($current_table) ?></code>
+        </span>
         <div class="header-nav">
             <a href="index.php" class="home-btn">🏠 メニューへ</a>
         </div>
@@ -612,10 +735,11 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
     <?php endif; ?>
 
     <div class="tabs">
-        <a href="?tab=doctor&dept=<?= $dept ?>" class="tab <?= $tab === 'doctor' ? 'active' : '' ?>">👨‍⚕️ 医師</a>
-        <a href="?tab=waku&dept=<?= $dept ?>" class="tab <?= $tab === 'waku' ? 'active' : '' ?>">🕐 時間枠</a>
-        <a href="?tab=pattern&dept=<?= $dept ?>&doctor=<?= urlencode($doctor) ?>" class="tab <?= $tab === 'pattern' ? 'active' : '' ?>">📊 枠数パターン</a>
-        <a href="?tab=attendance&dept=<?= $dept ?>&year=<?= $year ?>&show_past=<?= $show_past?'1':'0' ?>" class="tab <?= $tab === 'attendance' ? 'active' : '' ?>">📅 出勤例外</a>
+        <a href="?tab=doctor&dept=<?= $dept ?>" class="tab <?= $tab === 'doctor' ? 'active' : '' ?>" title="対象テーブル: m2_doctor">👨‍⚕️ 医師 <small style="font-size:10.5px; opacity:0.75; font-family:monospace;">(m2_doctor)</small></a>
+        <a href="?tab=waku&dept=<?= $dept ?>" class="tab <?= $tab === 'waku' ? 'active' : '' ?>" title="対象テーブル: m2_waku">🕐 基本時間枠 <small style="font-size:10.5px; opacity:0.75; font-family:monospace;">(m2_waku)</small></a>
+        <a href="?tab=pattern&dept=<?= $dept ?>&doctor=<?= urlencode($doctor) ?>" class="tab <?= $tab === 'pattern' ? 'active' : '' ?>" title="対象テーブル: m2_doctor_slot_pattern">📊 枠数パターン <small style="font-size:10.5px; opacity:0.75; font-family:monospace;">(m2_pattern)</small></a>
+        <a href="?tab=attendance&dept=<?= $dept ?>&year=<?= $year ?>&show_past=<?= $show_past?'1':'0' ?>" class="tab <?= $tab === 'attendance' ? 'active' : '' ?>" title="対象テーブル: m2_doctor_attendance">📅 出勤例外 <small style="font-size:10.5px; opacity:0.75; font-family:monospace;">(m2_attendance)</small></a>
+        <a href="month_schedule.php?open_override=manage" class="tab" style="background: #f0f9ff; color: #0284c7; border: 1.5px solid #bae6fd; font-weight: 700; margin-left: auto;" title="特定日や期間の時間枠休止・臨時枠オーバーライド管理画面を開きます (テーブル: m2_waku_override)">⏱️ 臨時・期間枠オーバーライド ↗</a>
     </div>
 
     <div class="filter-bar">
@@ -711,16 +835,124 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
         </form>
 
     <?php elseif ($tab === 'waku'): ?>
-        <h3>🕐 時間枠管理（<?= $dept_label ?>）</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <h3 style="margin:0;">🕐 基本時間枠マスタ・世代（期間）管理（<?= $dept_label ?>）</h3>
+            <a href="month_schedule.php?open_override=manage" class="btn" style="background:#0284c7; color:#fff; font-size:12px; text-decoration:none; padding:5px 12px; border-radius:6px; font-weight:bold;">
+                ⏱️ 特定日・期間の枠休止や臨時枠はこちら ➔
+            </a>
+        </div>
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:#166534; line-height:1.5;">
+            <strong>💡 時間枠の世代（期間）管理とオーバーライドの使い分け:</strong><br>
+            ・<strong>世代（期間）管理（この画面）</strong>: 「2026.12.31までは旧枠、2027.1.1（または2027.2.1）からは新枠」のように、<strong>ある境界日を境に基本時間枠の構成・名称・枠数を恒久的に切り替える場合</strong>に使用します。<br>
+            ・<strong>日別・期間別オーバーライド（右上ボタン）</strong>: 世代内の特定日だけ枠を休止（🚫）したり臨時枠を追加する場合は、基本枠を書き換えずオーバーライド機能を使用してください。
+        </div>
+
+        <!-- 🗓️ 時間枠世代（期間）切替・一括管理パネル -->
+        <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:14px 18px; margin-bottom:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-weight:800; font-size:13px; color:#1e293b;">🗓️ 世代（有効期間）切替:</span>
+                    <?php foreach ($waku_generations as $g):
+                        $is_sel = ($g['valid_from'] === $selected_gen['valid_from'] && $g['valid_to'] === $selected_gen['valid_to']);
+                        $tab_bg = $is_sel ? '#1e40af' : '#ffffff';
+                        $tab_col = $is_sel ? '#ffffff' : '#334155';
+                        $tab_bdr = $is_sel ? '#1e40af' : '#cbd5e1';
+                    ?>
+                        <a href="?tab=waku&dept=<?= $dept ?>&gen_from=<?= urlencode($g['valid_from']) ?>&gen_to=<?= urlencode($g['valid_to']) ?>"
+                           style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; text-decoration:none; font-weight:700; font-size:12.5px; background:<?= $tab_bg ?>; color:<?= $tab_col ?>; border:1.5px solid <?= $tab_bdr ?>; box-shadow:<?= $is_sel ? '0 2px 6px rgba(30,64,175,0.25)' : 'none' ?>;">
+                            <span>第<?= (int)$g['gen_index'] ?>世代: <?= htmlspecialchars($g['label'], ENT_QUOTES, 'UTF-8') ?></span>
+                            <span style="font-size:11px; padding:1px 6px; border-radius:10px; background:<?= $is_sel ? 'rgba(255,255,255,0.22)' : '#f1f5f9' ?>; color:<?= $is_sel ? '#fff' : '#475569' ?>;">
+                                有効<?= (int)$g['active_count'] ?>枠 / 計<?= (int)$g['total_count'] ?>枠
+                            </span>
+                            <?php if (!empty($g['is_current'])): ?>
+                                <span style="font-size:10px; padding:1px 6px; border-radius:4px; background:#dcfce7; color:#166534; font-weight:800;">現在適用中</span>
+                            <?php elseif ($g['valid_from'] > date('Y-m-d')): ?>
+                                <span style="font-size:10px; padding:1px 6px; border-radius:4px; background:#fef3c7; color:#92400e; font-weight:800;">次期世代</span>
+                            <?php endif; ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+
+                <button type="button" class="btn" style="background:#0f766e; color:#fff; font-size:12px; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer;"
+                        onclick="var el=document.getElementById('genSplitBox'); el.style.display=(el.style.display==='none'?'block':'none');">
+                    ➕ 新世代を作成（現世代を複製して期間分割）
+                </button>
+            </div>
+
+            <!-- ➕ 新世代作成（期間分割）折りたたみフォーム -->
+            <div id="genSplitBox" style="display:none; background:#f0fdfa; border:1.5px solid #5eead4; border-radius:8px; padding:12px 16px; margin-bottom:12px;">
+                <form method="POST" action="action_slot_master.php" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;" onsubmit="return confirm('選択中の世代を複製し、指定した開始日から新しい世代を作成しますか？');">
+                    <input type="hidden" name="action" value="waku_generation_split">
+                    <input type="hidden" name="dept" value="<?= $dept ?>">
+                    <input type="hidden" name="source_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="source_valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>">
+                    <span style="font-weight:bold; color:#0f766e; font-size:12.5px;">🌱 新世代の開始日（切替日）:</span>
+                    <input type="date" name="split_date" value="2027-02-01" class="input-date" required style="font-weight:bold;">
+                    <span style="font-size:12px; color:#115e59;">
+                        ※現在の「<?= htmlspecialchars($selected_gen['label'], ENT_QUOTES, 'UTF-8') ?>」の終了日を前日に自動短縮し、開始日以降の新世代として全枠をコピーします。
+                    </span>
+                    <button type="submit" class="btn btn-success" style="margin-left:auto;">✨ この日付から新世代を分割作成</button>
+                </form>
+            </div>
+
+            <!-- 📅 選択中世代の期間対応一括変更バー -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <form method="POST" action="action_slot_master.php" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0;">
+                    <input type="hidden" name="action" value="waku_period_bulk_update">
+                    <input type="hidden" name="dept" value="<?= $dept ?>">
+                    <input type="hidden" name="old_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="old_valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>">
+
+                    <span style="font-weight:bold; font-size:12.5px; color:#1e293b;">
+                        📅 表示中（第<?= (int)$selected_gen['gen_index'] ?>世代）の有効期間一括変更:
+                    </span>
+                    <label style="font-size:12px; color:#475569; display:inline-flex; align-items:center; gap:4px;">
+                        開始日:
+                        <input type="date" id="bulk_new_vf" name="new_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>" class="input-date" required>
+                    </label>
+                    <button type="button" class="btn btn-sm" style="background:#e2e8f0; color:#334155;" onclick="document.getElementById('bulk_new_vf').value='1900-01-01';" title="開始日を過去全域（1900-01-01）に設定">〜過去全域</button>
+
+                    <span style="font-weight:bold; color:#64748b;">〜</span>
+
+                    <label style="font-size:12px; color:#475569; display:inline-flex; align-items:center; gap:4px;">
+                        終了日:
+                        <input type="date" id="bulk_new_vt" name="new_valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>" class="input-date" required>
+                    </label>
+                    <button type="button" class="btn btn-sm" style="background:#e2e8f0; color:#334155;" onclick="document.getElementById('bulk_new_vt').value='9999-12-31';" title="終了日を無期限（9999.9.9 / DB内部値 9999-12-31）に設定">無期限(9999.9.9)</button>
+
+                    <label style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:bold; color:#0f172a; cursor:pointer; background:#eff6ff; padding:4px 8px; border-radius:6px; border:1px solid #bfdbfe;"
+                           title="例: 第2世代の開始日を 2027-01-01 から 2027-02-01 に変更すると、第1世代の終了日も 2026-12-31 から 2027-01-31 へ自動で連動更新します">
+                        <input type="checkbox" name="sync_adjacent" value="1" checked style="cursor:pointer;">
+                        <span>前後の世代の境界日も自動連動する</span>
+                    </label>
+
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:12px;">📅 期間を一括変更</button>
+                </form>
+
+                <?php if (count($waku_generations) > 1): ?>
+                    <form method="POST" action="action_slot_master.php" style="margin:0;" onsubmit="return confirm('表示中の世代（<?= htmlspecialchars($selected_gen['label'], ENT_QUOTES, 'UTF-8') ?>）の全時間枠を一括削除しますか？\n※下部の変更履歴からワンクリックで復元可能です。');">
+                        <input type="hidden" name="action" value="waku_generation_delete">
+                        <input type="hidden" name="dept" value="<?= $dept ?>">
+                        <input type="hidden" name="gen_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="gen_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>">
+                        <button type="submit" class="btn btn-danger btn-sm" style="padding:5px 10px;">🗑️ この世代を一括削除</button>
+                    </form>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <form method="POST" action="action_slot_master.php">
             <input type="hidden" name="action" value="waku_update">
             <input type="hidden" name="dept" value="<?= $dept ?>">
+            <input type="hidden" name="gen_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="gen_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>">
             <table>
                 <thead>
                     <tr>
                         <th style="width:30px;">No</th>
                         <th style="width:120px;">グループ</th>
                         <th>枠名（表示名）</th>
+                        <th style="width:160px;">適用期間（世代）</th>
                         <th style="width:80px;">表示順</th>
                         <th style="width:80px;">状態</th>
                         <th style="width:100px;">操作</th>
@@ -728,10 +960,10 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 </thead>
                 <tbody>
                     <?php if (empty($waku_list)): ?>
-                        <tr><td colspan="6" class="empty-msg">時間枠が登録されていません</td></tr>
+                        <tr><td colspan="7" class="empty-msg">この世代には時間枠が登録されていません</td></tr>
                     <?php else: ?>
                         <?php foreach ($waku_list as $i => $w): ?>
-                            <tr>
+                            <tr style="<?= !$w['is_active'] ? 'opacity:0.55; background:#f8fafc;' : '' ?>">
                                 <td><?= $i+1 ?></td>
                                 <td>
                                     <select name="group_code[]" class="input-text" style="width:100px;">
@@ -746,6 +978,11 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                                     <input type="hidden" name="waku_id[]" value="<?= $w['id'] ?>">
                                     <input type="text" name="waku_name[]" value="<?= htmlspecialchars($w['waku_name'], ENT_QUOTES, 'UTF-8') ?>" class="input-text" required>
                                 </td>
+                                <td>
+                                    <span style="display:inline-block; font-size:11.5px; font-weight:700; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px;">
+                                        <?= htmlspecialchars($selected_gen['label'], ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                </td>
                                 <td><input type="number" name="display_order[]" value="<?= $w['display_order'] ?>" class="input-number" style="width:60px;"></td>
                                 <td>
                                     <select name="is_active[]" class="input-text" style="width:80px;">
@@ -754,7 +991,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                                     </select>
                                 </td>
                                 <td>
-                                    <a href="action_slot_master.php?action=waku_delete&id=<?= $w['id'] ?>&dept=<?= $dept ?>" class="btn btn-danger btn-sm" onclick="return confirm('時間枠を削除しますか？')">削除</a>
+                                    <a href="action_slot_master.php?action=waku_delete&id=<?= $w['id'] ?>&dept=<?= $dept ?>&gen_from=<?= urlencode($selected_gen['valid_from']) ?>&gen_to=<?= urlencode($selected_gen['valid_to']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('時間枠「<?= htmlspecialchars($w['waku_name'], ENT_QUOTES, 'UTF-8') ?>」を削除しますか？')">削除</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -762,9 +999,64 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 </tbody>
             </table>
             <div class="text-right mt-10">
-                <button type="submit" class="btn btn-primary">💾 一括保存</button>
+                <button type="submit" class="btn btn-primary">💾 表示中の世代（<?= htmlspecialchars($selected_gen['label'], ENT_QUOTES, 'UTF-8') ?>）を一括保存</button>
             </div>
         </form>
+
+        <!-- ➕ 表示中の世代への時間枠新規追加フォーム -->
+        <form method="POST" action="action_slot_master.php" class="form-inline" style="margin-top:16px; background:#f0f9ff; border-color:#bae6fd;">
+            <input type="hidden" name="action" value="waku_add">
+            <input type="hidden" name="dept" value="<?= $dept ?>">
+            <input type="hidden" name="valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>">
+            <label style="color:#0369a1;">➕ 第<?= (int)$selected_gen['gen_index'] ?>世代（<?= htmlspecialchars($selected_gen['label'], ENT_QUOTES, 'UTF-8') ?>）に時間枠を追加:</label>
+            <label>グループ:
+                <select name="group_code" class="input-text" style="width:110px;" required>
+                    <?php foreach ($slot_groups as $g): ?>
+                        <option value="<?= htmlspecialchars($g['group_code'], ENT_QUOTES, 'UTF-8') ?>">
+                            <?= htmlspecialchars($g['group_name'], ENT_QUOTES, 'UTF-8') ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label>枠名（表示名）:
+                <input type="text" name="waku_name" class="input-text" style="width:180px;" placeholder="例: TCF13:30① / GIF 10:30" required>
+            </label>
+            <label>表示順:
+                <input type="number" name="display_order" class="input-number" style="width:70px;" value="100" required>
+            </label>
+            <button type="submit" class="btn btn-success">➕ 枠を追加</button>
+        </form>
+
+        <!-- ⚙️ 時間枠オーバーライド運用・安全設定パネル -->
+        <?php $is_period_allowed = isPeriodOverrideAllowed($pdo); ?>
+        <div style="margin-top:28px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px; padding:18px 22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="margin:0; font-size:15px; color:#1e293b; display:flex; align-items:center; gap:8px;">
+                    <span>🛡️ 時間枠オーバーライド機能の運用・安全制御</span>
+                    <?php if ($is_period_allowed): ?>
+                        <span style="font-size:11px; background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:4px; font-weight:bold;">期間指定: 許可中（注意）</span>
+                    <?php else: ?>
+                        <span style="font-size:11px; background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:4px; font-weight:bold;">期間指定: 禁止中（安全・推奨）</span>
+                    <?php endif; ?>
+                </h4>
+            </div>
+            <p style="font-size:12.5px; color:#475569; line-height:1.6; margin-bottom:14px;">
+                現場スタッフの誤操作防止およびシンプル運用の観点から、通常は<strong>単一日のみの操作（🚫で枠なし、⭕で通常復帰、⚙️で枠名称変更）</strong>に限定することを強く推奨します。<br>
+                年末年始や年度替わりなど、管理者が期間一括設定（単日バルク展開）を行う場合のみ、一時的に「期間指定オーバーライド機能」を許可してください。
+            </p>
+            <form method="POST" action="slot_master_maintenance.php?tab=waku&dept=<?= $dept ?>" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:14px 18px;">
+                <input type="hidden" name="action" value="update_override_permission">
+                <input type="hidden" name="dept" value="<?= $dept ?>">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px; font-weight:bold; color:#0f172a;">
+                    <input type="checkbox" name="allow_period_override" value="1" <?= $is_period_allowed ? 'checked' : '' ?> style="width:18px; height:18px; cursor:pointer;">
+                    <span>期間指定オーバーライド機能の利用を許可する（チェックなし推奨: 単一日のみ利用可能）</span>
+                </label>
+                <div style="margin-top:12px; text-align:right;">
+                    <button type="submit" class="btn" style="background:#3b82f6; color:#ffffff; font-weight:bold; padding:6px 16px; border-radius:6px; cursor:pointer;">設定を保存する</button>
+                </div>
+            </form>
+        </div>
 
     <?php elseif ($tab === 'pattern'): ?>
         <h3>📊 医師別枠数パターン（<?= $dept_label ?>）</h3>
@@ -940,8 +1232,8 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 <input type="hidden" name="dept" value="<?= $dept ?>">
                 <input type="hidden" name="year" value="<?= $year ?>">
                 
-                <label>日付:</label>
-                <input type="text" name="target_date" id="target_date" class="input-date onokai-date-picker" required autocomplete="off" placeholder="クリックして選択" style="width: 140px;">
+                <label style="font-weight: 700; color: #475569;">日付:</label>
+                <input type="text" name="target_date" id="target_date" class="onokai-date-picker" required autocomplete="off" placeholder="クリックして選択">
                 
                 <label>医師:</label>
                 <select name="doctor_name" class="input-text" style="width:120px;" required>
@@ -1072,7 +1364,8 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
 <script>
 function initSlotMasterDatePicker() {
     if (window.OnokaiDatePicker) {
-        OnokaiDatePicker.attach('#target_date');
+        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を出勤例外フォームにバインド
+        OnokaiDatePicker.bindControl('#target_date');
     }
 }
 if (document.readyState === 'loading') {
@@ -1081,5 +1374,6 @@ if (document.readyState === 'loading') {
     initSlotMasterDatePicker();
 }
 </script>
+<script src="assets/js/env_detector.js"></script>
 </body>
 </html>

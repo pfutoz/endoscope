@@ -6,6 +6,9 @@
  * - get_notifications : 未読通知一覧取得（30日以内、検査日有効、医師別）
  * - mark_read         : 個別消込
  * - mark_all_read     : 一括消込（カーソル更新＆個別クリア）
+ * 
+ * 修正履歴:
+ *   - 2026-10-26: 全医師消込時の医師リスト取得元を m_input_master から m2_doctor へ完全移行（医師マスタ一本化）
  */
 
 ini_set('display_errors', "0");
@@ -278,10 +281,10 @@ if ($action === 'mark_all_read') {
 
         $doctorsToClear = [];
         if ($doctor_name === '' || $doctor_name === 'ALL') {
-            // 全医師ビューでの一括消込は、全登録医師＋ALLを一括で最新IDへ更新！
-            $stmtDocs = $pdo->query("SELECT DISTINCT item_value FROM m_input_master WHERE category = 'doctor'");
+            // 全医師ビューでの一括消込は、全登録医師（m2_doctor）＋ALLを一括で最新IDへ更新！
+            $stmtDocs = $pdo->query("SELECT doctor_name FROM m2_doctor WHERE is_active = TRUE ORDER BY display_order");
             $docList = $stmtDocs->fetchAll(PDO::FETCH_COLUMN);
-            $doctorsToClear = array_merge(['ALL', '誠吾', '哲也', '義智', '慶太郎'], $docList);
+            $doctorsToClear = array_merge(['ALL'], $docList);
             $doctorsToClear = array_unique(array_filter($doctorsToClear));
         } else {
             $doctorsToClear = [$doctor_name];

@@ -1,0 +1,54 @@
+{
+    "default_printer": "おの_C2570 複合機",
+    "printers": [
+        {
+            "name": "おの_C2570 複合機",
+            "label": "肛門科 コピー機",
+            "ip": "192.168.1.195",
+            "location": "処置室・内視鏡室",
+            "is_active": true
+        },
+        {
+            "name": "クリニック_C2570複合機",
+            "label": "肛門科 コピー機",
+            "ip": "192.168.1.196",
+            "location": "受付・クリニック",
+            "is_active": true
+        },
+        {
+            "name": "OKI B432(PCL6)",
+            "label": "肛門科 受付",
+            "ip": "192.168.1.197",
+            "location": "処置室",
+            "is_active": true
+        },
+        {
+            "name": "おの_C2570(モノクロ両面)",
+            "label": "おの_C2570 モノクロ両面",
+            "ip": "192.168.1.195",
+            "location": "処置室・内視鏡室",
+            "is_active": true
+        },
+        {
+            "name": "おの_2F モノクロレーザ　Brother HL-L2360D",
+            "label": "おの_2F Brother HL-L2360D",
+            "ip": "",
+            "location": "2階",
+            "is_active": false
+        },
+        {
+            "name": "EPSON5DF052 (EW-M873T Series)",
+            "label": "肛門科 診察室",
+            "ip": "",
+            "location": "院内",
+            "is_active": true
+        },
+        {
+            "name": "EPSON-CLK-2F (EW-M770T Series)",
+            "label": "EPSON-CLK-2F (EW-M770T)",
+            "ip": "",
+            "location": "2階",
+            "is_active": false
+        }
+    ]
+}

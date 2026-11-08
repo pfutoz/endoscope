@@ -6,9 +6,11 @@
  *   - 2026-08-28: ステップ2（未割当バッジ生成関数 renderUnassignedBadgeHTML の一元化）
  *   - 2026-09-07: 備考欄のプレーン/リッチテキスト両対応描画関数 renderRemarksHtml を追加
  *   - 2026-09-29: タイル表現カスタマイズ（枠なしタイルの白背景・医師検査非表示化、削除データの警告赤背景・目立つ表示化、検査バッジのスレートグレー統一、パネル部の検査別カラフルパレット適用）
+ *   - 2026-10-24: カレンダー患者タイル内にRS-Base検査実績タイムライン(キャンバス)起動アイコン(🗺️)を追加
  */
 
 require_once __DIR__ . '/date_helper.php';
+require_once __DIR__ . '/canvas_helper.php';
 
 /**
  * 検査種別アイコンを返す（共通）
@@ -162,7 +164,8 @@ function renderPatientBox($data, $date_str, $prefix = "", $simple_mode = false) 
     $exam_badge = getExamBadgeHTML($data['exam_type'] ?? '');
     $doctor_icon = getDoctorIcon($data['doctor_name'] ?? '');
     
-    echo "<div class='{$box_class}' style='{$custom_style}' draggable='{$draggable}' title='" . htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') . "' data-schedule-id='" . htmlspecialchars((string)($data['schedule_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "' data-json='" . htmlspecialchars(json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') . "' ondragstart='dragStart(this, event)'>";
+    $doc_attr = htmlspecialchars(trim((string)($data['doctor_name'] ?? '')), ENT_QUOTES, 'UTF-8');
+    echo "<div class='{$box_class}' style='{$custom_style}' draggable='{$draggable}' title='" . htmlspecialchars($tooltip, ENT_QUOTES, 'UTF-8') . "' data-doctor='{$doc_attr}' data-schedule-id='" . htmlspecialchars((string)($data['schedule_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "' data-json='" . htmlspecialchars(json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8') . "' ondragstart='dragStart(this, event)'>";
     
     if ($booking_status === 'duplicate') { echo "<span class='dup-badge' style='display:inline-block; background:#dc2626; color:#fff; font-size:7px; font-weight:bold; padding:0 4px; border-radius:2px; margin-right:2px;'>⛔重複</span>"; }
     elseif ($booking_status === 'out_of_slot') { echo "<span class='oos-badge' style='display:inline-block; background:#f59e0b; color:#fff; font-size:7px; font-weight:bold; padding:0 4px; border-radius:2px; margin-right:2px;'>⚠️枠外</span>"; }
@@ -188,21 +191,30 @@ function renderPatientBox($data, $date_str, $prefix = "", $simple_mode = false) 
     // ==========================================
     // 2. 通常の患者予約・削除データの場合
     // ==========================================
-    } elseif ($simple_mode) {
-        echo "<div class='pid-row' style='display:flex; justify-content:space-between; align-items:center;'>";
-        echo "  <span style='font-weight:800; color:#1e293b; font-size:9px;'>ID:" . htmlspecialchars((string)($data['patient_id'] ?? ''), ENT_QUOTES, 'UTF-8') . "</span>";
-        echo "  <span class='pname' style='font-weight:bold; font-size:10px; cursor:pointer; flex:1; margin:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;' onclick='openEditModalWithCtrlCheck(this, event)'>";
-        echo "    <span class='real-pname'>" . htmlspecialchars($pname_raw, ENT_QUOTES, 'UTF-8') . "</span>" . $alert_icons_html;
-        echo "    <span class='masked-pname' style='display:none; color:#777; font-style:italic;'>●●●●</span>";
-        echo "  </span>";
-        echo "  " . $exam_badge;
-        echo "</div>";
     } else {
-        ?>
-        <div class='pid-row' style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px dotted rgba(0,0,0,0.15); padding-bottom:2px; margin-bottom:3px;'>
-            <span style='font-weight:800; color:#1e293b; font-size:9px;'>ID：<?= htmlspecialchars((string)($data['patient_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?><?= $is_canceled ? ' <span style="color:#dc2626; font-weight:bold;">[削除]</span>' : '' ?></span>
-            <?= $age_badge ?>
-        </div>
+        $pid_val = trim((string)($data['patient_id'] ?? ''));
+        $canvas_icon_html = '';
+        if ($pid_val !== '' && $pid_val !== '---' && function_exists('getCanvasUrl')) {
+            $c_url = getCanvasUrl($pid_val, (string)($data['exam_type'] ?? ''));
+            $c_modality = function_exists('getCanvasModality') ? getCanvasModality((string)($data['exam_type'] ?? '')) : 'ES';
+            $canvas_icon_html = '<a href="' . htmlspecialchars($c_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer" class="canvas-tile-btn" onclick="event.stopPropagation();" title="患者No.' . htmlspecialchars($pid_val, ENT_QUOTES, 'UTF-8') . ' の検査実績タイムラインを開く (モダリティ: ' . htmlspecialchars($c_modality, ENT_QUOTES, 'UTF-8') . ')" style="text-decoration:none; font-size:10px; margin-left:3px; vertical-align:middle; display:inline-block; line-height:1; cursor:pointer;">🗺️</a>';
+        }
+
+        if ($simple_mode) {
+            echo "<div class='pid-row' style='display:flex; justify-content:space-between; align-items:center;'>";
+            echo "  <span style='font-weight:800; color:#1e293b; font-size:9px;'>ID:" . htmlspecialchars((string)($data['patient_id'] ?? ''), ENT_QUOTES, 'UTF-8') . $canvas_icon_html . "</span>";
+            echo "  <span class='pname' style='font-weight:bold; font-size:10px; cursor:pointer; flex:1; margin:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;' onclick='openEditModalWithCtrlCheck(this, event)'>";
+            echo "    <span class='real-pname'>" . htmlspecialchars($pname_raw, ENT_QUOTES, 'UTF-8') . "</span>" . $alert_icons_html;
+            echo "    <span class='masked-pname' style='display:none; color:#777; font-style:italic;'>●●●●</span>";
+            echo "  </span>";
+            echo "  " . $exam_badge;
+            echo "</div>";
+        } else {
+            ?>
+            <div class='pid-row' style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px dotted rgba(0,0,0,0.15); padding-bottom:2px; margin-bottom:3px;'>
+                <span style='font-weight:800; color:#1e293b; font-size:9px;'>ID：<?= htmlspecialchars((string)($data['patient_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?><?= $canvas_icon_html ?><?= $is_canceled ? ' <span style="color:#dc2626; font-weight:bold;">[削除]</span>' : '' ?></span>
+                <?= $age_badge ?>
+            </div>
         
         <div class='pname-row' style='font-weight:bold; font-size:10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;' onclick='openEditModalWithCtrlCheck(this, event)'>
             <?= $prefix ?>
@@ -220,6 +232,7 @@ function renderPatientBox($data, $date_str, $prefix = "", $simple_mode = false) 
             </span>
         </div>
         <?php
+        }
     }
     echo "</div>";
 }

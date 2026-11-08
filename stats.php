@@ -12,6 +12,8 @@
  *   - 枠なし設定（remarks/patient_name LIKE '%枠なし%'）を集計対象から除外（◆未定◆の大量カウント防止）
  * 修正 (2026-10-20):
  *   - 期間選択inputに特大Flatpickr（小野会カレンダー・公休日色分け）導入
+ * 修正 (2026-10-26):
+ *   - 検査種別の大分類集計（upper_total, lower_total）を resolveExamGroup() と完全連動。未定義種別や検診胃カメラの集計漏れを防止
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -193,7 +195,8 @@ function getStats($pdo, $start_date, $end_date, $selected_dept, $selected_doctor
             ];
         }
         
-        if ($exam_type === 'GIF') {
+        $egroup = resolveExamGroup($exam_type, $pdo);
+        if ($exam_type === 'GIF' || $exam_type === '◆胃がん検診◆' || $exam_type === '胃がん検診') {
             $result[$doctor]['GIF'] += $count;
             $result[$doctor]['upper_total'] += $count;
         } elseif ($exam_type === 'W') {
@@ -206,10 +209,16 @@ function getStats($pdo, $start_date, $end_date, $selected_dept, $selected_doctor
         } elseif ($exam_type === 'ポリペク') {
             $result[$doctor]['ポリペク'] += $count;
             $result[$doctor]['lower_total'] += $count;
-        } elseif ($exam_type === 'エコー' || $exam_type === 'ECHO') {
+        } elseif ($egroup === 'ECHO') {
             $result[$doctor]['エコー'] += $count;
-        } elseif ($exam_type === '浣腸CF' || $exam_type === '術前F' || $exam_type === '前日F') {
+        } elseif ($exam_type === '浣腸CF' || $exam_type === '浣腸F' || $exam_type === '術前F' || $exam_type === '前日F') {
             $result[$doctor]['浣腸CF'] += $count;
+        } elseif ($egroup === 'GIF') {
+            $result[$doctor]['GIF'] += $count;
+            $result[$doctor]['upper_total'] += $count;
+        } elseif ($egroup === 'TCF') {
+            $result[$doctor]['TCF'] += $count;
+            $result[$doctor]['lower_total'] += $count;
         }
     }
     
@@ -481,10 +490,10 @@ if (!empty($selected_months)) {
         }
     </style>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
-    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
-    <script src="assets/js/onokai_flatpickr.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
 </head>
 <body>
 
@@ -499,11 +508,10 @@ if (!empty($selected_months)) {
 
         <!-- 期間 + 月ショートカット -->
         <div class="filter-row">
-            <span class="filter-label" style="cursor:default;">期間 <span class="required-mark">*</span></span>
-            <input type="text" name="start_date" id="date_from" class="date-input onokai-date-picker <?= $is_month_mode ? 'disabled' : '' ?>" 
+            <input type="text" name="start_date" id="date_from" class="onokai-date-picker <?= $is_month_mode ? 'disabled' : '' ?>" 
                    value="<?= htmlspecialchars($start_date, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off">
-            <span>〜</span>
-            <input type="text" name="end_date" id="date_to" class="date-input onokai-date-picker <?= $is_month_mode ? 'disabled' : '' ?>" 
+            <span style="font-weight: bold; color: #64748b; margin: 0 4px;">〜</span>
+            <input type="text" name="end_date" id="date_to" class="onokai-date-picker <?= $is_month_mode ? 'disabled' : '' ?>" 
                    value="<?= htmlspecialchars($end_date, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off">
             
             <!-- 月ショートカット（今月から過去に遡る 12ヶ月分・西暦付き） -->
@@ -877,8 +885,17 @@ function resetForm() {
 <script>
 function initStatsDatePicker() {
     if (window.OnokaiDatePicker) {
-        OnokaiDatePicker.attach('#date_from');
-        OnokaiDatePicker.attach('#date_to');
+        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を集計期間にバインド
+        window.statsFromControl = OnokaiDatePicker.bindControl('#date_from', {
+            onChange: function(dates, dateStr) {
+                if (window.statsToControl && window.statsToControl.flatpickr) {
+                    window.statsToControl.flatpickr.set('minDate', dateStr);
+                }
+            }
+        });
+        window.statsToControl = OnokaiDatePicker.bindControl('#date_to', {
+            minDate: document.getElementById('date_from').value || undefined
+        });
     }
 }
 if (document.readyState === 'loading') {

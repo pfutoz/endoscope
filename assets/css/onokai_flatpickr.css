@@ -3,11 +3,13 @@
  * 医療法人小野会 特大Flatpickr共通スタイルシート
  * 生成日時: 2026-10-20 23:15
  * 
- * 特徴:
- *   - 画面デザイン・ツライチを保護する入力コントロールラッパー
- *   - 横幅440px / 日付文字18px / マス目52px の押し間違いゼロ特大カレンダー
- *   - 小野会公休（日曜・祝日）: 赤色（薄赤背景・赤文字）※最優先
- *   - 木曜日: 青色（水色背景・濃青文字）
+ * 修正履歴:
+ *   - 2026-10-20: 初版作成（特大Flatpickr共通スタイル）
+ *   - 2026-10-22: 【小野会日付ピッカー共通コンポーネント新設】
+ *       1. .onokai-date-control: 青枠角丸ピル形状（高さ32px完全保護）
+ *       2. .onokai-date-text-toggle: 西暦/和暦ワンクリック切替バッジ
+ *       3. .onokai-date-calendar-icon-btn: 縦仕切り線付き📅アイコン
+ *       4. HTML5 <dialog> Top Layer および disabled 時のスタイル完全対応
  */
 
 /* ── Flatpickr 特大カレンダー共通デザイン ── */
@@ -196,5 +198,110 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     width: 100%;
     box-sizing: border-box;
 }
+
+/* ── 🌟 小野会日付ピッカー（Onokai Date Picker）共通コンポーネント ── */
+.onokai-date-control {
+    display: inline-flex;
+    align-items: center;
+    height: 32px; /* 32pxツライチ完全固定 */
+    width: 195px; /* schedule_note.php と完全同一の固定幅195px（西暦/和暦切替時も周囲を1ミリも押し出さない） */
+    border: 2px solid #3b82f6;
+    border-radius: 8px;
+    background: #eff6ff;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.15);
+    user-select: none;
+    box-sizing: border-box;
+    transition: all 0.2s ease-in-out;
+    vertical-align: middle;
+    position: relative;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, sans-serif;
+    flex-shrink: 0;
+}
+
+.onokai-date-control:hover {
+    background: #dbeafe;
+    border-color: #2563eb;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.onokai-date-control.disabled,
+.onokai-date-control[disabled] {
+    opacity: 0.55;
+    pointer-events: none;
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
+.onokai-date-text-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 100%;
+    cursor: pointer;
+    padding: 0 4px 0 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.onokai-date-val-text {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1e3a8a;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.onokai-date-mode-badge {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #bfdbfe;
+    color: #1e40af;
+    line-height: 1;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.onokai-date-calendar-icon-btn {
+    width: 32px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    border-left: 1px solid #bfdbfe;
+    transition: background 0.15s;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    flex-shrink: 0;
+    user-select: none;
+    line-height: 1;
+}
+
+.onokai-date-calendar-icon-btn:hover {
+    background: #bfdbfe;
+}
+
+.onokai-date-control-hidden {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 1px !important;
+    height: 1px !important;
+    pointer-events: none !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+}
+
 
 

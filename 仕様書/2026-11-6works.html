@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内視鏡シート（検査・処置記録票）全面刷新 ＆ タブレット直接印刷対応 作業報告書 (2026-11-06)</title>
+    <style>
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --primary-light: #f0f9ff;
+            --accent: #2563eb;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --warning: #f59e0b;
+            --warning-light: #fffbeb;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --text-main: #0f172a;
+            --text-sub: #475569;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --font-family: -apple-system, BlinkMacSystemFont, "BIZ UDPGothic", "Segoe UI", Roboto, "Hiragino Sans", "Meiryo", sans-serif;
+            --font-mono: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.68;
+            font-size: 13.5px;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.report-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%);
+            color: #ffffff;
+            padding: 32px 36px;
+            position: relative;
+        }
+        .header-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+        .report-subtitle {
+            font-size: 14px;
+            color: #93c5fd;
+            font-weight: 500;
+        }
+        .meta-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .badge-success { background: #10b981; border: none; }
+        .badge-warning { background: #f59e0b; border: none; }
+
+        .doc-nav-bar {
+            background: #f1f5f9;
+            padding: 10px 36px;
+            display: flex;
+            gap: 14px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #475569;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .doc-nav-bar a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .doc-nav-bar a:hover {
+            text-decoration: underline;
+        }
+
+        .content {
+            padding: 32px 36px;
+        }
+
+        .toc-box {
+            background: var(--primary-light);
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+        }
+        .toc-title {
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 8px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toc-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 8px 16px;
+            list-style: none;
+        }
+        .toc-list a {
+            color: #0369a1;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toc-list a:hover {
+            text-decoration: underline;
+            color: #0284c7;
+        }
+
+        section.work-sec {
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px dashed var(--border);
+        }
+        section.work-sec:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        h2 {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 4px solid var(--accent);
+            padding-left: 10px;
+        }
+
+        h3 {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin: 16px 0 8px 0;
+        }
+
+        p { margin-bottom: 10px; color: var(--text-sub); }
+        ul, ol { margin-bottom: 12px; padding-left: 20px; color: var(--text-sub); }
+        li { margin-bottom: 4px; }
+
+        .callout {
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            border-left: 4px solid;
+            font-size: 13px;
+        }
+        .callout-info {
+            background: var(--primary-light);
+            border-color: var(--accent);
+            color: #1e3a8a;
+        }
+        .callout-success {
+            background: var(--success-light);
+            border-color: var(--success);
+            color: #065f46;
+        }
+        .callout-warning {
+            background: var(--warning-light);
+            border-color: var(--warning);
+            color: #92400e;
+        }
+
+        table.spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 18px 0;
+            font-size: 12.5px;
+        }
+        table.spec-table th, table.spec-table td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        table.spec-table th {
+            background: #f1f5f9;
+            color: #334155;
+            font-weight: 700;
+        }
+        table.spec-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        .code-box {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 10px 0 16px 0;
+        }
+
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #2563eb;
+            color: #fff !important;
+            padding: 6px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .btn-link:hover {
+            background: #1d4ed8;
+        }
+
+        footer.report-footer {
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            padding: 18px 36px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="report-header">
+        <div class="header-title-row">
+            <div>
+                <h1>内視鏡シート（検査・処置記録票）全面刷新 ＆ タブレット直接印刷対応</h1>
+                <div class="report-subtitle">原本Excelシート完全網羅・A4縦1枚最適化・MALL3性別自動補完・画面タップ操作＆サーバー直接印刷ハイブリッド実装</div>
+                <div class="meta-badges">
+                    <span class="badge">📅 2026年11月6日</span>
+                    <span class="badge badge-success">✅ Phase 1 実装・レイアウト調整完了</span>
+                    <span class="badge badge-warning">🖨️ タブレット ➔ 院内複合機 サーバー直接印刷対応</span>
+                    <span class="badge">担当: システム開発室</span>
+                </div>
+            </div>
+            <div>
+                <a href="plan.html#sec-sheet-integration" class="btn-link" style="background:#ffffff; color:#1e3a8a !important; padding:8px 16px; font-size:13px;">📋 次期DB保存・ホワイトボード統合計画へ</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="doc-nav-bar">
+        <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
+        <a href="specdoc.html">📘 システム仕様書 (specdoc.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="plan.html">📋 中長期開発計画書 (plan.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-11-4works.html">📄 前回報告書 (2026-11-4works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-11-1works.html">📄 前々回報告書 (2026-11-1works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="../month_schedule.php">📅 月間予約カレンダー (month_schedule.php)</a>
+    </div>
+
+    <div class="content">
+
+        <!-- 目次 -->
+        <nav class="toc-box">
+            <div class="toc-title">📑 本日の改修作業 目次</div>
+            <ul class="toc-list">
+                <li><a href="#sec1">1. 改修の背景と課題整理</a></li>
+                <li><a href="#sec2">2. 原本Excel（内視鏡シート.xls）構造解析と再設計方針</a></li>
+                <li><a href="#sec3">3. 新設モジュール endoscopy_sheet.php の機能仕様</a></li>
+                <li><a href="#sec4">4. タブレット対応・サーバー直接印刷機能の統合</a></li>
+                <li><a href="#sec5">5. 現場フィードバックに基づくミリ単位レイアウト・印刷調整</a></li>
+                <li><a href="#sec6">6. 変更・新規作成ファイル一覧と次期フェーズ（DB統合）</a></li>
+            </ul>
+        </nav>
+
+        <!-- 1. 改修の背景と課題整理 -->
+        <section class="work-sec" id="sec1">
+            <h2>1. 改修の背景と課題整理</h2>
+            <div class="callout callout-info">
+                <strong>【本来の運用目的】</strong><br>
+                「内視鏡シート」は、本来クリニックの電子カルテ（MALL3）と連携したExcelシート（<code>仕様書/内視鏡シート.xls</code>）として作成され、検査前に患者基本情報や予約内容を自動セットして印刷し、<strong>看護師（前処置・問診・バイタル・使用薬剤）</strong>および<strong>医師（生検・ポリペク部位・加算・使用材料・手紙・説明サイン）</strong>が記載したうえで、最終的に<strong>医事課が電子カルテのオーダー入力やレセプト（診療報酬請求）打ち込み</strong>を正確に行うための基幹業務帳票です。
+            </div>
+            <p><strong>【旧版（print_endoscopy_sheet.php）で発生していた問題点】</strong></p>
+            <ul>
+                <li><strong>処置・算定項目の大幅な欠落:</strong> 医事課のレセプト入力に不可欠な生検部位・臓器数、EMR/ポリペク長径区分（2cm未満/以上・先進医療）、粘膜点墨、狭帯域光強調加算（NBI）、使用デバイス（スネア・クリップ）、使用薬剤（ガスコン・プロナーゼ・色素・キシロカイン等）、手紙（本人渡し/中澤）、同意書スキャン確認、医師サイン欄が欠落しており、現場で全く使えない状態となっていた。</li>
+                <li><strong>患者属性の未連携:</strong> 性別欄が常に <code>---</code> となり、カナ氏名も印字されていなかった。</li>
+                <li><strong>HTMLタグ露出バグ:</strong> 予約時のリッチテキスト備考に含まれる <code>&lt;p&gt;</code> タグがそのまま文字列として露出していた。</li>
+                <li><strong>タブレットからの印刷不可:</strong> ブラウザ標準の <code>window.print()</code> のみであったため、タブレット端末から院内プリンタへ直接出力できなかった。</li>
+            </ul>
+        </section>
+
+        <!-- 2. 原本Excel構造解析と再設計方針 -->
+        <section class="work-sec" id="sec2">
+            <h2>2. 原本Excel（内視鏡シート.xls）構造解析と再設計方針</h2>
+            <p><code>仕様書/内視鏡シート.xls</code> のバイナリ構造（全43行×17列、115セル、85結合セル領域、およびEscher描画レイヤー上の7つのオートシェイプ・楕円スタンプ・破線区切り）を完全抽出し、以下の設計方針でWebシステム化（<code>endoscopy_sheet.php</code>）を行いました。</p>
+
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:24%;">設計項目</th>
+                        <th style="width:38%;">原本Excelの課題</th>
+                        <th>新シート（endoscopy_sheet.php）での解決策</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>A4縦 1ページ収容</strong></td>
+                        <td>鎮静・鎮痛剤（プロポフォール、ジアゼパム、ペチロルファン、ブスコパン、グルカゴン、生食等）が大腸用と胃カメラ用に2回重複記載され、縦スペースを圧迫していた。</td>
+                        <td><strong>共通注射・鎮静薬剤を1ブロックに統合</strong>し、その下に「大腸内視鏡（CF）」と「胃・十二指腸内視鏡（GIF）」の2セクションを常時配置。予定検査に応じて該当セクション見出しを自動ハイライト。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>図形（オートシェイプ）の再現</strong></td>
+                        <td>Excelの図形レイヤーで配置されていた「OK / 回復 / 待合室」の楕円スタンプや、手紙の「本人渡し / 中澤（スミ）」分岐線、下部破線区切りが通常の表変換では消えてしまう。</td>
+                        <td>CSSの角丸ピルスタンプ（<code>.oval-stamp</code>）と分岐ボーダー（<code>.branch-lines</code>）で完全再現し、画面タップで丸囲み（黄色強調＋太枠）できるように実装。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>紙印刷 ＆ タブレット入力の両立</strong></td>
+                        <td>印刷して手書きするだけの静的帳票。</td>
+                        <td>未入力のまま印刷すれば手書き記入用紙として使え、タブレット/PC画面上で <code>□</code> や選択肢をタップ・数値入力してから印刷（または将来DB共有）することもできるハイブリッドUI。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 3. 新設モジュール endoscopy_sheet.php の機能仕様 -->
+        <section class="work-sec" id="sec3">
+            <h2>3. 新設モジュール endoscopy_sheet.php の機能仕様</h2>
+            <p>新規作成した <code>c:\Apache24\htdocs\endoscope\endoscopy_sheet.php</code> は、予約カレンダー（<code>month_schedule.php</code>）およびデイリーノート（<code>schedule_note.php</code>）の患者一覧「📋」ボタンからワンクリックで起動します。</p>
+
+            <h3>① 自動セットされるデータ連携項目</h3>
+            <ul>
+                <li><strong>PostgreSQL（<code>t_endoscopy_schedule</code> / <code>t_today_progress</code> / <code>t_patient_medical_alert</code>）連携:</strong>
+                    <ul>
+                        <li>診療科（<code>[✓]肛門科</code> / <code>[✓]胃腸科</code>）、検査日（曜日付）、予約時間枠、来院時刻、部屋番号（マイトイレ）、担当医、検査室、予定検査種別。</li>
+                        <li>下剤予定（マグコロールP、ニフレック、モビプレップ、ビジクリア）の自動チェック＆黄色ハイライト。</li>
+                        <li>医療安全アラート（抗血栓薬・糖尿病薬・感染症・アレルギー）および鎮静予定・入院予定・送迎/車注意バッジの自動強調。</li>
+                        <li>予約時備考（<code>remarks</code>）から <code>&lt;p&gt;</code> 等のHTMLタグを除去し、改行を保持した状態で備考欄に自動セット。</li>
+                    </ul>
+                </li>
+                <li><strong>電子カルテMALL3（SQL Server <code>M_Patient</code>）自動補完:</strong>
+                    <ul>
+                        <li>PostgreSQL側に保持されていない<strong>性別（男 / 女）</strong>をMALL3から自動取得し、シート上の <code>男</code> または <code>女</code> を自動で丸囲み表示（サーバー側直接取得＋クライアント側 <code>get_mall_patient.php</code> 非同期フォールバックの二段構え）。</li>
+                        <li>カナ氏名（フリガナ）が未登録の場合もMALL3から自動補完。</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>② シート構成ブロック（全5ブロック）</h3>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:22%;">ブロック</th>
+                        <th>収録項目（タップ操作・手書き両対応）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>ヘッダー・患者基本情報</strong></td>
+                        <td>診療科チェック、検査日、予約枠、来院時刻、部屋番号、カルテ番号、氏名（カナ＋漢字）、性別（男/女）、生年月日（和暦）、年齢、予定検査バッジ、担当医、検査室</td>
+                    </tr>
+                    <tr>
+                        <td><strong>第1ブロック（左）<br>来院確認 ＆ 前処置・下剤</strong></td>
+                        <td>・付添（無・有）、迎え（タクシー・車）、荷物（無・有・ロッカー番号）、内服（無・有）、IVセット・入院セット（特・個・大）<br>
+                            ・グリセリン浣腸液50%（60ml/120ml・時間）、高圧浣腸グリセリン（100ml/120ml）、マグコロール散68%（50g/100g/150g）、ニフレック（1袋 1.5/2）、モビプレップ（1袋 1.5/2）、ビジクリア（錠）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>第1ブロック（右）<br>問診・医療安全 ＆ 備考</strong></td>
+                        <td>・排便回数（昨日・今日・最終）、便秘（無・有）、難聴（無・有）<br>
+                            ・感染症：HB・HC・RPR・<code>□未</code><br>
+                            ・抗凝固薬 / 糖尿病薬 / インスリン：<code>□無 □有（□休薬なし □休薬あり 月/日〜薬剤名）</code><br>
+                            ・シャント・乳腺手術：<code>□無 □有</code>、注射（右・左）<br>
+                            ・当日内服：血圧（済・未）、BP（収縮期/拡張期）、他<br>
+                            ・📝 予約時備考・申し送り事項（追記可能テキストエリア・行数最大化）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>第2ブロック<br>共通薬剤 ＆ 採血・時間記録</strong></td>
+                        <td>・プロポフォール1%（mg）、ジアゼパム10mg/セルシン10mg（ml）、ペチロルファン50mg+生食（ml）、ブスコパン20mg（1A・0.5A / 静注・筋注）、グルカゴン1mg+生食（ml）、生食（100ml・20ml・他）、アネキセート0.5mg（ml）、ガスコンドロップ2%（4ml）<br>
+                            ・採血（あり・なし）、アル綿禁、開始時刻・終了時刻（現在時刻ワンタップ打刻ボタン付）、検査メモ</td>
+                    </tr>
+                    <tr>
+                        <td><strong>第3ブロック<br>大腸内視鏡 (CF) ／<br>胃・十二指腸内視鏡 (GIF)</strong></td>
+                        <td>・<strong>CF:</strong> 挿入到達部位、観察（EF・SF+EF・色素：インジゴ/ピオクタニン ml）、生検（C, A, T, D, S, Rs, Rb, P / 1・2・3臓器 / 容器数）、ポリープ切除（EMR・ポリペク / 2cm未満・2cm以上・先進 / 個数 / 部位）、粘膜点墨（ml）、使用材料（スネア・クリップ個数）、CF前処置薬（キシロカインゼリー・オプサイト・ヒビテン）、<strong>[OK] [回復] [待合室]</strong> スタンプ<br>
+                            ・<strong>GIF:</strong> 観察（EF・狭帯域光強調加算 NBI・色素：インジゴ/ルゴール ml）、生検（E, C, M, A, D / 1・2臓器 / 容器数）、ポリープ切除（EMR・ポリペク / 2cm未満・2cm以上）、GIF前処置薬（プロナーゼMS・重曹・ガスコン4ml・キシロカインビスカス/スプレー・リドカインスプレー/ビスカス + <strong>(心)(前)(緑)(齢)</strong> 丸囲み）、<strong>[OK] [回復] [待合室]</strong> スタンプ</td>
+                    </tr>
+                    <tr>
+                        <td><strong>第4ブロック（破線下）<br>説明・手紙・書類・署名・会計</strong></td>
+                        <td>・<code>□胃カメラ説明</code>、<code>□大腸カメラ説明</code>、<code>□検査後採血あり</code><br>
+                            ・<code>□手紙</code> ➔ 本人渡し（スミ）／ 中澤（スミ）、その他メモ<br>
+                            ・書類確認テーブル：入院診療計画書（スキャン・配布）、検査及び入院・手術同意書（スキャン・配布）<br>
+                            ・医師サイン欄（👨‍⚕️担当医名ワンタップ印字トグル対応）、<code>□会計へ</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 4. タブレット対応・サーバー直接印刷機能の統合 -->
+        <section class="work-sec" id="sec4">
+            <h2>4. タブレット対応・サーバー直接印刷機能の統合</h2>
+            <div class="callout callout-success">
+                <strong>【タブレットから院内複合機・プリンタへのダイレクト印刷】</strong><br>
+                <code>print_schedule_daily.php</code> で稼働しているサーバーサイド印刷基盤（<code>api_server_print.php</code> ＆ <code>lib/printer_helper.php</code>）を <code>endoscopy_sheet.php</code> にも統合しました。さらに、<strong>タブレット画面上でタップしたチェックや入力テキストの状態（<code>sheet_state</code>）をそのままサーバー側Headless Edgeへ引き渡してPDF化・印刷する機構</strong>を実装しています。
+            </div>
+            <ul>
+                <li><strong>出力先プリンタ選択（端末ごとに記憶）:</strong> ツールバーの「🖨️ 出力先」プルダウンから、<code>📱 この端末で印刷 (標準画面)</code> または院内プリンタ（<code>🖨️ おの_C2570 複合機</code> / <code>🖨️ クリニック_C2570複合機</code> / <code>🖨️ OKI B432(PCL6)</code>）を選択可能。選択内容は <code>localStorage</code>（<code>endoscopy_sheet_printer_dest_v1</code>）に保存され、次回以降も維持されます。</li>
+                <li><strong>画面入力状態のサーバー引き渡し（<code>state_job</code> 連携）:</strong>
+                    <ol>
+                        <li>タブレットで「🖨️ シート印刷（サーバー直接）」をタップすると、画面上の全チェック（<code>checks</code>）・丸囲み（<code>circles</code>）・テキスト入力（<code>inputs</code>）をJSON収集して <code>api_server_print.php</code> へPOST送信。</li>
+                        <li><code>api_server_print.php</code> が <code>scratch/print_jobs/{jobId}_state.json</code> に一時保存し、内部URL <code>endoscopy_sheet.php?schedule_id=...&amp;state_job={jobId}</code> を Edge Headless でレンダリング。</li>
+                        <li>生成されたA4 PDFを SumatraPDF 経由で指定プリンタへ直接スプール送信し、完了後に一時ファイルを自動クリーンアップ。</li>
+                    </ol>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 5. 現場フィードバックに基づくミリ単位レイアウト・印刷調整 -->
+        <section class="work-sec" id="sec5">
+            <h2>5. 現場フィードバックに基づくミリ単位レイアウト・印刷調整</h2>
+            <p>実機表示およびテスト印刷での確認に基づき、以下のレイアウト調整を実施しました。</p>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:28%;">調整箇所</th>
+                        <th>実施内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>1. 最上段ヘッダーの整理と枠拡大</strong></td>
+                        <td>左上の「おの肛門科胃腸科内視鏡クリニック」表記をカットし、<code>[✓]肛門科 [✓]胃腸科</code> のみ配置。空いた横幅を活かして右側の <strong>「枠（時間枠）」</strong>（最小幅110px）および <strong>「来院（来院時刻）」</strong>（最小幅88px）の枠幅・文字サイズを拡大。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>2. 患者基本情報テーブルのスリム化</strong></td>
+                        <td>・「性別」の見出しセルと「男・女」の中点（<code>・</code>）を削除し、<code>男 女</code> のみのセルに簡素化。<br>
+                            ・「生年月日」見出しを <code>生年</code> / <code>月日</code> の2行改行にして横幅を圧縮。<br>
+                            ・「年齢」の見出しセルを削除し、<code>○○歳</code> のみのセルに簡素化。<br>
+                            ・削減した見出しセルの分、カルテ番号と氏名欄の横幅を拡大。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3. 右端枠線のツライチ化<br>（印刷時見切れ解消）</strong></td>
+                        <td>2カラムグリッド（<code>.two-col-grid</code> / <code>.common-drug-grid</code>）で <code>44% 56% + gap: 4px</code> となっていたため合計幅が <code>100% + 4px</code> となり、右側の「問診・医療安全確認事項」「採血・消毒 ／ 時間記録」が印刷時に右端で切れていた問題を解消。<code>minmax(0, 42fr) minmax(0, 58fr)</code> 等に変更し、全ブロックの右端を完全にツライチに統一。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4. 問診リストの上詰め ＆<br>備考欄の印刷行数最大化</strong></td>
+                        <td>「当日内服」の下に発生していた余白を解消するため、<code>.monshin-list</code> を上詰め（<code>flex: 0 0 auto</code>）に変更し、下部の「📝 予約時備考・申し送り事項」（<code>.remarks-box</code>）を <code>flex: 1 1 auto; min-height: 24mm</code> に拡大。さらに長文時の自動高さ拡張（<code>autoFitRemarks()</code>）と印刷時スクロールバー非表示を追加し、複数行の備考が切れずに印刷されるよう改善。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>5. 下剤（ビジクリア等）の<br>先頭3文字略称表示 ＆ 専用色対応</strong></td>
+                        <td><code>bulk_edit_prep_room.php</code> 等で下剤に「ビジクリア」が設定された際、<code>.prep-badge</code> の文字色が白（<code>#ffffff</code>）固定である一方、背景色がモビ・マグP・ニフの3種にしか定義されていなかったため白地に白文字で消えていた不具合を解消。<br>
+                        ・4文字以上の下剤名称は<strong>先頭3文字（例：「ビジクリア」➔「ビジク」）で略称表示</strong>（ホバーで正式名称ツールチップ表示）。<br>
+                        ・<strong>ビジクリア専用色（パープル <code>#7c3aed</code>）</strong>および<strong>未定義下剤用フォールバック色（スレート <code>#64748b</code>）</strong>を分離設定し、<code>month_schedule.php</code>、<code>print_schedule_daily.php</code>、<code>schedule_note.php</code>、<code>bulk_edit_prep_room.php</code>、<code>progress_monitor.php</code> の全画面で統一。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>6. 【緊急バグ修正】<br>onokai_flatpickr.js の構文破壊修復</strong></td>
+                        <td><code>stats.php</code>、<code>slot_search.php</code>、<code>month_schedule.php</code> 等の全画面で日付ピッカー（<code>onokai_flatpickr.js</code>）が動作しなくなっていた障害を緊急修復。<br>
+                        ・<strong>原因:</strong> 2026-11-04の院内共通カレンダーAPI（<code>/api/v1/calendar/</code>）移行時に、PowerShellの文字列展開によってJSテンプレートリテラルのバッククォート（<code>`</code>）および変数（<code>${year}</code>, <code>${m}</code>, <code>${d}</code>）が消失し、<code>const key = ${year}-;</code> という <code>Uncaught SyntaxError</code> が発生していた。<br>
+                        ・<strong>対策:</strong> <code>c:\Apache24\htdocs\endoscope\assets\js\onokai_flatpickr.js</code> および共通APIマスタ <code>c:\Apache24\htdocs\api\v1\calendar\onokai_flatpickr.js</code> の双方で文字列結合構文へ修正・同期し、<code>waku_override_modal_inc.php</code> の読み込みにもキャッシュバスター（<code>?v=filemtime</code>）を追加。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 6. 変更・新規作成ファイル一覧と次期フェーズ -->
+        <section class="work-sec" id="sec6">
+            <h2>6. 変更・新規作成ファイル一覧と次期フェーズ（DB統合・枠文字列保持）</h2>
+            <table class="spec-table">
+                <thead>
+                    <tr>
+                        <th style="width:32%;">ファイルパス</th>
+                        <th style="width:15%;">区分</th>
+                        <th>変更内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>endoscopy_sheet.php</code></td>
+                        <td><span class="badge badge-success">新規作成</span></td>
+                        <td>A4 1ページ完全収容・画面タップ入力・MALL3性別補完・サーバー直接印刷対応の内視鏡シート本体</td>
+                    </tr>
+                    <tr>
+                        <td><code>api_server_print.php</code></td>
+                        <td><span class="badge badge-warning">機能拡張</span></td>
+                        <td><code>target=endoscopy_sheet</code> 対応および画面入力状態（<code>sheet_state</code> JSON）の一時引き渡し機構を追加</td>
+                    </tr>
+                    <tr>
+                        <td><code>month_schedule.php</code><br><code>print_schedule_daily.php</code><br><code>schedule_note.php</code><br><code>bulk_edit_prep_room.php</code><br><code>progress_monitor.php</code><br><code>assets/css/month_schedule.css</code></td>
+                        <td><span class="badge badge-warning">機能改善</span></td>
+                        <td>内視鏡シートへのリンク更新、および4文字以上の下剤の先頭3文字略称表示（<code>ビジクリア</code> ➔ <code>ビジク</code>）＋専用色（<code>.prep-visi</code> パープル）・未定義下剤フォールバック色（<code>.prep-other</code> スレート）対応</td>
+                    </tr>
+                    <tr>
+                        <td><code>assets/js/onokai_flatpickr.js</code><br><code>../api/v1/calendar/onokai_flatpickr.js</code><br><code>waku_override_modal_inc.php</code></td>
+                        <td><span class="badge badge-warning" style="background:#ef4444;">緊急修正</span></td>
+                        <td>2026-11-04共通API化時のテンプレートリテラル構文破壊（<code>SyntaxError</code>）を修復し、全画面の日付ピッカー動作を復旧</td>
+                    </tr>
+                    <tr>
+                        <td><code>仕様書/plan.html</code><br><code>仕様書/specdoc.html</code></td>
+                        <td><span class="badge badge-warning">仕様書更新</span></td>
+                        <td>①内視鏡シート仕様の追記、②「内視鏡シートDB永続化 ＆ ホワイトボード双方向データ統合計画（第7章）」、③「時間枠の文字列保持（スナップショット原則）と迷子フェイルセーフ設計（第8章）」、④「基本枠マスタ期間対応（2027/2/1切替）＆ CF枠拡大に伴う医師別限界差し引き・コンパクト全表示構想（第9章・案A〜案E）」の策定</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-warning">
+                <strong>🚀 次期フェーズ（来週以降の重点開発計画）：</strong><br>
+                1. <strong>内視鏡シートのDB永続化 ＆ 電子ホワイトボード双方向統合:</strong> シート入力内容をPostgreSQL（<code>t_endoscopy_sheet</code>）へリアルタイム保存し、複数端末（受付 ➔ 前処置室 ➔ 検査室 ➔ 医事課）で共有するとともに、当日進捗モニター（<code>progress_monitor.php</code>）と双方向同期（<a href="plan.html#sec-sheet-integration" style="font-weight:bold; color:#92400e;">plan.html 第7章</a>）。<br>
+                2. <strong>時間枠の文字列保持（迷子フェイルセーフ）＆ 基本枠マスタ期間対応（2027/2/1切替）・マトリクス視認性革新:</strong> <code>m2_waku</code> の期間対応（<code>〜2027.1.31</code> ／ <code>2027.2.1〜9999.9.9</code>）と、CF枠拡大（3枠➔8枠、1物理枠＝1患者化）に伴う「医師限界数との差し引き判断・コンパクト全表示モード」等の複数アプローチ（案A〜案E）を策定（<a href="plan.html#sec-slot-snapshot" style="font-weight:bold; color:#92400e;">plan.html 第8章</a>・<a href="plan.html#sec-waku-period-matrix" style="font-weight:bold; color:#92400e;">第9章</a>）。
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="report-footer">
+        <div>医療法人小野会 内視鏡予約管理システム 改修作業報告書 (2026-11-06)</div>
+        <div>ファイル名: <code>仕様書/2026-11-6works.html</code></div>
+    </footer>
+</div>
+
+</body>
+</html>
+

@@ -170,7 +170,7 @@
     }
 
     // 予約登録・編集モーダルを開く
-    function openModal(date, waku, scheduleId, dept) {
+    function openModal(date, waku, scheduleId, dept, doctor) {
         // マトリクス等のスクロール位置退避
         const matrixContainer = document.getElementById('matrixContainer');
         if (matrixContainer) {
@@ -185,12 +185,18 @@
         const loading = document.getElementById('modalRunnerLoading');
         if (!dialog || !iframe) return;
 
+        const sidInt = scheduleId ? parseInt(scheduleId, 10) : 0;
         let url = 'modal_edit.php';
         url += '?date=' + encodeURIComponent(date || '');
         url += '&waku=' + encodeURIComponent(waku || '');
         url += '&dept=' + encodeURIComponent(dept || (window.currentDept || window.currentScheduleDept || 'PROCT'));
-        if (scheduleId && parseInt(scheduleId, 10) > 0) {
-            url += '&schedule_id=' + encodeURIComponent(scheduleId);
+        if (sidInt > 0) {
+            url += '&schedule_id=' + encodeURIComponent(sidInt);
+        } else {
+            const targetDoc = doctor || ((window.currentFilterDoctor && window.currentFilterDoctor !== 'all' && window.currentFilterDoctor !== 'undecided') ? window.currentFilterDoctor : '');
+            if (targetDoc) {
+                url += '&doctor=' + encodeURIComponent(targetDoc);
+            }
         }
 
         if (loading) {
@@ -300,15 +306,66 @@
     window.toggleLayoutOrder = toggleLayoutOrder;
 
     /* ============================================================
-       3. フィルター制御系 (枠トグル・空き枠トグル)
+       3. フィルター制御系 (枠トグル・空き枠トグル・CF集中モード)
        ============================================================ */
     function toggleSlotFilterBtn(group, btn) {
         if (btn) {
             btn.classList.toggle('active');
         }
+        try {
+            const showGifEl = document.getElementById('show_gif');
+            const showEchoEl = document.getElementById('show_echo');
+            const showTcfEl = document.getElementById('show_tcf');
+            const isCfOnly = showGifEl && showEchoEl && showTcfEl
+                && !showGifEl.classList.contains('active')
+                && !showEchoEl.classList.contains('active')
+                && showTcfEl.classList.contains('active');
+            if (window.currentFilterExam === 'all') {
+                if (isCfOnly) {
+                    sessionStorage.setItem('schedule_cf_focus', '1');
+                } else {
+                    sessionStorage.removeItem('schedule_cf_focus');
+                }
+            }
+        } catch(e) {}
         applySlotFilter();
     }
     window.toggleSlotFilterBtn = toggleSlotFilterBtn;
+
+    function toggleCfFocusMode(btn) {
+        const showGifEl = document.getElementById('show_gif');
+        const showEchoEl = document.getElementById('show_echo');
+        const showTcfEl = document.getElementById('show_tcf');
+        if (!showGifEl || !showEchoEl || !showTcfEl) return;
+
+        const isCurrentlyCfOnly = !showGifEl.classList.contains('active')
+            && !showEchoEl.classList.contains('active')
+            && showTcfEl.classList.contains('active');
+
+        if (isCurrentlyCfOnly) {
+            showGifEl.classList.add('active');
+            showEchoEl.classList.add('active');
+            showTcfEl.classList.add('active');
+            try { sessionStorage.removeItem('schedule_cf_focus'); } catch(e) {}
+            if (typeof showToast === 'function') {
+                showToast('📋 全枠（GIF・エコー・TCF）表示に戻しました', 'info');
+            }
+        } else {
+            showGifEl.classList.remove('active');
+            showEchoEl.classList.remove('active');
+            showTcfEl.classList.add('active');
+            try {
+                if (window.currentFilterExam === 'all') {
+                    sessionStorage.setItem('schedule_cf_focus', '1');
+                }
+            } catch(e) {}
+            if (typeof showToast === 'function') {
+                showToast('🎯 CF集中モード：TCF枠のみ表示しています', 'info');
+            }
+        }
+        applySlotFilter();
+    }
+    window.toggleCfFocusMode = toggleCfFocusMode;
 
     function toggleEmptySlotsBtn(btn) {
         const checked = btn ? !btn.classList.contains('active') : false;
@@ -320,6 +377,7 @@
         const showGifEl = document.getElementById('show_gif');
         const showEchoEl = document.getElementById('show_echo');
         const showTcfEl = document.getElementById('show_tcf');
+        const cfFocusBtn = document.getElementById('btn_cf_focus');
         const showEmpty = document.getElementById('btn_toggle_empty') || document.getElementById('show_empty');
 
         const isElActive = el => !el ? true : (el.tagName === 'INPUT' ? el.checked : el.classList.contains('active'));
@@ -328,6 +386,14 @@
         const showEcho = isElActive(showEchoEl);
         const showTcf = isElActive(showTcfEl);
         const showEmptyChecked = isElActive(showEmpty);
+
+        if (cfFocusBtn) {
+            if (!showGif && !showEcho && showTcf) {
+                cfFocusBtn.classList.add('active');
+            } else {
+                cfFocusBtn.classList.remove('active');
+            }
+        }
         
         document.querySelectorAll('#reservationTable tbody tr').forEach(function(tr) {
             const isReserved = tr.dataset.reserved === 'true';
@@ -750,6 +816,20 @@
                 const listWrapper = document.getElementById('listWrapper');
                 if (container && calSection && listWrapper) {
                     container.insertBefore(listWrapper, calSection);
+                }
+            }
+        } catch(e){}
+
+        // 上段が「全種別」の場合、下段のCF集中モード(sessionStorage)を復元
+        try {
+            if (window.currentFilterExam === 'all' && sessionStorage.getItem('schedule_cf_focus') === '1') {
+                const showGifEl = document.getElementById('show_gif');
+                const showEchoEl = document.getElementById('show_echo');
+                const showTcfEl = document.getElementById('show_tcf');
+                if (showGifEl && showEchoEl && showTcfEl) {
+                    showGifEl.classList.remove('active');
+                    showEchoEl.classList.remove('active');
+                    showTcfEl.classList.add('active');
                 }
             }
         } catch(e){}

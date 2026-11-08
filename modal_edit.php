@@ -21,6 +21,27 @@
  *   - 2026-09-29: 【本物モーダルダイアログ連携】親画面（month_schedule/month_matrix_v2）のインページモーダル化に伴い、window.parent postMessage 連携を実装。別ウィンドウ時（window.opener）の互換性を100%維持しながら、保存・削除・閉じる時のスムーズなダイアログクローズと親画面自動リロードを実現
  *   - 2026-10-04: 【病棟管理連動】初登録前のリアルタイム表示対応（TCF/W選択時即表示、ポリペク選択時即表示＆入院予定ON、上記以外選択時入院予定OFF＆非表示化）
  *   - 2026-10-20: 【特大Flatpickr導入】検査日・生年月日入力欄に小野会カレンダー（公休赤色・木曜青色判定）を完全バインド
+ *   - 2026-10-22: 【時間枠オーバーライド完全連動 ＆ 臨時枠登録対応】
+ *       1. getEffectiveWakuList による当日有効枠（臨時枠・枠名変更・休止枠）の完全取得・反映
+ *       2. 臨時枠（エコー枠・特別枠等）への直接予約登録を完全保証
+ *   - 2026-10-24: 【RS-Base 検査実績タイムライン(キャンバス)連携】
+ *       1. 患者情報エリアに「🗺️ 検査実績」ボタンを新設し、編集中の患者の検査実績キャンバスを別タブ起動可能に
+ *   - 2026-10-26: 【検査種別グループ判定共通化】
+ *       1. 下剤・部屋番号・鎮静の初期表示判定を resolveExamGroup() に連動し、m_exam_type_group と一元化
+ *   - 2026-10-30: 【modal_edit 操作性向上DX ＆ 電カル連携強化】
+ *       1. MALL3メモ（本日メモ・カルテメモ・患者メモ）ワンクリック備考・特記事項転記機能（クリップボード同時コピー対応）新設
+ *       2. 患者No入力用ソフトウェアキーボード（タッチパネル・タブレット・マウス対応テンキーパッド）新設
+ *       3. 最重要入力フィールド（患者No・検査種別）の背景色薄黄ハイライト化、および仮予約ボタンの標準グレー統一
+ *       4. 電カルボタンの独立右寄せブロック化 ＆ 最終受診日・受診科のリアルタイム表示（本日受診の赤色強調バッジ対応）
+ *       5. 最上段空エリアへのレコード作成日時・更新日時のコンパクト表示（🕒 登録: YYYY/MM/DD HH:mm | 更新: ...）
+ *       6. 担当医師名プルダウンの背景色を検査種別と同一の薄い黄色（#fefce8）へハイライト統一
+ *       7. 患者情報カードの電話番号表記から「TEL:」を撤去し「📞」アイコンのみにシンプル化（コピー機能連動）
+ *       8. 時間枠および診療科の背景色・枠線を検査日ピッカーと同一の薄いソフトブルー（#eff6ff / #93c5fd）へ統一
+ *       9. 備考Quillエディタの文字色（厳選8色）・網掛け蛍光色（厳選8色）パレットの大幅拡充
+ *   - 2026-11-07: 【時間枠プルダウン患者名表示 ＆ 当日医師別残枠・重複案内対応】
+ *       1. 時間枠（#scheduled_time）のリストボックス候補に、既に登録されている予約の患者名・担当医（例: TCF13:30① 【山田 太郎(哲也)】）を初期表示・日付変更時の双方で表示
+ *       2. 1枠複数予約（イレギュラー対応）を許容しつつ、既存予約がある枠を選択した際に #duplicateAlert で登録済み患者をリアルタイム案内
+ *       3. 基本情報パネル下部に「📊 当日医師別枠状況（CF/GIF 使用/上限）」サマリーバーを新設（ワンクリック医師選択連動）
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -31,6 +52,7 @@ require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/date_helper.php';
 require_once __DIR__ . '/lib/slot_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
+require_once __DIR__ . '/lib/canvas_helper.php';
 
 $pdo = getDbConnection();
 if (!$pdo) {
@@ -152,6 +174,9 @@ $current_alert = [
     'sources'                 => []
 ];
 
+$record_created_at_fmt = '';
+$record_updated_at_fmt = '';
+
 if ($schedule_id > 0) {
     $stmt = $pdo->prepare("SELECT * FROM t_endoscopy_schedule WHERE schedule_id = :id");
     $stmt->execute([':id' => $schedule_id]);
@@ -160,6 +185,14 @@ if ($schedule_id > 0) {
         $dept = (string)$reservation['department_code'];
         $date = (string)$reservation['exam_date'];
         $waku = (string)$reservation['scheduled_time'];
+
+        // ★ レコード作成日・更新日のフォーマット（最上段ヘッダー表示用）
+        if (!empty($reservation['created_at'])) {
+            $record_created_at_fmt = date('Y/m/d H:i', strtotime($reservation['created_at']));
+        }
+        if (!empty($reservation['updated_at'])) {
+            $record_updated_at_fmt = date('Y/m/d H:i', strtotime($reservation['updated_at']));
+        }
     }
 
     // ★ 作成からの経過時間判定（10分以内なら即時取消・打ち直し扱い）
@@ -185,6 +218,7 @@ $p_bday_initial   = (string)($reservation['birthday'] ?? '');
 $p_wareki_initial = '';
 $p_age_int        = null;
 $p_age_cls        = 'age-under';
+$p_is_vip         = !empty($reservation['is_vip']);
 
 if (!empty($p_bday_initial)) {
     $clean_b = substr(trim($p_bday_initial), 0, 10);
@@ -199,7 +233,95 @@ if (!empty($p_bday_initial)) {
     }
 }
 
-$waku_list = getWakuList($pdo, $dept);
+// 時間枠リストの取得: 当日のオーバーライド（臨時枠・枠名変更・休止枠）を適用した有効枠を取得
+$effective_waku_list = getEffectiveWakuList($pdo, $dept, $date);
+
+// 当日の確定予約データを取得（時間枠プルダウンへの患者名表示・重複案内用）
+$stmt_day_res = $pdo->prepare("
+    SELECT schedule_id, scheduled_time, patient_id, patient_name, exam_type, doctor_name, exam_location, remarks
+    FROM t_endoscopy_schedule
+    WHERE department_code = :dept
+      AND exam_date = :date
+      AND is_canceled = FALSE
+    ORDER BY schedule_id ASC
+");
+$stmt_day_res->execute([':dept' => $dept, ':date' => $date]);
+$raw_day_reservations = $stmt_day_res->fetchAll(PDO::FETCH_ASSOC);
+
+$valid_day_reservations = [];
+foreach ($raw_day_reservations as $dr) {
+    $pn = trim((string)($dr['patient_name'] ?? ''));
+    $rm = trim((string)($dr['remarks'] ?? ''));
+    if ($pn === '※枠なし' || strpos($rm, '＊＊＊🚫枠なし') !== false) {
+        continue;
+    }
+    $valid_day_reservations[] = [
+        'schedule_id'    => (int)$dr['schedule_id'],
+        'scheduled_time' => trim((string)($dr['scheduled_time'] ?? '')),
+        'patient_id'     => trim((string)($dr['patient_id'] ?? '')),
+        'patient_name'   => $pn,
+        'exam_type'      => trim((string)($dr['exam_type'] ?? '')),
+        'doctor_name'    => trim((string)($dr['doctor_name'] ?? '')),
+        'exam_location'  => trim((string)($dr['exam_location'] ?? '')),
+    ];
+}
+
+// 既存予約やURLパラメータの指定枠、または当日予約が存在する旧世代枠がリストにない場合のフォールバック（迷子化防止）
+$fallback_waku_candidates = [];
+if ($waku !== '') {
+    $fallback_waku_candidates[] = $waku;
+}
+foreach ($valid_day_reservations as $vdr) {
+    if ($vdr['scheduled_time'] !== '' && !in_array($vdr['scheduled_time'], $fallback_waku_candidates, true)) {
+        $fallback_waku_candidates[] = $vdr['scheduled_time'];
+    }
+}
+
+foreach ($fallback_waku_candidates as $cand_waku) {
+    $has_cand = false;
+    foreach ($effective_waku_list as $ew) {
+        if ($ew['waku_name'] === $cand_waku || (!empty($ew['original_name']) && $ew['original_name'] === $cand_waku) || findEffectiveWaku([$ew], $cand_waku, false) !== null) {
+            $has_cand = true;
+            break;
+        }
+    }
+    if (!$has_cand) {
+        $effective_waku_list[] = [
+            'waku_id'            => null,
+            'base_waku_id'       => null,
+            'override_id'        => null,
+            'waku_name'          => $cand_waku,
+            'original_name'      => $cand_waku,
+            'group_code'         => (stripos($cand_waku, 'GIF') !== false) ? 'GIF' : ((stripos($cand_waku, 'エコー') !== false || stripos($cand_waku, 'ECHO') !== false) ? 'ECHO' : 'TCF'),
+            'department_code'    => $dept,
+            'display_order'      => 9999,
+            'is_suspended'       => false,
+            'is_override'        => false,
+            'is_legacy_fallback' => true,
+            'reason'             => null
+        ];
+    }
+}
+
+// 各枠へ当日の登録済み患者情報を紐付け
+$day_slot_reservations_map = [];
+foreach ($effective_waku_list as &$ew_item) {
+    $wn = (string)$ew_item['waku_name'];
+    $on = (string)($ew_item['original_name'] ?? $wn);
+    $dummy_slot = ['waku_name' => $wn, 'original_name' => $on];
+    $slot_res_list = [];
+    foreach ($valid_day_reservations as $vdr) {
+        $rt = $vdr['scheduled_time'];
+        if ($rt === $wn || $rt === $on || findEffectiveWaku([$dummy_slot], $rt, false) !== null) {
+            $slot_res_list[] = $vdr;
+        }
+    }
+    $ew_item['reservations'] = $slot_res_list;
+    $day_slot_reservations_map[$wn] = $slot_res_list;
+}
+unset($ew_item);
+
+$waku_list = $effective_waku_list;
 
 function getMasterItems(PDO $pdo, string $category, array $default_items = []): array {
     try {
@@ -251,7 +373,7 @@ function getRemarksPhrasesList(PDO $pdo, array $default_items = []): array {
     }
 }
 
-$exam_types_master      = getMasterItems($pdo, 'exam_type', ['TCF', '浣腸CF', 'GIF', 'W', 'ポリペク', 'エコー', '◆胃がん検診◆']);
+$exam_types_master      = getExamTypeOptions($pdo);
 $exam_locations_master  = getMasterItems($pdo, 'exam_location', ['指定なし']);
 $remarks_phrases_master = getRemarksPhrasesList($pdo, [
     '休薬確認済み', '生検あり', '車椅子来院', '前処置自宅', '同意書回収済み',
@@ -304,16 +426,21 @@ if ($reservation) {
     $curr_prep   = '';
     $raw_remarks = '';
 
+    $req_doctor = isset($_GET['doctor']) ? trim((string)$_GET['doctor']) : '';
+    if ($req_doctor === 'all' || $req_doctor === 'undecided' || $req_doctor === '◆未定◆' || $req_doctor === '--担当未定--') {
+        $req_doctor = '';
+    }
+
     $is_gif_waku = (stripos($waku, 'GIF') !== false);
     $auto_gif_enabled = !empty($enable_auto_gif_by_dept[$dept]) && $is_gif_waku;
 
     if ($dept === 'PROCT') {
-        $curr_doctor  = '誠吾';
+        $curr_doctor  = ($req_doctor !== '') ? $req_doctor : '誠吾';
         $curr_loc     = '内視鏡室（おの）';
         $curr_arrival = $auto_gif_enabled ? calculateArrivalBefore30Min($waku) : '9:00';
         $curr_exam    = $auto_gif_enabled ? 'GIF' : '';
     } else {
-        $curr_doctor  = '';
+        $curr_doctor  = $req_doctor;
         $default_first_loc = $exam_locations_master[0] ?? '';
         if ($auto_gif_enabled) {
             $curr_exam    = 'GIF';
@@ -356,10 +483,11 @@ if ($reservation && isset($reservation['has_drive_caution']) && $reservation['ha
     }
 }
 
-// 検査種別に応じた下剤・部屋・鎮静の初期表示判定
+// 検査種別に応じた下剤・部屋・鎮静の初期表示判定（m_exam_type_group連動）
 $curr_exam_clean = trim($curr_exam ?? '');
-$is_tcf_like_initial = in_array($curr_exam_clean, ['TCF', 'W', 'ポリペク'], true) || (strpos($curr_exam_clean, 'TCF') !== false) || (strpos($curr_exam_clean, 'ポリペク') !== false);
-$is_echo_initial = ($curr_exam_clean === 'エコー') || (strpos($curr_exam_clean, 'エコー') !== false);
+$curr_exam_group = resolveExamGroup($curr_exam_clean, $pdo);
+$is_tcf_like_initial = ($curr_exam_group === 'TCF' && $curr_exam_clean !== '浣腸CF' && $curr_exam_clean !== '浣腸F');
+$is_echo_initial = ($curr_exam_group === 'ECHO');
 $is_gastric_screening_initial = (mb_strpos($curr_exam_clean, '胃がん') !== false);
 
 // エコー時は鎮静・自主運転フラグを強制OFF
@@ -440,6 +568,27 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             border-bottom: 2px solid #e2e8f0;
             padding-bottom: 6px;
             margin-bottom: 8px;
+            gap: 12px;
+        }
+        .header-record-meta {
+            font-size: 11px;
+            color: #64748b;
+            font-family: Consolas, "Liberation Mono", Menlo, monospace, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 3px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .header-record-meta .meta-sep {
+            color: #cbd5e1;
+        }
+        .header-record-meta .meta-new {
+            color: #0284c7;
+            font-weight: 600;
         }
         .header-title-area {
             display: flex;
@@ -614,6 +763,7 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             gap: 3px;
             min-width: 175px;
             flex-shrink: 0;
+            position: relative; /* ソフトウェアキーボードのポップオーバー基準位置 */
         }
 
         .patient-sync-title {
@@ -630,15 +780,53 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             align-items: center;
         }
 
+        /* 入力要素の高い患者No（薄い黄色ハイライト） */
         .patient-id-input {
             border-top-right-radius: 0 !important;
             border-bottom-right-radius: 0 !important;
-            width: 105px !important;
+            width: 95px !important;
             height: 28px !important;
             font-weight: bold;
             font-size: 13.5px;
             letter-spacing: 0.5px;
             padding: 2px 6px;
+            background-color: #fefce8 !important; /* 薄い黄色 */
+            border: 1px solid #fde047 !important; /* 黄色枠線 */
+            color: #0f172a;
+            transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+        .patient-id-input:focus {
+            background-color: #fef9c3 !important;
+            border-color: #eab308 !important;
+            box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25) !important;
+            outline: none;
+        }
+
+        /* ソフトウェアキーボード開閉ボタンスタイル */
+        .btn-keyboard-toggle {
+            background: #fffbeb;
+            color: #854d0e;
+            font-size: 13px;
+            height: 28px;
+            padding: 0 5px;
+            border: 1px solid #fde047;
+            border-left: none;
+            border-right: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .btn-keyboard-toggle:hover {
+            background: #fef08a;
+            color: #713f12;
+        }
+        .btn-keyboard-toggle.is-active {
+            background: #fde047;
+            color: #713f12;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .btn-sync {
@@ -661,6 +849,121 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
         .btn-sync:hover {
             background: #0369a1;
             border-color: #0369a1;
+        }
+
+        /* ⌨️ 患者No ソフトウェアテンキー ポップオーバースタイル */
+        .virtual-numpad-popover {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            width: 226px;
+            background: #ffffff;
+            border: 1px solid #94a3b8;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+            padding: 7px;
+            z-index: 1050;
+            animation: numpadFadeIn 0.15s ease-out;
+        }
+        @keyframes numpadFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .numpad-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .numpad-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #1e3a8a;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .numpad-close-btn {
+            background: none;
+            border: none;
+            font-size: 13px;
+            font-weight: bold;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            border-radius: 3px;
+            transition: all 0.15s;
+        }
+        .numpad-close-btn:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+        .numpad-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        }
+        .numpad-key {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            height: 38px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+            user-select: none;
+            transition: background 0.1s, transform 0.05s, border-color 0.1s;
+        }
+        .numpad-key:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+        .numpad-key:active {
+            transform: scale(0.95);
+            background: #e2e8f0;
+        }
+        .numpad-bs {
+            background: #fef2f2 !important;
+            color: #dc2626 !important;
+            border-color: #fecaca !important;
+            font-size: 16px !important;
+        }
+        .numpad-bs:hover {
+            background: #fee2e2 !important;
+            border-color: #fca5a5 !important;
+        }
+        .numpad-clr {
+            background: #f8fafc !important;
+            color: #64748b !important;
+            border-color: #cbd5e1 !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+        }
+        .numpad-clr:hover {
+            background: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .numpad-sync {
+            background: #0284c7 !important;
+            color: #ffffff !important;
+            border-color: #0284c7 !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            grid-row: span 2;
+            height: 100% !important;
+            box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3) !important;
+        }
+        .numpad-sync:hover {
+            background: #0369a1 !important;
+            border-color: #0369a1 !important;
         }
 
         .patient-action-links {
@@ -689,15 +992,54 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             border-color: #94a3b8;
         }
 
+        /* 仮予約の色を通常のグレーに統一 */
         .btn-sub-temp {
-            background: #fffbeb;
-            color: #b45309;
-            border-color: #fde68a;
+            background: #f8fafc;
+            color: #475569;
+            border-color: #cbd5e1;
         }
         .btn-sub-temp:hover {
-            background: #fef3c7;
-            color: #92400e;
-            border-color: #fcd34d;
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+
+        /* 入力要素の高い検査種別・医師名（薄い黄色ハイライト） */
+        #exam_type,
+        #doctor_name {
+            background-color: #fefce8 !important; /* 薄い黄色 */
+            border: 1px solid #fde047 !important; /* 黄色枠線 */
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+        #exam_type:focus,
+        #doctor_name:focus {
+            background-color: #fef9c3 !important;
+            border-color: #eab308 !important;
+            box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25) !important;
+            outline: none;
+        }
+
+        /* 時間枠・診療科（検査日ピッカーと統一された薄いソフトブルー） */
+        #scheduled_time,
+        #department_code_select {
+            background-color: #eff6ff !important; /* 薄いソフトブルー */
+            border: 1px solid #93c5fd !important; /* ソフトブルー枠線 */
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+        #scheduled_time:hover,
+        #department_code_select:hover {
+            border-color: #60a5fa !important;
+        }
+        #scheduled_time:focus,
+        #department_code_select:focus {
+            background-color: #dbeafe !important;
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+            outline: none;
         }
 
         .patient-card-divider {
@@ -718,9 +1060,33 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
 
         .patient-info-content {
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 48px;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .patient-card-main-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
             flex-direction: column;
             justify-content: center;
-            min-height: 44px;
+            gap: 3px;
+        }
+
+        /* 患者情報カード右側：独立した電カルボタン ＆ 最終受診情報エリア */
+        .patient-card-side-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 4px;
+            flex-shrink: 0;
+            padding-left: 12px;
+            border-left: 1px dashed #cbd5e1;
+            min-width: 145px;
         }
 
         .patient-info-row1 {
@@ -797,26 +1163,74 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             white-space: nowrap;
         }
 
-        .btn-karte-link {
-            background: #0284c7;
+        .btn-karte-link-prominent {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
             color: #ffffff;
-            font-size: 10px;
-            font-weight: bold;
-            padding: 2px 7px;
-            border-radius: 4px;
-            border: none;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 5px;
+            border: 1px solid #0284c7;
             cursor: pointer;
-            margin-left: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 1px 3px rgba(2, 132, 199, 0.25);
+            transition: all 0.15s;
+            white-space: nowrap;
+            line-height: 1.25;
+        }
+        .btn-karte-link-prominent:hover {
+            background: linear-gradient(135deg, #0369a1, #075985);
+            border-color: #075985;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(2, 132, 199, 0.35);
+        }
+
+        .patient-last-visit-badge {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .visit-badge {
+            border-radius: 4px;
+            white-space: nowrap;
             display: inline-flex;
             align-items: center;
             gap: 2px;
-            height: 22px;
-            line-height: 1;
-            white-space: nowrap;
-            transition: background 0.15s;
         }
-        .btn-karte-link:hover {
-            background: #0369a1;
+
+        /* 本日受診の強調バッジ（赤系ハイライト） */
+        .visit-today {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #f87171;
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 1px 6px;
+            letter-spacing: 0.3px;
+            box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);
+            animation: pulseToday 2.2s infinite ease-in-out;
+        }
+        @keyframes pulseToday {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        .visit-past {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 6px;
+        }
+
+        .visit-none {
+            color: #94a3b8;
+            font-size: 9.5px;
         }
 
         .patient-info-row2 {
@@ -1037,6 +1451,11 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             background: #e2e8f0;
             color: #0284c7;
         }
+        .mall-memo-btn-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
         .btn-memo-copy {
             background: #f8fafc;
             border: 1px solid #cbd5e1;
@@ -1047,11 +1466,32 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             cursor: pointer;
             line-height: 1.3;
             transition: all 0.15s;
+            white-space: nowrap;
         }
         .btn-memo-copy:hover {
             background: #0284c7;
             border-color: #0284c7;
             color: #ffffff;
+        }
+        /* ワンクリック備考・特記事項ペースト（転記）ボタン */
+        .btn-memo-paste {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 700;
+            color: #047857;
+            padding: 1px 5px;
+            cursor: pointer;
+            line-height: 1.3;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-memo-paste:hover {
+            background: #10b981;
+            border-color: #059669;
+            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(16, 185, 129, 0.25);
         }
         .mall-memo-content {
             flex: 1;
@@ -1060,6 +1500,14 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             line-height: 1.35;
             overflow-y: auto;
             word-break: break-all;
+            cursor: pointer;
+            padding: 2px 3px;
+            border-radius: 3px;
+            transition: background-color 0.15s, box-shadow 0.15s;
+        }
+        .mall-memo-content:hover {
+            background-color: #f0fdf4;
+            box-shadow: inset 0 0 0 1px #bbf7d0;
         }
 
         /* ── 共通トースト通知スタイル (画面上部中央) ── */
@@ -1480,10 +1928,10 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
     </style>
     <!-- 🖨️ 完全ローカル・オフライン動作 特大Flatpickr -->
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
-    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
-    <script src="assets/js/onokai_flatpickr.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
 </head>
 <body>
 
@@ -1494,6 +1942,16 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             <h2><?= $schedule_id > 0 ? '予約編集' : '新規予約登録' ?></h2>
             <?php if ($debug_mode): ?>
                 <span class="schedule-id-badge">[schedule_id:#<?= $schedule_id > 0 ? $schedule_id : '新規' ?>]</span>
+            <?php endif; ?>
+        </div>
+        <!-- 🕒 レコード作成・更新日時表示（最上段空エリア） -->
+        <div class="header-record-meta">
+            <?php if ($schedule_id > 0): ?>
+                <span>🕒 登録: <?= !empty($record_created_at_fmt) ? htmlspecialchars($record_created_at_fmt, ENT_QUOTES, 'UTF-8') : '---' ?></span>
+                <span class="meta-sep">|</span>
+                <span>更新: <?= !empty($record_updated_at_fmt) ? htmlspecialchars($record_updated_at_fmt, ENT_QUOTES, 'UTF-8') : (!empty($record_created_at_fmt) ? htmlspecialchars($record_created_at_fmt, ENT_QUOTES, 'UTF-8') : '---') ?></span>
+            <?php else: ?>
+                <span class="meta-new">🕒 新規予約作成</span>
             <?php endif; ?>
         </div>
         <div class="btn-group-top">
@@ -1525,17 +1983,67 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
         <div class="grid-2col">
             <div class="panel-box">
                 <div class="panel-header">📌 基本情報</div>
-                <div class="form-row">
+                <div class="form-row" style="align-items: center;">
                     <label for="exam_date" class="form-label">検査日 <span style="color:#e11d48;" aria-hidden="true">*</span></label>
-                    <input type="text" name="exam_date" id="exam_date" class="form-control onokai-date-picker" style="flex:1;" value="<?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?>" required aria-required="true" autocomplete="off" onchange="handleDateChange()">
-                    <span id="day_of_week_label" style="font-weight:bold; font-size:12px; width:28px; text-align:center;"></span>
+                    <input type="text" name="exam_date" id="exam_date" class="onokai-date-picker" value="<?= htmlspecialchars($date, ENT_QUOTES, 'UTF-8') ?>" required aria-required="true" autocomplete="off" onchange="handleDateChange()">
+                    <span id="day_of_week_label" style="display:none;"></span>
                 </div>
                 <div class="form-row">
                     <label for="scheduled_time" class="form-label">時間枠 <span style="color:#e11d48;" aria-hidden="true">*</span></label>
                     <select name="scheduled_time" id="scheduled_time" class="form-control" style="flex:1;" required aria-required="true" onchange="handleWakuChange(this.value)">
                         <option value="">-- 選択 --</option>
-                        <?php foreach ($waku_list as $w): $w_name = (string)$w['waku_name']; ?>
-                            <option value="<?= htmlspecialchars($w_name, ENT_QUOTES, 'UTF-8') ?>" <?= ($w_name === $waku) ? 'selected' : '' ?>><?= htmlspecialchars($w_name, ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php foreach ($waku_list as $w): 
+                            $w_name = (string)$w['waku_name']; 
+                            $is_susp = !empty($w['is_suspended']);
+                            $is_extra = (!empty($w['is_override']) && empty($w['base_waku_id']));
+                            $is_legacy = !empty($w['is_legacy_fallback']);
+                            $is_selected = ($w_name === $waku);
+                            $badge_str = '';
+                            if ($is_susp) {
+                                $badge_str = ' [🚫休止中]';
+                            } elseif ($is_extra) {
+                                $badge_str = ' [臨時枠]';
+                            } elseif ($is_legacy) {
+                                $badge_str = ' [旧枠/指定枠]';
+                            }
+
+                            $slot_res = $w['reservations'] ?? [];
+                            $patient_labels = [];
+                            $has_other_res = false;
+                            $has_self_res = false;
+                            foreach ($slot_res as $sr) {
+                                $sr_sid = (int)($sr['schedule_id'] ?? 0);
+                                $sr_pname = trim((string)($sr['patient_name'] ?? ''));
+                                if ($sr_pname === '') {
+                                    $sr_pname = 'ID:' . ($sr['patient_id'] ?? '?');
+                                }
+                                $sr_doc = trim((string)($sr['doctor_name'] ?? ''));
+                                $doc_part = ($sr_doc !== '' && $sr_doc !== '◆未定◆') ? "({$sr_doc})" : '';
+                                if ($schedule_id > 0 && $sr_sid === $schedule_id) {
+                                    $has_self_res = true;
+                                    $patient_labels[] = "★{$sr_pname}{$doc_part}";
+                                } else {
+                                    $has_other_res = true;
+                                    $patient_labels[] = "{$sr_pname}{$doc_part}";
+                                }
+                            }
+                            $patient_suffix = !empty($patient_labels) ? ' 【' . implode('・', $patient_labels) . '】' : '';
+
+                            $opt_style = '';
+                            if ($is_susp && !$is_selected) {
+                                $opt_style = 'color:#94a3b8; background-color:#fef2f2;';
+                            } elseif ($has_other_res) {
+                                $opt_style = 'background-color:#fffbeb; color:#92400e; font-weight:600;';
+                            } elseif ($has_self_res) {
+                                $opt_style = 'background-color:#dbeafe; color:#1e40af; font-weight:700;';
+                            }
+                        ?>
+                            <option value="<?= htmlspecialchars($w_name, ENT_QUOTES, 'UTF-8') ?>" 
+                                <?= $is_selected ? 'selected' : '' ?>
+                                <?= ($is_susp && !$is_selected) ? 'disabled' : '' ?>
+                                <?= $opt_style !== '' ? 'style="' . $opt_style . '"' : '' ?>>
+                                <?= htmlspecialchars($w_name . $badge_str . $patient_suffix, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -1546,6 +2054,7 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                         <option value="GASTRO" <?= $dept==='GASTRO'?'selected':'' ?>>🔵 胃腸科 (GASTRO)</option>
                     </select>
                 </div>
+                <div id="dayCapacitySummaryBar" style="margin-top:4px; padding:4px 7px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:5px; font-size:10.5px; color:#334155; line-height:1.45; display:none;"></div>
             </div>
 
             <div class="panel-box">
@@ -1563,14 +2072,24 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                         <select class="ql-color" title="文字色" aria-label="文字色">
                             <option selected></option>
                             <option value="#dc2626"></option>
-                            <option value="#2563eb"></option>
+                            <option value="#e11d48"></option>
                             <option value="#d97706"></option>
+                            <option value="#16a34a"></option>
+                            <option value="#0284c7"></option>
+                            <option value="#2563eb"></option>
+                            <option value="#9333ea"></option>
+                            <option value="#475569"></option>
                         </select>
-                        <select class="ql-background" title="蛍光ペン" aria-label="背景蛍光色">
+                        <select class="ql-background" title="蛍光ペン（網掛け）" aria-label="背景蛍光色">
                             <option selected></option>
                             <option value="#fef08a"></option>
                             <option value="#fed7aa"></option>
                             <option value="#bbf7d0"></option>
+                            <option value="#e0f2fe"></option>
+                            <option value="#fce7f3"></option>
+                            <option value="#f3e8ff"></option>
+                            <option value="#fee2e2"></option>
+                            <option value="#f1f5f9"></option>
                         </select>
                         <button class="ql-list" value="bullet" title="箇条書き" aria-label="箇条書き"></button>
                         <button class="ql-clean" title="書式クリア" aria-label="書式クリア"></button>
@@ -1582,7 +2101,17 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
 
         <!-- 中段：患者情報・検査割当 -->
         <div class="panel-box">
-            <div class="panel-header">👤 患者情報・検査割当</div>
+            <div class="panel-header" style="justify-content: flex-start; gap: 8px;">
+                <span id="vipHeaderTitle" ondblclick="revealVipCheckbox()" style="cursor:default; user-select:none;" title="ダブルクリックで注目検査（🅅）設定を表示">👤 患者情報・検査割当</span>
+                <span id="vipContainer" style="display:<?= $p_is_vip ? 'inline-flex' : 'none' ?>; align-items:center; gap:4px; vertical-align:middle; background:#fef9c3; border:1px solid #eab308; padding:1px 6px; border-radius:4px; margin-left:6px;">
+                    <label style="display:inline-flex; align-items:center; gap:4px; cursor:pointer; font-size:11px; font-weight:700; color:#1e293b; margin:0; user-select:none;">
+                        <input type="hidden" name="is_vip" value="0">
+                        <input type="checkbox" name="is_vip" id="is_vip" value="1" <?= $p_is_vip ? 'checked' : '' ?> onchange="updateVipBadgePreview()" style="cursor:pointer; width:13px; height:13px; accent-color:#7e22ce;">
+                        <span class="vip-badge-icon" style="display:inline-block; background:#fde047; color:#6b21a8; border:1.5px solid #000000; font-weight:bold; font-size:10px; padding:0 3px; border-radius:2px; line-height:1.2;">V</span>
+                        <span>注目検査</span>
+                    </label>
+                </span>
+            </div>
 
             <!-- hiddenフィールド群（フォーム送信互換性を100%維持） -->
             <input type="hidden" name="patient_name" id="patient_name" value="<?= htmlspecialchars($p_name_initial, ENT_QUOTES, 'UTF-8') ?>">
@@ -1600,13 +2129,46 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                         <input type="text" name="patient_id" id="patient_id" class="form-control patient-id-input" 
                                value="<?= htmlspecialchars($p_id_initial, ENT_QUOTES, 'UTF-8') ?>" 
                                placeholder="患者No" aria-label="患者No" <?= empty($p_id_initial) ? 'autofocus' : '' ?>
-                               onkeydown="if(event.key==='Enter'||event.keyCode===13){event.preventDefault();doSyncPatient();}">
+                               onkeydown="if(event.key==='Enter'||event.keyCode===13){event.preventDefault();doSyncPatient();}"
+                               onclick="showVirtualKeyboard()"
+                               autocomplete="off">
+                        <button type="button" id="btnToggleKeyboard" class="btn btn-keyboard-toggle" onclick="toggleVirtualKeyboard(event)" title="ソフトウェアキーボード（テンキー）の開閉">⌨️</button>
                         <button type="button" id="btnSyncPatient" class="btn btn-sync" onclick="doSyncPatient()" title="MALL3から患者情報を同期">同期</button>
                     </div>
+
+                    <!-- ⌨️ 患者No ソフトウェアテンキー（タブレット・マウス対応） -->
+                    <div id="patientVirtualKeyboard" class="virtual-numpad-popover" style="display:none;" onclick="event.stopPropagation()">
+                        <div class="numpad-header">
+                            <span class="numpad-title">⌨️ 患者No テンキー</span>
+                            <button type="button" class="numpad-close-btn" onclick="closeVirtualKeyboard()" title="閉じる">✕</button>
+                        </div>
+                        <div class="numpad-grid">
+                            <button type="button" class="numpad-key" onclick="pressNumpad('7')">7</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('8')">8</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('9')">9</button>
+                            <button type="button" class="numpad-key numpad-action numpad-bs" onclick="pressNumpad('BS')" title="1文字消去">⌫</button>
+
+                            <button type="button" class="numpad-key" onclick="pressNumpad('4')">4</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('5')">5</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('6')">6</button>
+                            <button type="button" class="numpad-key numpad-action numpad-clr" onclick="pressNumpad('CLEAR')" title="全消去">C</button>
+
+                            <button type="button" class="numpad-key" onclick="pressNumpad('1')">1</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('2')">2</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('3')">3</button>
+                            <button type="button" class="numpad-key numpad-action numpad-sync" onclick="pressNumpad('SYNC')" title="同期実行（確定）">🔍同期</button>
+
+                            <button type="button" class="numpad-key" onclick="pressNumpad('0')">0</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('00')">00</button>
+                            <button type="button" class="numpad-key" onclick="pressNumpad('-')">-</button>
+                        </div>
+                    </div>
+
                     <div class="patient-action-links">
                         <button type="button" class="btn-sub-action" onclick="openPatientSearch()" title="電子カルテ患者検索子画面を開く">🔍 氏名検索</button>
                         <button type="button" class="btn-sub-action btn-sub-temp" onclick="setTemporaryPatient()" title="仮予約を設定">⚡ 仮予約</button>
                         <button type="button" class="btn-sub-action" onclick="toggleManualInput(true)" title="患者Noがない場合の直接手入力">✏️ 手入力</button>
+                        <button type="button" class="btn-sub-action btn-sub-canvas" onclick="openCanvasTimelineFromModal()" title="この患者のRS-Base検査実績タイムライン・キャンバスを開く" style="background:#e0e7ff; color:#3730a3; border-color:#c7d2fe; font-weight:700;">🗺️ 検査実績</button>
                     </div>
                 </div>
 
@@ -1617,32 +2179,41 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                 <div class="patient-card-right" id="patientCardDisplay">
                     <div id="patientInfoContent" class="patient-info-content">
                         <?php if (!empty($p_name_initial)): ?>
-                            <div class="patient-info-row1">
-                                <span class="patient-card-name"><?= htmlspecialchars($p_name_initial, ENT_QUOTES, 'UTF-8') ?></span>
-                                <?php if (!empty($p_kana_initial)): ?>
-                                    <span class="patient-card-kana">(<?= htmlspecialchars($p_kana_initial, ENT_QUOTES, 'UTF-8') ?>)</span>
-                                <?php endif; ?>
-                                <?php if (!empty($p_id_initial)): ?>
-                                    <span class="patient-card-id-badge">No: <?= htmlspecialchars($p_id_initial, ENT_QUOTES, 'UTF-8') ?></span>
-                                <?php endif; ?>
-                                <span id="cardGenderTag"></span>
-                                <?php if ($p_age_int !== null): ?>
-                                    <span style="color:#94a3b8;">/</span>
-                                    <span class="age-box <?= $p_age_cls ?>"><?= $p_age_int ?>歳</span>
-                                <?php endif; ?>
-                                <?php if (!empty($p_wareki_initial)): ?>
-                                    <span style="color:#94a3b8;">/</span>
-                                    <span class="patient-card-birthday">(生年月日: <?= htmlspecialchars($p_wareki_initial, ENT_QUOTES, 'UTF-8') ?>)</span>
-                                <?php endif; ?>
-                                <button type="button" class="btn btn-karte-link" onclick="openMallSoapViewer()" title="Webカルテビューアを表示">📄 電カル</button>
+                            <div class="patient-card-main-info">
+                                <div class="patient-info-row1">
+                                    <span class="patient-card-name"><?= htmlspecialchars($p_name_initial, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php if (!empty($p_kana_initial)): ?>
+                                        <span class="patient-card-kana">(<?= htmlspecialchars($p_kana_initial, ENT_QUOTES, 'UTF-8') ?>)</span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($p_id_initial)): ?>
+                                        <span class="patient-card-id-badge">No: <?= htmlspecialchars($p_id_initial, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php endif; ?>
+                                    <span id="cardGenderTag"></span>
+                                    <?php if ($p_age_int !== null): ?>
+                                        <span style="color:#94a3b8;">/</span>
+                                        <span class="age-box <?= $p_age_cls ?>"><?= $p_age_int ?>歳</span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($p_wareki_initial)): ?>
+                                        <span style="color:#94a3b8;">/</span>
+                                        <span class="patient-card-birthday">(生年月日: <?= htmlspecialchars($p_wareki_initial, ENT_QUOTES, 'UTF-8') ?>)</span>
+
+                                    <?php endif; ?>
+                                </div>
+                                <div class="patient-info-row2">
+                                    <span class="patient-address-click" id="cardAddressDisplay" onclick="copyPatientAddress(this)" title="クリックして住所をコピー">
+                                        🏠 住所: <span style="color:#94a3b8;">(照会中...)</span>
+                                    </span>
+                                    <span class="patient-tel-click" id="cardTelDisplay" onclick="copyPatientTel(this)" title="クリックして電話番号をコピー">
+                                        📞 <span style="color:#94a3b8;">(照会中...)</span>
+                                    </span>
+                                </div>
                             </div>
-                            <div class="patient-info-row2">
-                                <span class="patient-address-click" id="cardAddressDisplay" onclick="copyPatientAddress(this)" title="クリックして住所をコピー">
-                                    🏠 住所: <span style="color:#94a3b8;">(照会中...)</span>
-                                </span>
-                                <span class="patient-tel-click" id="cardTelDisplay" onclick="copyPatientTel(this)" title="クリックして電話番号をコピー">
-                                    📞 TEL: <span style="color:#94a3b8;">(照会中...)</span>
-                                </span>
+                            <!-- 右側独立アクション（電カルボタン＆最終受診日・科） -->
+                            <div class="patient-card-side-actions" id="cardSideActions">
+                                <button type="button" class="btn btn-karte-link-prominent" onclick="openMallSoapViewer()" title="Webカルテビューアを表示">📄 電カル ↗</button>
+                                <div class="patient-last-visit-badge" id="cardLastVisitBadge" title="電子カルテ上の最終受診実績">
+                                    <span class="visit-badge visit-none">照会中...</span>
+                                </div>
                             </div>
                         <?php else: ?>
                             <div class="patient-empty-guide">
@@ -1670,8 +2241,9 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
                         </div>
                         <div class="manual-field-group">
                             <label for="manual_birthday">生年月日:</label>
-                            <input type="text" id="manual_birthday" class="form-control onokai-date-picker" style="width:125px; height:27px; font-size:12px;" value="<?= htmlspecialchars($p_bday_initial, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off" onchange="syncManualToHidden()">
+                            <input type="text" id="manual_birthday" class="form-control onokai-date-picker" data-no-pill="true" style="width:125px; height:27px; font-size:12px;" value="<?= htmlspecialchars($p_bday_initial, ENT_QUOTES, 'UTF-8') ?>" autocomplete="off" onchange="syncManualToHidden()">
                             <span id="manualAgeBadge"></span>
+
                         </div>
                     </div>
                 </div>
@@ -1679,7 +2251,7 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
 
             <div class="attr-flex-row">
                 <div style="display:inline-flex; align-items:center; gap:3px;">
-                    <select name="doctor_name" id="doctor_name" class="form-control" style="width:115px;" data-initial-doctor="<?= htmlspecialchars($curr_doctor, ENT_QUOTES, 'UTF-8') ?>" aria-label="担当医師">
+                    <select name="doctor_name" id="doctor_name" class="form-control" style="width:115px;" data-initial-doctor="<?= htmlspecialchars($curr_doctor, ENT_QUOTES, 'UTF-8') ?>" onchange="checkDuplicateAndLimits(); renderDayCapacitySummaryBar();" aria-label="担当医師">
                         <option value="">-- 担当未定 --</option>
                         <?php if (!empty($curr_doctor)): ?>
                             <option value="<?= htmlspecialchars($curr_doctor, ENT_QUOTES, 'UTF-8') ?>" selected><?= htmlspecialchars($curr_doctor, ENT_QUOTES, 'UTF-8') ?></option>
@@ -1823,37 +2395,46 @@ $sedation_drug_desc = ($dept === 'PROCT') ? 'プロポフォール / 安静目�
             </div>
         </div>
 
-        <!-- 下段：MALL3メモ表示 (ワンクリック拡縮・タイトルクリックコピー対応) -->
+        <!-- 下段：MALL3メモ表示 (ワンクリック拡縮・タイトルクリックコピー・備考転記対応) -->
         <div class="panel-box" style="margin-bottom:0;">
             <div class="panel-header">
                 <span>📋 MALL3メモ表示</span>
                 <div style="display:flex; align-items:center; gap:6px;">
                     <button type="button" class="btn-expand-toggle" onclick="toggleMemosExpand(this)" title="メモ表示枠の拡大・縮小">↕ 拡大</button>
-                    <span style="font-size:9.5px; color:#64748b;">※患者No入力時に自動取得（クリックでコピー）</span>
+                    <span style="font-size:9.5px; color:#64748b;">※患者No入力時に自動取得（クリックで備考へ転記 / 📋でコピー）</span>
                 </div>
             </div>
             
             <div class="mall-memo-container">
                 <div class="mall-memo-block" id="memo_block_1">
                     <div class="mall-memo-header">
-                        <span class="copy-trigger-title" onclick="copyElementContent('memo_today', '本日メモ')" title="クリックで本日メモの内容をコピー">本日メモ 📋</span>
-                        <button type="button" class="btn-memo-copy" onclick="copyElementContent('memo_today', '本日メモ')" title="本日メモをコピー">📋 コピー</button>
+                        <span class="copy-trigger-title" onclick="copyElementContent('memo_today', '本日メモ')" title="クリックで本日メモをクリップボードにコピー">本日メモ 📋</span>
+                        <div class="mall-memo-btn-group">
+                            <button type="button" class="btn-memo-copy" onclick="copyElementContent('memo_today', '本日メモ')" title="クリップボードにコピー">📋 コピー</button>
+                            <button type="button" class="btn-memo-paste" onclick="pasteMemoToRemarks('memo_today', '本日メモ')" title="備考・特記事項欄に直接転記（コピーペースト）します">📝 備考へ転記</button>
+                        </div>
                     </div>
-                    <div class="mall-memo-content" id="memo_today"><span style="color:#94a3b8;">なし</span></div>
+                    <div class="mall-memo-content" id="memo_today" onclick="handleMemoContentClick(event, 'memo_today', '本日メモ')" title="クリックで備考・特記事項欄に直接転記（コピーペースト）できます"><span style="color:#94a3b8;">なし</span></div>
                 </div>
                 <div class="mall-memo-block" id="memo_block_2">
                     <div class="mall-memo-header">
-                        <span class="copy-trigger-title" onclick="copyElementContent('memo_karte', 'カルテメモ')" title="クリックでカルテメモの内容をコピー">カルテメモ 📋</span>
-                        <button type="button" class="btn-memo-copy" onclick="copyElementContent('memo_karte', 'カルテメモ')" title="カルテメモをコピー">📋 コピー</button>
+                        <span class="copy-trigger-title" onclick="copyElementContent('memo_karte', 'カルテメモ')" title="クリックでカルテメモをクリップボードにコピー">カルテメモ 📋</span>
+                        <div class="mall-memo-btn-group">
+                            <button type="button" class="btn-memo-copy" onclick="copyElementContent('memo_karte', 'カルテメモ')" title="クリップボードにコピー">📋 コピー</button>
+                            <button type="button" class="btn-memo-paste" onclick="pasteMemoToRemarks('memo_karte', 'カルテメモ')" title="備考・特記事項欄に直接転記（コピーペースト）します">📝 備考へ転記</button>
+                        </div>
                     </div>
-                    <div class="mall-memo-content" id="memo_karte"><span style="color:#94a3b8;">なし</span></div>
+                    <div class="mall-memo-content" id="memo_karte" onclick="handleMemoContentClick(event, 'memo_karte', 'カルテメモ')" title="クリックで備考・特記事項欄に直接転記（コピーペースト）できます"><span style="color:#94a3b8;">なし</span></div>
                 </div>
                 <div class="mall-memo-block" id="memo_block_3">
                     <div class="mall-memo-header">
-                        <span class="copy-trigger-title" onclick="copyElementContent('memo_patient', '患者メモ')" title="クリックで患者メモの内容をコピー">患者メモ（連絡メモ） 📋</span>
-                        <button type="button" class="btn-memo-copy" onclick="copyElementContent('memo_patient', '患者メモ')" title="患者メモをコピー">📋 コピー</button>
+                        <span class="copy-trigger-title" onclick="copyElementContent('memo_patient', '患者メモ')" title="クリックで患者メモをクリップボードにコピー">患者メモ（連絡メモ） 📋</span>
+                        <div class="mall-memo-btn-group">
+                            <button type="button" class="btn-memo-copy" onclick="copyElementContent('memo_patient', '患者メモ')" title="クリップボードにコピー">📋 コピー</button>
+                            <button type="button" class="btn-memo-paste" onclick="pasteMemoToRemarks('memo_patient', '患者メモ')" title="備考・特記事項欄に直接転記（コピーペースト）します">📝 備考へ転記</button>
+                        </div>
                     </div>
-                    <div class="mall-memo-content" id="memo_patient"><span style="color:#94a3b8;">なし</span></div>
+                    <div class="mall-memo-content" id="memo_patient" onclick="handleMemoContentClick(event, 'memo_patient', '患者メモ')" title="クリックで備考・特記事項欄に直接転記（コピーペースト）できます"><span style="color:#94a3b8;">なし</span></div>
                 </div>
             </div>
         </div>
@@ -1944,6 +2525,10 @@ let quill = null;
 let quillAvailable = false;
 let selectedRemarksText = '';
 const isNew = <?= $schedule_id === 0 ? 'true' : 'false' ?>;
+const currentScheduleId = <?= (int)$schedule_id ?>;
+let currentDaySlotReservationsMap = <?= json_encode($day_slot_reservations_map, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+let currentDoctorCapacityMap = {};
+let currentSlotSummary = null;
 // 診療科別：枠名による検査種別（GIF）自動セット設定（PHP設定から連動）
 const ENABLE_AUTO_GIF_BY_DEPT = <?= json_encode($enable_auto_gif_by_dept) ?>;
 
@@ -2017,6 +2602,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
+            // フォーカス時にもソフトウェアキーボードを表示
+            pidInput.addEventListener('focus', function() {
+                showVirtualKeyboard();
+            });
+
             if (pidInput.value) {
                 checkDuplicateAndLimits();
                 reloadMallMemo();
@@ -2032,6 +2622,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     } catch (e) {}
                 }, 100);
             }
+
+            // ソフトウェアキーボードの外部クリック/Esc閉じるリスナー
+            document.addEventListener('click', function(e) {
+                const kb = document.getElementById('patientVirtualKeyboard');
+                const input = document.getElementById('patient_id');
+                const btn = document.getElementById('btnToggleKeyboard');
+                if (kb && kb.style.display !== 'none') {
+                    if (!kb.contains(e.target) && e.target !== input && e.target !== btn && !(btn && btn.contains(e.target))) {
+                        closeVirtualKeyboard();
+                    }
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeVirtualKeyboard();
+                }
+            });
         }
     } catch (e) {
         console.error('patient_id setup error:', e);
@@ -2050,6 +2657,13 @@ document.addEventListener('DOMContentLoaded', function() {
         initQuillSafely();
     } catch (e) {
         console.error('initQuillSafely error:', e);
+    }
+
+    // 5. 初期選択枠の重複・医師残枠チェック
+    try {
+        checkDuplicateAndLimits();
+    } catch (e) {
+        console.error('checkDuplicateAndLimits init error:', e);
     }
 });
 
@@ -2134,6 +2748,146 @@ function showToast(msg) {
     toastTimer = setTimeout(() => {
         toast.classList.remove('show');
     }, 2200);
+}
+
+// ── MALL3メモ ワンクリック備考・特記事項転記 ＆ コピー関数 ──
+function pasteMemoToRemarks(elementId, labelName) {
+    const el = document.getElementById(elementId);
+    if (!el) {
+        showToast('⚠️ メモ対象が見つかりません');
+        return;
+    }
+
+    const textContent = el.innerText.trim();
+    if (textContent === '' || textContent === 'なし' || textContent.includes('登録はありません')) {
+        showToast('⚠️ 転記対象のメモデータがありません');
+        return;
+    }
+
+    // 1. クリップボードへも同時コピー（外部ソフトや他画面等での再利用を保証）
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textContent).catch(() => {});
+    }
+
+    // 2. 備考・特記事項エディタへ直接挿入
+    if (quill && quillAvailable) {
+        try {
+            quill.focus();
+            let range = quill.getSelection();
+            if (!range) {
+                const len = quill.getLength();
+                range = { index: Math.max(0, len - 1), length: 0 };
+            }
+            const idx = range.index;
+
+            // 直前が改行でない場合は改行を挟む
+            let prefix = '';
+            if (idx > 0) {
+                const prevChar = quill.getText(idx - 1, 1);
+                if (prevChar !== '\n') {
+                    prefix = '\n';
+                }
+            }
+
+            const insertStr = prefix + textContent + '\n';
+            quill.insertText(idx, insertStr, 'user');
+            quill.setSelection(idx + insertStr.length, 0);
+
+            showToast(`📝 ${labelName} を備考・特記事項に転記しました`);
+            return;
+        } catch (e) {
+            console.warn('pasteMemoToRemarks error, using fallback:', e);
+        }
+    }
+
+    // Quill未動作時のフォールバック
+    const editor = document.getElementById('quill-editor');
+    if (editor) {
+        const p = document.createElement('p');
+        p.textContent = textContent;
+        editor.appendChild(p);
+        showToast(`📝 ${labelName} を備考・特記事項に転記しました`);
+    }
+}
+
+function handleMemoContentClick(e, elementId, labelName) {
+    // ユーザーがテキストを選択（ドラッグ）している最中はクリック転記を発動しない
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+        return;
+    }
+    pasteMemoToRemarks(elementId, labelName);
+}
+
+// ── ⌨️ 患者No ソフトウェアテンキーボード制御 ──
+function toggleVirtualKeyboard(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const kb = document.getElementById('patientVirtualKeyboard');
+    const btn = document.getElementById('btnToggleKeyboard');
+    if (!kb) return;
+
+    if (kb.style.display === 'none' || kb.style.display === '') {
+        showVirtualKeyboard();
+    } else {
+        closeVirtualKeyboard();
+    }
+}
+
+function showVirtualKeyboard() {
+    const kb = document.getElementById('patientVirtualKeyboard');
+    const btn = document.getElementById('btnToggleKeyboard');
+    if (!kb) return;
+    kb.style.display = 'block';
+    if (btn) btn.classList.add('is-active');
+}
+
+function closeVirtualKeyboard() {
+    const kb = document.getElementById('patientVirtualKeyboard');
+    const btn = document.getElementById('btnToggleKeyboard');
+    if (!kb) return;
+    kb.style.display = 'none';
+    if (btn) btn.classList.remove('is-active');
+}
+
+function pressNumpad(key) {
+    const input = document.getElementById('patient_id');
+    if (!input) return;
+
+    if (key === 'SYNC') {
+        closeVirtualKeyboard();
+        doSyncPatient();
+        return;
+    }
+
+    let val = input.value;
+    const start = (typeof input.selectionStart === 'number') ? input.selectionStart : val.length;
+    const end = (typeof input.selectionEnd === 'number') ? input.selectionEnd : val.length;
+
+    if (key === 'BS') {
+        if (start === end && start > 0) {
+            val = val.substring(0, start - 1) + val.substring(end);
+            input.value = val;
+            input.setSelectionRange(start - 1, start - 1);
+        } else if (start !== end) {
+            val = val.substring(0, start) + val.substring(end);
+            input.value = val;
+            input.setSelectionRange(start, start);
+        }
+    } else if (key === 'CLEAR') {
+        input.value = '';
+        input.setSelectionRange(0, 0);
+    } else {
+        // 数字 (0-9, 00) または記号 (-)
+        val = val.substring(0, start) + key + val.substring(end);
+        input.value = val;
+        const newPos = start + key.length;
+        input.setSelectionRange(newPos, newPos);
+    }
+
+    input.focus();
 }
 
 // -------------------------------------------------------------
@@ -2481,6 +3235,14 @@ function handleWakuChange(wakuName) {
         }
     }
 
+    const isEcho = wakuName.includes('エコー') || wakuName.toUpperCase().includes('ECHO');
+    if (isEcho) {
+        if (!examSelect.value) {
+            examSelect.value = 'エコー';
+            updateFormFieldsByExamType('エコー', true);
+        }
+    }
+
     // GIF枠またはTCF枠の場合、実施場所は一番上の選択肢を選択（胃腸科のみ、またはエコー枠等は未選択）
     if (dept === 'GASTRO') {
         if (isGif || isTcf) {
@@ -2806,6 +3568,34 @@ function closeModalWindow(needReload = false) {
     window.close();
 }
 
+
+// 🅅 注目検査（隠し機能）制御
+function revealVipCheckbox() {
+    const vc = document.getElementById("vipContainer");
+    if (vc) {
+        vc.style.display = "inline-flex";
+        const chk = document.getElementById("is_vip");
+        if (chk && !chk.checked) {
+            chk.checked = true;
+            updateVipBadgePreview();
+        }
+    }
+}
+
+function updateVipBadgePreview() {
+    const chk = document.getElementById("is_vip");
+    const badge = document.querySelector("#vipContainer .vip-badge-icon");
+    if (chk && badge) {
+        if (chk.checked) {
+            badge.style.opacity = "1";
+            badge.style.boxShadow = "0 0 4px rgba(107, 33, 168, 0.4)";
+        } else {
+            badge.style.opacity = "0.4";
+            badge.style.boxShadow = "none";
+        }
+    }
+}
+
 function saveReservation(andPrint) {
     const form = document.getElementById('editForm');
     const examDate = form.exam_date.value.trim();
@@ -2862,6 +3652,10 @@ function saveReservation(andPrint) {
     const actionName = (sid > 0) ? 'update' : 'insert';
     fd.append('action_type', actionName);
     fd.append('action', actionName);
+    const vipEl = document.getElementById('is_vip');
+    if (vipEl) {
+        fd.set('is_vip', vipEl.checked ? '1' : '0');
+    }
 
     fetch('action_schedule.php', { method: 'POST', body: fd })
         .then(async res => {
@@ -2895,6 +3689,133 @@ function updateDayOfWeek() {
 function handleDateChange() { 
     updateDayOfWeek(); 
     updateDoctorDropdown(); 
+    updateWakuDropdown();
+}
+
+function formatSlotOptionReservationInfo(reservations) {
+    if (!Array.isArray(reservations) || reservations.length === 0) {
+        return { suffix: '', hasOther: false, hasSelf: false };
+    }
+    const labels = [];
+    let hasOther = false;
+    let hasSelf = false;
+    reservations.forEach(sr => {
+        const sid = parseInt(sr.schedule_id || 0, 10);
+        let pName = (sr.patient_name || '').trim();
+        if (!pName) pName = 'ID:' + (sr.patient_id || '?');
+        const doc = (sr.doctor_name || '').trim();
+        const docPart = (doc && doc !== '◆未定◆') ? `(${doc})` : '';
+        if (currentScheduleId > 0 && sid === currentScheduleId) {
+            hasSelf = true;
+            labels.push(`★${pName}${docPart}`);
+        } else {
+            hasOther = true;
+            labels.push(`${pName}${docPart}`);
+        }
+    });
+    return {
+        suffix: labels.length > 0 ? ` 【${labels.join('・')}】` : '',
+        hasOther: hasOther,
+        hasSelf: hasSelf
+    };
+}
+
+function updateWakuDropdown() {
+    const dateInput = document.getElementById('exam_date');
+    const deptEl = document.getElementById('f_dept');
+    const wakuSelect = document.getElementById('scheduled_time');
+    if (!dateInput || !wakuSelect) return;
+
+    const date = dateInput.value;
+    const dept = deptEl ? deptEl.value : 'GASTRO';
+    if (!date || !date.match(/^\d{4}-\d{2}-\d{2}$/)) return;
+
+    const curSelected = wakuSelect.value;
+
+    fetch(`action_waku_override.php?action=get_day_slots&dept=${encodeURIComponent(dept)}&date=${encodeURIComponent(date)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success || !Array.isArray(data.effective_slots)) return;
+
+            let optionsHtml = '<option value="">-- 選択 --</option>';
+            let hasCurrent = false;
+            const newMap = {};
+            const matchedScheduleIds = new Set();
+
+            data.effective_slots.forEach(slot => {
+                const wName = slot.waku_name || '';
+                const isSusp = !!slot.is_suspended;
+                const isExtra = (!slot.base_waku_id && !!slot.is_override);
+                const isSel = (wName === curSelected);
+                if (isSel) hasCurrent = true;
+
+                let badgeStr = '';
+                if (isSusp) {
+                    badgeStr = ' [🚫休止中]';
+                } else if (isExtra) {
+                    badgeStr = ' [臨時枠]';
+                }
+
+                const resList = Array.isArray(slot.reservations) ? slot.reservations : [];
+                newMap[wName] = resList;
+                resList.forEach(r => {
+                    if (r.schedule_id) matchedScheduleIds.add(parseInt(r.schedule_id, 10));
+                });
+
+                const resInfo = formatSlotOptionReservationInfo(resList);
+                let styleStr = '';
+                let disAttr = '';
+                if (isSusp && !isSel) {
+                    disAttr = 'disabled';
+                    styleStr = 'color:#94a3b8; background-color:#fef2f2;';
+                } else if (resInfo.hasOther) {
+                    styleStr = 'background-color:#fffbeb; color:#92400e; font-weight:600;';
+                } else if (resInfo.hasSelf) {
+                    styleStr = 'background-color:#dbeafe; color:#1e40af; font-weight:700;';
+                }
+
+                const styleAttr = styleStr ? `style="${styleStr}"` : '';
+                optionsHtml += `<option value="${escapeHtml(wName)}" ${isSel ? 'selected' : ''} ${disAttr} ${styleAttr}>${escapeHtml(wName + badgeStr + resInfo.suffix)}</option>`;
+            });
+
+            // 当日予約のうち、有効枠に含まれない旧世代・未定義枠の予約を集約
+            const unmatchedByWaku = {};
+            if (Array.isArray(data.day_reservations)) {
+                data.day_reservations.forEach(dr => {
+                    const sid = parseInt(dr.schedule_id || 0, 10);
+                    const sTime = (dr.scheduled_time || '').trim();
+                    if (sTime && !matchedScheduleIds.has(sid)) {
+                        if (!unmatchedByWaku[sTime]) unmatchedByWaku[sTime] = [];
+                        unmatchedByWaku[sTime].push(dr);
+                    }
+                });
+            }
+
+            // 既存の選択値または未定義枠の予約がある場合はフォールバック追加
+            const fallbackKeys = Object.keys(unmatchedByWaku);
+            if (curSelected && !hasCurrent && !fallbackKeys.includes(curSelected)) {
+                fallbackKeys.unshift(curSelected);
+            }
+            fallbackKeys.forEach(fbWaku => {
+                const fbRes = unmatchedByWaku[fbWaku] || [];
+                newMap[fbWaku] = fbRes;
+                const isSel = (fbWaku === curSelected);
+                const resInfo = formatSlotOptionReservationInfo(fbRes);
+                let styleStr = '';
+                if (resInfo.hasOther) {
+                    styleStr = 'background-color:#fffbeb; color:#92400e; font-weight:600;';
+                } else if (resInfo.hasSelf) {
+                    styleStr = 'background-color:#dbeafe; color:#1e40af; font-weight:700;';
+                }
+                const styleAttr = styleStr ? `style="${styleStr}"` : '';
+                optionsHtml += `<option value="${escapeHtml(fbWaku)}" ${isSel ? 'selected' : ''} ${styleAttr}>${escapeHtml(fbWaku + ' [旧枠/指定枠]' + resInfo.suffix)}</option>`;
+            });
+
+            currentDaySlotReservationsMap = newMap;
+            wakuSelect.innerHTML = optionsHtml;
+            checkDuplicateAndLimits();
+        })
+        .catch(() => {});
 }
 
 let cachedPresentDoctors = [];
@@ -2913,6 +3834,8 @@ function updateDoctorDropdown() {
         .then(data => {
             let presentDocs = (data && Array.isArray(data.present_doctors)) ? data.present_doctors : ((data && Array.isArray(data.doctors)) ? data.doctors : []);
             let allDocs = (data && Array.isArray(data.all_doctors)) ? data.all_doctors : [];
+            currentDoctorCapacityMap = (data && data.doctor_capacity) ? data.doctor_capacity : {};
+            currentSlotSummary = (data && data.slot_summary) ? data.slot_summary : null;
 
             if (dept === 'PROCT' && !presentDocs.includes('誠吾')) {
                 presentDocs.unshift('誠吾');
@@ -2925,7 +3848,79 @@ function updateDoctorDropdown() {
             cachedAllDoctors = allDocs.length > 0 ? allDocs : presentDocs;
 
             renderDoctorDropdownOptions();
+            renderDayCapacitySummaryBar();
+            checkDuplicateAndLimits();
         }).catch(() => {});
+}
+
+function selectDoctorFromSummaryChip(docName) {
+    const select = document.getElementById('doctor_name');
+    if (!select) return;
+    let found = false;
+    for (let i = 0; i < select.options.length; i++) {
+        if (select.options[i].value === docName) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        const opt = document.createElement('option');
+        opt.value = docName;
+        opt.textContent = docName;
+        select.appendChild(opt);
+    }
+    select.value = docName;
+    renderDayCapacitySummaryBar();
+    checkDuplicateAndLimits();
+}
+
+function renderDayCapacitySummaryBar() {
+    const bar = document.getElementById('dayCapacitySummaryBar');
+    if (!bar) return;
+    const docKeys = Object.keys(currentDoctorCapacityMap || {});
+    if (docKeys.length === 0) {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+    }
+
+    const curDoc = document.getElementById('doctor_name') ? document.getElementById('doctor_name').value : '';
+    let chipsHtml = '';
+    docKeys.forEach(docName => {
+        const info = currentDoctorCapacityMap[docName];
+        if (!info) return;
+        const max = info.max || {};
+        const used = info.used || {};
+        const parts = [];
+        ['TCF', 'GIF', 'ECHO'].forEach(grp => {
+            const m = parseInt(max[grp] || 0, 10);
+            const u = parseInt(used[grp] || 0, 10);
+            if (m > 0 || u > 0) {
+                const label = (grp === 'TCF') ? 'CF' : ((grp === 'ECHO') ? 'US' : 'GIF');
+                const rem = m - u;
+                let color = '#15803d';
+                if (rem <= 0 && m > 0) color = '#dc2626';
+                else if (rem === 1) color = '#b45309';
+                parts.push(`<span style="color:${color}; font-weight:700;">${label}:${u}/${m}</span>`);
+            }
+        });
+        if (parts.length === 0) return;
+
+        const isSelectedDoc = (curDoc === docName);
+        const bg = isSelectedDoc ? '#fef9c3' : '#ffffff';
+        const border = isSelectedDoc ? '1.5px solid #eab308' : '1px solid #cbd5e1';
+        chipsHtml += `<button type="button" onclick="selectDoctorFromSummaryChip('${escapeHtml(docName)}')" title="クリックで担当医「${escapeHtml(docName)}」を選択" style="display:inline-flex; align-items:center; gap:4px; padding:1px 6px; margin:1px 3px 1px 0; border-radius:4px; background:${bg}; border:${border}; font-size:10.5px; cursor:pointer; color:#1e293b;">
+            <strong>👨‍⚕️${escapeHtml(docName)}</strong> [${parts.join(' ')}]
+        </button>`;
+    });
+
+    if (!chipsHtml) {
+        bar.style.display = 'none';
+        return;
+    }
+
+    bar.innerHTML = `<span style="font-weight:700; color:#475569; margin-right:4px;">📊 当日枠(使用/上限):</span>${chipsHtml}`;
+    bar.style.display = 'block';
 }
 
 function renderDoctorDropdownOptions() {
@@ -3053,7 +4048,7 @@ function copyPatientAddress(el) {
 
 // 電話番号クリックコピー
 function copyPatientTel(el) {
-    const raw = el.getAttribute('data-tel') || (el.innerText || '').replace(/^📞\s*TEL:\s*/, '').trim();
+    const raw = el.getAttribute('data-tel') || (el.innerText || '').replace(/^📞\s*(TEL:\s*)?/, '').trim();
     if (!raw || raw.includes('照会中') || raw.includes('登録なし')) return;
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -3137,23 +4132,48 @@ function renderPatientCard(data) {
     const telStr = data.tel ? escapeHtml(data.tel) : '<span style="color:#94a3b8;">(登録なし)</span>';
     const rawTelForCopy = data.tel || '';
 
+    // 最終受診日・診療科バッジ生成
+    let lastVisitBadgeHtml = '';
+    if (data.last_visit_date) {
+        const deptStr = data.last_dept_name ? ` (${escapeHtml(data.last_dept_name)})` : '';
+        if (data.is_today_visit) {
+            lastVisitBadgeHtml = `<span class="visit-badge visit-today" title="本日電子カルテで受診実績があります">🔴 本日受診${deptStr}</span>`;
+        } else {
+            const dStr = escapeHtml(data.last_visit_date.replace(/-/g, '/'));
+            lastVisitBadgeHtml = `<span class="visit-badge visit-past" title="最終受診日: ${dStr}${deptStr}">📅 最終: ${dStr}${deptStr}</span>`;
+        }
+    } else if (data.last_visit_date === null && data.patient_id) {
+        lastVisitBadgeHtml = `<span class="visit-badge visit-none" title="過去の電子カルテ受診実績なし（新患）">最終: なし(新患)</span>`;
+    } else {
+        lastVisitBadgeHtml = `<span class="visit-badge visit-none">照会中...</span>`;
+    }
+
     container.innerHTML = `
-        <div class="patient-info-row1">
-            <span class="patient-card-name">${name}</span>
-            ${kana}
-            ${pidBadge}
-            ${genderTag}
-            ${agePart}
-            ${bdayPart}
-            <button type="button" class="btn btn-karte-link" onclick="openMallSoapViewer()" title="Webカルテビューアを表示">📄 電カル</button>
+        <div class="patient-card-main-info">
+            <div class="patient-info-row1">
+                <span class="patient-card-name">${name}</span>
+                ${kana}
+                ${pidBadge}
+                ${genderTag}
+                ${agePart}
+                ${bdayPart}
+
+            </div>
+            <div class="patient-info-row2">
+                <span class="patient-address-click" data-address="${escapeHtml(rawAddrForCopy)}" onclick="copyPatientAddress(this)" title="クリックして住所をコピー">
+                    🏠 住所: ${addrStr}
+                </span>
+                <span class="patient-tel-click" data-tel="${escapeHtml(rawTelForCopy)}" onclick="copyPatientTel(this)" title="クリックして電話番号をコピー">
+                    📞 ${telStr}
+                </span>
+            </div>
         </div>
-        <div class="patient-info-row2">
-            <span class="patient-address-click" data-address="${escapeHtml(rawAddrForCopy)}" onclick="copyPatientAddress(this)" title="クリックして住所をコピー">
-                🏠 住所: ${addrStr}
-            </span>
-            <span class="patient-tel-click" data-tel="${escapeHtml(rawTelForCopy)}" onclick="copyPatientTel(this)" title="クリックして電話番号をコピー">
-                📞 TEL: ${telStr}
-            </span>
+        <!-- 右側独立アクション（電カルボタン＆最終受診日・科） -->
+        <div class="patient-card-side-actions" id="cardSideActions">
+            <button type="button" class="btn btn-karte-link-prominent" onclick="openMallSoapViewer()" title="Webカルテビューアを表示">📄 電カル ↗</button>
+            <div class="patient-last-visit-badge" id="cardLastVisitBadge" title="電子カルテ上の最終受診実績">
+                ${lastVisitBadgeHtml}
+            </div>
         </div>
     `;
 }
@@ -3201,7 +4221,10 @@ function doSyncPatient() {
                     birthday: data.birthday,
                     gender: data.gender,
                     address: data.address,
-                    tel: data.tel
+                    tel: data.tel,
+                    last_visit_date: data.last_visit_date,
+                    last_dept_name: data.last_dept_name,
+                    is_today_visit: !!data.is_today_visit
                 });
 
                 reloadMallMemo();
@@ -3248,7 +4271,10 @@ function fetchPatientDetailsAndUpdateCard(pid) {
                     birthday: pBday,
                     gender: data.gender,
                     address: data.address,
-                    tel: data.tel
+                    tel: data.tel,
+                    last_visit_date: data.last_visit_date,
+                    last_dept_name: data.last_dept_name,
+                    is_today_visit: !!data.is_today_visit
                 });
             }
         })
@@ -3714,7 +4740,111 @@ window.addEventListener('message', function(event) {
 
 const isWithin10Min = <?= !empty($is_within_10min) ? 'true' : 'false' ?>;
 
-function checkDuplicateAndLimits() {}
+function selectQuickWaku(wakuName) {
+    const wakuSelect = document.getElementById('scheduled_time');
+    if (!wakuSelect) return;
+    wakuSelect.value = wakuName;
+    handleWakuChange(wakuName);
+    if (typeof showToast === 'function') {
+        showToast(`✅ 時間枠を「${wakuName}」へ変更しました`);
+    }
+}
+
+function checkDuplicateAndLimits() {
+    const alertBox = document.getElementById('duplicateAlert');
+    if (!alertBox) return;
+
+    const wakuSelect = document.getElementById('scheduled_time');
+    const selectedWaku = wakuSelect ? wakuSelect.value : '';
+    const messages = [];
+
+    // 0. 旧世代枠・未定義枠（[旧枠/指定枠]）が選択されている場合、新枠へのワンクリック振替候補を提示
+    if (wakuSelect && selectedWaku && wakuSelect.selectedIndex >= 0) {
+        const selOpt = wakuSelect.options[wakuSelect.selectedIndex];
+        const selText = selOpt ? (selOpt.text || '') : '';
+        if (selText.includes('[旧枠/指定枠]') || selText.includes('(未定義/指定枠)')) {
+            const timeMatch = selectedWaku.match(/(\d{1,2}:\d{2})/);
+            const timePrefix = timeMatch ? timeMatch[1] : '';
+            const isTcfOld = selectedWaku.toUpperCase().includes('TCF') || selectedWaku.toUpperCase().includes('CF');
+            const isGifOld = selectedWaku.toUpperCase().includes('GIF');
+
+            const candidateSlots = [];
+            for (let i = 0; i < wakuSelect.options.length; i++) {
+                const opt = wakuSelect.options[i];
+                const val = opt.value || '';
+                const txt = opt.text || '';
+                if (!val || opt.disabled || txt.includes('[旧枠/指定枠]') || txt.includes('(未定義/指定枠)')) continue;
+                if (timePrefix && val.includes(timePrefix)) {
+                    candidateSlots.push(val);
+                } else if (!timePrefix && ((isTcfOld && val.toUpperCase().includes('TCF')) || (isGifOld && val.toUpperCase().includes('GIF')))) {
+                    candidateSlots.push(val);
+                }
+            }
+
+            let quickBtnsHtml = '';
+            if (candidateSlots.length > 0) {
+                quickBtnsHtml = candidateSlots.map(cand => {
+                    const resArr = (currentDaySlotReservationsMap && Array.isArray(currentDaySlotReservationsMap[cand])) ? currentDaySlotReservationsMap[cand] : [];
+                    const others = resArr.filter(r => parseInt(r.schedule_id || 0, 10) !== currentScheduleId);
+                    const isEmpty = (others.length === 0);
+                    const btnBg = isEmpty ? '#dcfce7' : '#fef3c7';
+                    const btnBorder = isEmpty ? '#22c55e' : '#f59e0b';
+                    const btnColor = isEmpty ? '#166534' : '#92400e';
+                    const statusLabel = isEmpty ? '空' : (`${others[0].patient_name || '予約あり'}`);
+                    return `<button type="button" onclick="selectQuickWaku('${escapeHtml(cand)}')" style="display:inline-flex; align-items:center; gap:3px; padding:1px 7px; margin:1px 3px; border-radius:4px; background:${btnBg}; border:1px solid ${btnBorder}; color:${btnColor}; font-weight:700; font-size:11px; cursor:pointer;">👉 ${escapeHtml(cand)} (${escapeHtml(statusLabel)})</button>`;
+                }).join('');
+            }
+            messages.push(`🔄 旧世代枠「<strong>${escapeHtml(selectedWaku)}</strong>」が選択されています。${quickBtnsHtml ? '新枠へワンクリック振替: ' + quickBtnsHtml : '時間枠リストから新枠を選択して振り替え可能です。'}`);
+        }
+    }
+
+    // 1. 選択した時間枠に既に別の患者が登録されているかチェック
+    if (selectedWaku && currentDaySlotReservationsMap && Array.isArray(currentDaySlotReservationsMap[selectedWaku])) {
+        const others = currentDaySlotReservationsMap[selectedWaku].filter(r => parseInt(r.schedule_id || 0, 10) !== currentScheduleId);
+        if (others.length > 0) {
+            const names = others.map(r => {
+                const pn = (r.patient_name || '').trim() || ('ID:' + (r.patient_id || '?'));
+                const doc = (r.doctor_name || '').trim();
+                const et = (r.exam_type || '').trim();
+                const meta = [et, (doc && doc !== '◆未定◆') ? doc : ''].filter(Boolean).join('/');
+                return meta ? `<strong>${escapeHtml(pn)} 様</strong> (${escapeHtml(meta)})` : `<strong>${escapeHtml(pn)} 様</strong>`;
+            });
+            messages.push(`ℹ️ 時間枠「<strong>${escapeHtml(selectedWaku)}</strong>」には既に ${names.join('・')} が登録されています <span style="font-size:11px; color:#64748b;">（※イレギュラー等の複数枠予約としてそのまま保存可能です）</span>`);
+        }
+    }
+
+    // 2. 担当医師の当日枠上限チェック
+    const docSelect = document.getElementById('doctor_name');
+    const examSelect = document.getElementById('exam_type');
+    const selectedDoc = docSelect ? docSelect.value : '';
+    const selectedExam = examSelect ? examSelect.value : '';
+    if (selectedDoc && selectedDoc !== '◆未定◆' && currentDoctorCapacityMap && currentDoctorCapacityMap[selectedDoc]) {
+        const cap = currentDoctorCapacityMap[selectedDoc];
+        let grp = 'GIF';
+        if (['TCF', 'W', 'ポリペク', '浣腸CF'].includes(selectedExam)) {
+            grp = 'TCF';
+        } else if (selectedExam === 'エコー' || selectedExam.toUpperCase() === 'ECHO' || selectedExam.toUpperCase() === 'US') {
+            grp = 'ECHO';
+        }
+        const maxCnt = parseInt((cap.max && cap.max[grp]) || 0, 10);
+        const usedCnt = parseInt((cap.used && cap.used[grp]) || 0, 10);
+        // 新規予約（または別医師への変更）で既に上限に達している場合
+        const initialDoc = docSelect ? (docSelect.getAttribute('data-initial-doctor') || '') : '';
+        const isAddingToDoc = (currentScheduleId === 0 || selectedDoc !== initialDoc);
+        if (isAddingToDoc && maxCnt > 0 && usedCnt >= maxCnt) {
+            const grpLabel = (grp === 'TCF') ? 'CF' : ((grp === 'ECHO') ? 'エコー' : 'GIF');
+            messages.push(`⚠️ <strong>${escapeHtml(selectedDoc)}</strong> 先生の当日${grpLabel}枠は上限に達しています（現在 <strong>${usedCnt}/${maxCnt}件</strong>・枠外超過として保存可能）`);
+        }
+    }
+
+    if (messages.length > 0) {
+        alertBox.innerHTML = messages.join('<br>');
+        alertBox.style.display = 'block';
+    } else {
+        alertBox.innerHTML = '';
+        alertBox.style.display = 'none';
+    }
+}
 
 function deleteReservation(sid) {
     if (isWithin10Min) {
@@ -3851,7 +4981,8 @@ function escapeHtml(str) {
 // 🖨️ 特大Flatpickr小野会カレンダーバインド (検査日 & 生年月日)
 function initModalDatePicker() {
     if (window.OnokaiDatePicker) {
-        OnokaiDatePicker.attach('#exam_date', {
+        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を検査日にバインド
+        OnokaiDatePicker.bindControl('#exam_date', {
             onChange: function(dates, dateStr) {
                 if (typeof handleDateChange === 'function') {
                     handleDateChange();
@@ -3871,6 +5002,30 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initModalDatePicker);
 } else {
     initModalDatePicker();
+}
+
+// 🗺️ RS-Base 検査実績タイムライン・キャンバス起動
+function openCanvasTimelineFromModal() {
+    const pidInput = document.getElementById('patient_id');
+    const pid = pidInput ? pidInput.value.trim() : '';
+    if (!pid || pid === '---') {
+        if (typeof showCustomToast === 'function') {
+            showCustomToast('患者Noが入力されていません', 'warning');
+        } else {
+            alert('患者Noを入力してください');
+        }
+        return;
+    }
+    const examSelect = document.getElementById('exam_type');
+    const examType = examSelect ? examSelect.value : '';
+    let modality = 'ES';
+    if (examType.includes('エコー') || examType.toUpperCase().includes('ECHO') || examType.toUpperCase() === 'US') {
+        modality = 'US';
+    } else if (examType.toUpperCase().includes('ECG') || examType.includes('心電図')) {
+        modality = 'ECG';
+    }
+    const targetUrl = `../rsbase/canvas_view.php?patient_no=${encodeURIComponent(pid)}&modality=${encodeURIComponent(modality)}&limit=5`;
+    window.open(targetUrl, '_blank');
 }
 </script>
 </body>

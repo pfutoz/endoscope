@@ -14,8 +14,9 @@
  * - 科の垣根を超えて該当日のカレンダー・予約モーダルへダイレクト連携
  * - 既存の空き枠詳細検索（slot_search.php）へのスムーズな導線
  * 
- * 修正履歴 (2026-09-29):
- * - 【フローティング化＆操作性向上】直近空き枠速報を画面右下フローティングパネル化。医師通知欄と同等のダーク系半透明グラスモフィズム（backdrop-filter）を採用
+ * 修正履歴:
+ * - 2026-10-27: 【検索期間拡張】直近空き枠検索期間に「直近 60日間」「直近 90日間」を追加。選択期間に応じたタイトルバッジ動的連動。
+ * - 2026-09-29: 【フローティング化＆操作性向上】直近空き枠速報を画面右下フローティングパネル化。医師通知欄と同等のダーク系半透明グラスモフィズム（backdrop-filter）を採用
  * - 【ドラッグ移動＆24時間位置保持】ヘッダー部のドラッグ移動、画面外はみ出し防止、localStorage（24時間有効期限付き）による位置＆最小化状態の復元
  * - 【スマート最小化】✕ボタンによるコンパクトピル（📢 空き枠速報: ○枠）への最小化とワンクリック再展開
  */
@@ -610,7 +611,7 @@
         <div class="urgent-modal-header">
             <div class="urgent-modal-title">
                 <span>⚡ 直近空き枠速報 ＆ スマート予約アシスト</span>
-                <span class="urgent-tag">大腸内視鏡 (CF/TCF/W/ポリペク) 直近30日</span>
+                <span class="urgent-tag" id="urgentModalTag">大腸内視鏡 (CF/TCF/W/ポリペク) 直近30日</span>
             </div>
             <button type="button" class="dup-modal-close-btn" style="color:#ffffff;" onclick="closeUrgentSlotModal()" title="閉じる">✕</button>
         </div>
@@ -645,6 +646,8 @@
                     <option value="14">直近 14日間</option>
                     <option value="30" selected>直近 30日間（推奨）</option>
                     <option value="45">直近 45日間</option>
+                    <option value="60">直近 60日間</option>
+                    <option value="90">直近 90日間</option>
                 </select>
             </div>
         </div>
@@ -729,6 +732,11 @@ async function loadUrgentSlots(forceReload = false) {
     const body = document.getElementById('urgentModalBody');
     const daysSelect = document.getElementById('urgentDaysSelect');
     const days = daysSelect ? daysSelect.value : 30;
+
+    const modalTag = document.getElementById('urgentModalTag');
+    if (modalTag) {
+        modalTag.textContent = `大腸内視鏡 (CF/TCF/W/ポリペク) 直近${days}日`;
+    }
 
     if (!urgentSlotCache || forceReload) {
         if (body) {

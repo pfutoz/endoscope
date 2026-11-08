@@ -365,12 +365,12 @@
     <header class="spec-header">
         <div class="header-top">
             <span class="header-badge">医療法人小野会 内視鏡予約管理システム</span>
-            <span class="header-date">文書番号: SPEC-202610-03 (ver1005)</span>
+            <span class="header-date">文書番号: SPEC-202611-06 (v1106 本番稼働版)</span>
         </div>
         <h1 class="main-title">システム機能一覧 ＆ 画面別仕様書</h1>
         <div class="header-meta">
-            <span>対象システム: <strong>内視鏡予約・枠管理システム (Modernized Edition / ver1009)</strong></span>
-            <span>更新日: <strong>2026年10月9日</strong></span>
+            <span>対象システム: <strong>内視鏡予約・枠管理システム (Production Release / v1106)</strong></span>
+            <span>更新日: <strong>2026年11月06日</strong></span>
             <span>稼働環境: <strong>Windows / Apache 2.4 / PostgreSQL 18.3 / PHP 8.5.9</strong></span>
         </div>
     </header>
@@ -378,9 +378,13 @@
     <!-- ── 関連ドキュメントナビゲーション ── -->
     <div style="background: #f1f5f9; padding: 10px 36px; display: flex; gap: 14px; font-size: 12.5px; font-weight: 600; color: #475569; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
         <span style="color: #1e293b;">🔗 関連ドキュメント:</span>
-        <a href="2026-10-21works.html" style="color: #0284c7; text-decoration: none; font-weight: bold;">📄 本日改修報告書 (2026-10-21works.html)</a>
+        <a href="2026-11-6works.html" style="color: #0284c7; text-decoration: none; font-weight: bold;">📄 本日改修報告書 (2026-11-6works.html)</a>
         <span style="color: #cbd5e1;">|</span>
-        <a href="2026-10-20works.html" style="color: #0369a1; text-decoration: none;">📄 前回改修報告書 (2026-10-20works.html)</a>
+        <a href="2026-11-4works.html" style="color: #0369a1; text-decoration: none;">📄 前回改修報告書 (2026-11-4works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-11-1works.html" style="color: #0369a1; text-decoration: none;">📄 前々回改修報告書 (2026-11-1works.html)</a>
+        <span style="color: #cbd5e1;">|</span>
+        <a href="2026-10-30works.html" style="color: #0369a1; text-decoration: none;">📄 10-30改修報告書 (2026-10-30works.html)</a>
         <span style="color: #cbd5e1;">|</span>
         <a href="plan.html" style="color: #2563eb; text-decoration: none;">📋 中長期開発計画書 (plan.html)</a>
         <span style="color: #cbd5e1;">|</span>
@@ -400,7 +404,7 @@
             <li><a href="#cat-booking">3. 予約操作・メインカレンダー系</a></li>
             <li><a href="#cat-search">4. 検索・照会系</a></li>
             <li><a href="#cat-print">5. 帳票・印刷系</a></li>
-            <li><a href="#cat-fu">6. フォローアップ系 <span style="font-size:10px; color:#94a3b8; font-weight:normal;">(凍結)</span></a></li>
+            <li><a href="#cat-fu">6. 検査実績タイムライン・キャンバス系 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-24刷新</span></a></li>
             <li><a href="#cat-stats">7. 集計・実績統計系</a></li>
             <li><a href="#cat-master">8. マスタ管理・保守系</a></li>
             <li><a href="#cat-flow">9. 画面遷移フロー図</a></li>
@@ -416,7 +420,22 @@
             <li><a href="#cat-print-daily-renewal">19. 日別予約一覧印刷 A4縦最適化 ＆ 部屋降順ソート ＆ 境界空行 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-21改修</span></a></li>
             <li><a href="#cat-flatpickr-onokai">20. 特大Flatpickr共通日付コントロール（小野会カレンダー） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-20新設</span></a></li>
             <li><a href="#cat-undecided-highlight">21. 担当未定（--担当未定--）ハイライト ＆ 絞り込み機能 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-21新設</span></a></li>
-            <li><a href="#cat-future-waku-override">22. 【将来計画】時間枠マスタ柔軟化 ＆ 日別・期間別オーバーライド構想 <span class="badge badge-primary" style="font-size:10px; padding:1px 5px;">2026-10-21計画</span></a></li>
+            <li><a href="#cat-future-waku-override">22. 【時間枠柔軟化】時間枠マスタ日別・期間別オーバーライド <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">Phase 1完了</span></a></li>
+            <li><a href="#cat-compact-note">23. デイリーノート縦圧縮モード ＆ 診療科切替 [1][2]キー <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-26新設</span></a></li>
+            <li><a href="#cat-exam-unification">24. 検査種別マスタ完全一本化 (m_exam_type_group) <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-26新設</span></a></li>
+            <li><a href="#cat-prep-room-ux">25. 部屋・下剤一括設定UX強化 ＆ リアルタイム重複検知 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-27新設</span></a></li>
+            <li><a href="#cat-print-daily-update27">26. A4印刷DX 左右キー日付移動 ＆ ページ構成復元 ＆ 年号省略日付 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-27更新</span></a></li>
+            <li><a href="#cat-calendar-nav-skip">27. カレンダー隠し機能 左右キー日付移動 ＆ Shift+矢印で休診日スキップ <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-27新設</span></a></li>
+            <li><a href="#cat-urgent-days-ext">28. 直近空き枠速報 検索期間拡張（60日・90日追加） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-27新設</span></a></li>
+            <li><a href="#cat-nameplate-print">29. タブレット対応印刷強化 ＆ 下部検査ネームプレート印刷（横147×縦70mm A4面付け） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-30新設</span></a></li>
+            <li><a href="#cat-printer-master">30. 院内プリンターマスターメンテナンス（名称・選択・検出統合管理） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-10-30新設</span></a></li>
+            <li><a href="#cat-slot-hover-preview">31. 空き枠検索 カレンダー状況ホバープレビュー機能（全科医師別枠・全体集計即時確認） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-01新設</span></a></li>
+            <li><a href="#cat-slot-search-powerup">32. 空き枠検索 条件指定検索パワーアップ（複数医師選択・コンパクトカード・SSR初期表示 ＆ Ajax自動検索） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-01新設</span></a></li>
+            <li><a href="#cat-progress-slim">33. 当日進捗ステータスモニター UI大幅スリム化 ＆ コントロール統合（ヘッダー集約・今すぐ更新・タブ件数合体・説明統合） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-01新設</span></a></li>
+            <li><a href="#cat-note-date-slim">34. デイリーノート 日付バー大幅スリム化 ＆ ピッカー一本化（重複表示解消・32pxツライチ・セグメント連結） <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-01新設</span></a></li>
+            <li><a href="#cat-system-info-master">35. 院内システム修正インフォメーションマスターメンテナンス ＆ 非干渉ボタン最下部配信 (v1101 本番稼働版) <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-01新設</span></a></li>
+            <li><a href="#cat-common-api-onokai">36. 小野会共通APIプラットフォーム連携 ＆ 祝日・休診日判定の共通基盤移譲 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-04新設</span></a></li>
+            <li><a href="#cat-endoscopy-sheet-v1">37. 内視鏡シート（検査・処置記録票）A4 1枚全面刷新 ＆ タブレット直接印刷対応 <span class="badge badge-success" style="font-size:10px; padding:1px 5px;">2026-11-06新設</span></a></li>
         </ul>
     </nav>
 
@@ -536,9 +555,14 @@
                         </li>
                         <li><strong>マイトイレ・下剤作成配薬指示:</strong> 汎用マスタ（<code>toilet_room</code>: ﾏ101〜ｺ212）から部屋を即時割当。下剤（モビ/マグP/ニフ）の作成指示・配薬完了ステータスおよび注意ガイダンスを表示。</li>
                         <li><strong>受付時刻の打刻・手打ち修正連携:</strong> ワンクリックで現在時刻を打刻可能。手打ちでの修正にも対応し、既存の <code>t_endoscopy_schedule.arrival_time</code> と双方向連動。</li>
-                        <li><strong>自動更新タイマー ＆ クライアント個別保存 (localStorage):</strong> 10秒 / 20秒 / 30秒 / 60秒 / 停止 を切替可能（カウントダウンバー付き）。<strong>設定した更新秒数および選択した職種ビューはブラウザの <code>localStorage</code> に完全保存</strong>され、リロードや次回アクセス時も各端末（処置室iPad・受付PC・診察室端末・ナースステーション）ごとに最適な設定が永続維持される（ヘッダーに「💾 端末保存」バッジおよびトースト通知を常備）。</li>
+                        <li><strong>自動更新コントロール ＆ 今すぐ更新（🔄）:</strong> 10秒 / 20秒 / 30秒 / 60秒 / 停止 を切替可能（カウントダウンバー付き）。直後に配置された <code>🔄</code> アイコンボタンにより、ワンクリックで即座に手動更新可能。<strong>設定した更新秒数および選択した職種ビューはブラウザの <code>localStorage</code> に完全保存</strong>され、リロードや次回アクセス時も各端末ごとに最適な設定が永続維持される（ヘッダーに「💾 端末保存」バッジおよびトースト通知を常備）。</li>
+                        <li><strong>表示モードの2択化 ＆「圧縮」文言の完全撤廃:</strong> 「圧縮」「標準」の分かりにくい言葉を完全になくし、<code>[ 📋 テーブル ]</code> と <code>[ 🔲 タイル ]</code> の2択に統一。テーブル表示時は常に高密度（圧縮）スタイル（<code>view-mode-compact</code>）をデフォルト適用。</li>
+                        <li><strong>ヘッダー機能ボタンの集約（<code>&lt;select&gt;</code> リストボックス化）:</strong> 画面を圧迫していた「➕ 当日・緊急追加」「🛡️ アラートスキャン」「⚡ 直近空き枠速報」「🖨️ 当日印刷」「📅 月間カレンダー」「🏠 ポータルメニュー」を <code>📂 その他メニュー ▾</code> プルダウンに統合し、ヘッダーを劇的にスリム化。</li>
+                        <li><strong>日付ステッパー内「今日へ」内包:</strong> 独立ボタンを廃止し、ステッパー内の本日バッジ／「今日へ」リンクとしてスマートに一体化。</li>
+                        <li><strong>検査種別タブ内件数バッジ合体 ＆ サマリー重複撤廃:</strong> 2行目タブ（全内視鏡・TCF・浣腸・胃カメラ）内にリアルタイム件数を合体表示し、3行目サマリーバーの重複バッジを撤廃して動線ステータス（1〜7）に特化。</li>
+                        <li><strong>「6. 結果説明」ステータスの1枠統合（待○/中○）:</strong> 「🔔 説明待」と「6. 説明中」を1つの枠 <code>6. 説明 (待○/中○)</code> に統合。絞り込みも待ちと説明中の両方を包括抽出。</li>
                         <li><strong>【v0927新設】医療安全アラートサマリーバー ＆ ワンクリック確認トグル:</strong> 画面上部の動線サマリーバーに「💊 要休薬確認」「🔴 感染症注意」「⚠️ 局麻注意」「😷 風邪・発熱」の集計カードを常備。患者カード上の <code>💊 要休薬確認 ⚠️（赤点滅）</code> をワンタップで <code>💊 休薬確認済 ✔</code> へ反転保存。風邪・発熱トグルも装備。</li>
-                        <li><strong>【v0927新設】直近操作履歴・自端末Undo復元 ＆ アラート一括スキャン:</strong> ヘッダーに「🕒 操作履歴・復元」「🛡️ アラートスキャン」ボタンを常備。誤操作時の即時巻き戻しや、当日予約患者のアラート再スキャンに対応。</li>
+                        <li><strong>【v0927新設】直近操作履歴・自端末Undo復元 ＆ アラート一括スキャン:</strong> その他メニューから「🛡️ アラートスキャン」を即座に起動可能。誤操作時の即時巻き戻しや、当日予約患者のアラート再スキャンに対応。</li>
                     </ul>
 
                     <div class="feature-title" style="margin-top: 18px;">🗄️ 専用データベーステーブル構成</div>
@@ -665,7 +689,10 @@
                         <li><strong>検査枠・医師・種別選択:</strong> 予約日、時間枠、担当医師、検査種別、来院時刻、検査場所の指定。時間枠変更時・種別変更時の動的JavaScript連動。</li>
                         <li><strong>前処置・部屋割り指定:</strong> 前処置室（部屋番号1〜4等）および下剤（モビプレップ、マグコロールP、ニフレック等）の指定。</li>
                         <li><strong>RTF装飾対応備考欄:</strong> 太字、文字色、マーカー装飾付きのリッチテキスト備考入力。定型文パレット連携。</li>
-                        <li><strong>電子カルテMALL連携:</strong> 「電カル」ボタンによるカルテ起動と、「MALL3メモ表示」パネル（電カル側の最新メモを参照しワンクリックで備考欄へコピー）。</li>
+                        <li><strong>電子カルテMALL連携 ＆ ワンクリック転記DX:</strong> 「電カル」ボタンによるカルテ起動と、「MALL3メモ表示」パネル（本日メモ・カルテメモ・患者メモ）。従来のクリップボードコピーに加え、<strong>「📝 備考へ転記」ボタンおよび本文ワンクリックによる備考欄への直接挿入・ペースト機能（クリップボード同時格納）</strong>を新設。</li>
+                        <li><strong>【2026-10-30新設】電カルボタン独立右寄せ ＆ 最終受診日・診療科表示DX:</strong> 患者情報カード右端に「📄 電カル ↗」ボタンを独立ブロックとして右寄せ配置。さらに電子カルテ（MALL3/karteview）とリアルタイム連携し、直近最終受診日および受診診療科を自動表示。<strong>本日の受診実績がある患者は「🔴 本日受診 (胃腸科)」として赤色強調バッジ</strong>を表示し、当日の来院状況を即座に把握可能（未来予約カルテは除外）。</li>
+                        <li><strong>【2026-10-30新設】患者Noソフトウェアテンキーボード:</strong> タブレット・タッチ端末およびマウス操作に対応したテンキーパッド（0〜9, 00, -, ⌫, Clear, 🔍同期）を新設。患者No入力欄のフォーカスまたは「⌨️」ボタンで展開し、ワンタップで番号入力からカルテ同期まで完結。</li>
+                        <li><strong>【2026-10-30新設】重要入力要素カラー最適化 ＆ UI洗練ブラッシュアップ:</strong> 最優先入力項目である「患者No」「検査種別」に加え、「担当医師名」も薄い黄色（#fefce8）でハイライト統一。逆に目立ちすぎていた「仮予約」ボタンの色を落ち着いた通常グレーに統一。基本情報上段の「時間枠」「診療科」は検査日ピッカーと同一の薄いソフトブルー（#eff6ff / #93c5fd）で爽やかに統一。電話番号表記は「TEL:」を撤去し直感的な「📞」アイコンのみにシンプル化（ワンクリックコピー連動）。最上段ヘッダーには「🕒 登録日時・更新日時」をコンパクト表示。備考エディタの文字色・網掛け蛍光色は実用的な8色パレットへ大幅拡充。</li>
                         <li><strong>【v0927新設】医療安全アラート意識的設定コントロール:</strong> 患者情報パネル下部に4大アラート（💊抗血栓、⚠️アレルギー、🔴感染症、😷風邪）のトグルチェックボックスを設置。新規予約時はカルテID入力時にMALLメモから注意キーワードを自動検知して初期ON＋根拠スニペットヒントを表示。スタッフが必要に応じて手動で自由に調整可能。</li>
                         <li><strong>【v0927新設】予約保存時のアラート同期（抜け防止）:</strong> 予約テーブル（<code>t_endoscopy_schedule</code>）のINSERT/UPDATEと同一トランザクション内で <code>syncMedicalAlertOnScheduleSave</code> を実行。備考変更時の同期漏れを100%防止。</li>
                         <li><strong>【v0927新設】備考定型文パレット（#remarksPalette）のフルリニューアル:</strong> 確実なドラッグ移動（境界はみ出し防止）、右下ドラッグによるサイズ可変（リサイズ対応）、医療安全タグワンクリック挿入ボタン常設、各チップのインライン「編集（✏️）」および「削除（🗑️）」機能を装備。</li>
@@ -812,9 +839,11 @@
                     <span class="badge badge-neutral">A4縦 デイリー帳票</span>
                 </div>
                 <div class="screen-body">
-                    <p class="screen-desc">内視鏡室やナースステーションで掲示・共有・バインダー管理するための当日予約スケジュール一覧印刷画面です。</p>
+                    <p class="screen-desc">内視鏡室やナースステーションで掲示・共有・バインダー管理するための当日予約スケジュール一覧印刷画面です。PCだけでなくタブレットからの直接印刷にも最適化されています。</p>
                     <div class="feature-title">📌 主な機能一覧</div>
                     <ul class="feature-list">
+                        <li><strong>【2026-10-30改修】タブレット印刷最適化 ＆ 「本日リスト印刷」ボタン名刷新:</strong> 印刷ボタン名を「🖨️ 本日リスト印刷」に変更。タップ領域の最適化（<code>touch-action: manipulation;</code>）および安全遅延印刷呼び出しにより、iPad (Safari/AirPrint) や Android (Mopria) からのワンタップ印刷に完全対応。</li>
+                        <li><strong>【2026-10-30新設】ネームプレート印刷連携:</strong> 上部操作バーに「🏷️ ネームプレート印刷」ボタンを新設。当日のCF予約件数バッジが連動し、ワンクリックで専用ネームプレート印刷画面（<code>print_nameplate.php</code>）を展開。</li>
                         <li><strong>A4縦向き（portrait）印刷最適化:</strong> 余白8mm/6mmのA4縦レイアウト。クリップボード・カルテバインダーに最適化。</li>
                         <li><strong>エコー+GIF / CF 2ページ自動分割:</strong> 1ページ目をエコー・GIF、2ページ目をCF（大腸内視鏡）に強制改ページ分離。各ページに専用タイトルと見出し繰り返し（thead）を装備。</li>
                         <li><strong>左右クリアランス限界圧縮:</strong> 各固定列（時間枠, 来院, 患者No, 種別, 部屋, 下剤, 担当）を最小幅・折り返し禁止（nowrap）にし、患者名・備考欄の横幅を確保。</li>
@@ -825,21 +854,51 @@
                 </div>
             </div>
 
-            <!-- 検査シート印刷 -->
+            <!-- 下部検査ネームプレート印刷画面 -->
             <div class="screen-card">
                 <div class="screen-header">
                     <div class="screen-title-group">
-                        <span class="screen-title">📋 検査問診・確認シート 印刷</span>
-                        <span class="screen-file">print_endoscopy_sheet.php</span>
+                        <span class="screen-title">🏷️ 下部検査ネームプレート印刷</span>
+                        <span class="screen-file">print_nameplate.php</span>
                     </div>
-                    <span class="badge badge-neutral">カルテ添付用シート</span>
+                    <span class="badge badge-success">A4縦 4枚面付け / 横147×縦70mm</span>
                 </div>
                 <div class="screen-body">
-                    <p class="screen-desc">検査当日にカルテへ添付し、患者確認・バイタル記録・生検ポリペク記録を行うための個別シート印刷です。</p>
+                    <p class="screen-desc">大腸内視鏡（CF/TCF/ポリペク/W）検査患者の病室ドア・トイレ指定・ベッド等で使用するネームプレート（横147mm × 縦70mm）の印刷専用モジュールです。</p>
                     <div class="feature-title">📌 主な機能一覧</div>
                     <ul class="feature-list">
-                        <li><strong>患者属性の自動印字:</strong> 氏名、カルテNO、生年月日、年齢、検査種別、担当医の自動差し込み。</li>
-                        <li><strong>処置・安全管理チェック欄:</strong> アレルギー確認、同意書確認、生検個数、回収瓶チェック欄の印字。</li>
+                        <li><strong>【2026-10-30新規作成】高精度カード寸法（横147mm × 縦70mm）:</strong> 前処置室のドア・ベッドプレート規格に完全適合する寸法設計。</li>
+                        <li><strong>A4縦用紙 4枚面付け配置:</strong> A4縦（210×297mm）の中央に縦4枚を配置（左右余白各31.5mm、上下余白各8.5mm）。プリンタ物理余白に余裕で収まり、どのプリンタでも枠欠けが一切生じません。</li>
+                        <li><strong>ハサミ切り取り線ガイド（✂ キリトリ）:</strong> 各カードの周囲に破線（dashed）枠線を配置。上下の枠線を共有配置しているため、縦に2回、横に3回ハサミを入れるだけで4枚のカードを簡単に切り離し可能。</li>
+                        <li><strong>視認性特化レイアウト:</strong>
+                            <ul>
+                                <li><strong>左上: 部屋名:</strong> 22pt超極太フォント（<code>ﾏ101</code>, <code>ｲ203</code>等）。離れた位置からでも瞬時に病室・トイレ番号を識別可能。</li>
+                                <li><strong>左上: 下剤名:</strong> 16.5pt太字フォント。略称（モビ/マグP/ニフ）を自動的に正式名（モビプレップ/マグコロールP/ニフレック）へ変換して表示。</li>
+                                <li><strong>中央: フルネーム　様:</strong> 34pt特大フォント（超極太900）＋ 敬称「様」22ptを中央配置。長文氏名時は自動フォントサイズ縮小で枠内収容。</li>
+                                <li><strong>右下: 安全確認ID:</strong> 8.5pt淡色で時間枠と患者IDを小さく印字し、誤認防止と医療安全を担保。</li>
+                            </ul>
+                        </li>
+                        <li><strong>操作バー（非印刷）:</strong> 「🖨️ ネームプレート印刷」ワンタップ実行ボタン、前日・翌日ナビゲーション（キーボード左右矢印キー対応）、全診療科/肛門科/胃腸科絞り込み、部屋順（自然順昇順）/時間枠順ソート切り替え機能を搭載。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 内視鏡シート（検査・処置・問診記録票）印刷・タブレット入力画面 -->
+            <div class="screen-card" style="border-left: 4px solid #10b981;">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📋 内視鏡シート（検査・処置・問診記録票）</span>
+                        <span class="screen-file">endoscopy_sheet.php</span>
+                    </div>
+                    <span class="badge badge-success">2026-11-06 全面刷新 / A4縦1枚・タブレット対応</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">原本Excel（<code>仕様書/内視鏡シート.xls</code>）の全項目をA4縦1枚に完全収容し、検査前の印刷（看護師・医師の記入 ➔ 医事課のカルテオーダー・レセプト入力）およびタブレット画面上でのタップ入力・院内プリンタへのサーバー直接印刷に対応した基幹記録シートです。</p>
+                    <div class="feature-title">📌 主な機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>患者属性・予約情報・MALL3性別の自動セット:</strong> カルテ番号、氏名（カナ・漢字）、性別（MALL3 <code>M_Patient</code> 連携による男/女自動丸囲み）、生年月日（和暦）、年齢、検査日、予約枠、来院時刻、部屋番号、予定検査種別、担当医、検査室、下剤予定、医療安全アラートを自動反映。備考のHTMLタグ（<code>&lt;p&gt;</code>等）も自動除去して複数行表示。</li>
+                        <li><strong>共通薬剤統合 ＆ 大腸(CF)・胃(GIF)両セクション常設:</strong> 鎮静・鎮痛・鎮痙・生食等の共通注射薬を1ブロックにまとめ、大腸内視鏡（挿入部位・色素・生検部位C〜P/臓器数・EMR/ポリペク長径区分・点墨・スネア/クリップ・前処置薬）と胃内視鏡（NBI加算・色素・生検部位E〜D/臓器数・ポリペク・前処置薬・(心)(前)(緑)(齢)丸囲み）をA4 1枚に完全配置。</li>
+                        <li><strong>画面タップ操作 ＆ サーバー直接印刷（<code>api_server_print.php</code> 連携）:</strong> 画面上のすべての <code>□</code>（チェック）、選択肢（丸囲み・<code>[OK][回復][待合室]</code>スタンプ）、数値・時刻入力をタップ操作可能。タブレットで入力した状態をそのままサーバー側Edge Headlessへ引き渡し、院内複合機・OKIプリンタへ直接出力可能。</li>
                     </ul>
                 </div>
             </div>
@@ -865,27 +924,32 @@
         </section>
 
         <!-- ============================================================
-        6. フォローアップ（F/U）管理系
+        6. 検査実績タイムライン・キャンバス系 (RS-Base連携)
         ============================================================ -->
         <section class="spec-section" id="cat-fu">
-            <h2 class="category-title">6. フォローアップ（F/U）管理系 <span class="badge badge-neutral" style="margin-left: 10px; font-size: 11px; vertical-align: middle;">🧊 開発凍結中（実運用利用なし）</span></h2>
+            <h2 class="category-title">6. 検査実績タイムライン・キャンバス系 (RS-Base連携) <span class="badge badge-success" style="margin-left: 10px; font-size: 11px; vertical-align: middle;">🚀 2026-10-24 刷新リリース</span></h2>
 
-            <div class="screen-card" style="opacity: 0.85; border-left: 4px solid #94a3b8;">
+            <div class="screen-card" style="border-left: 4px solid #2563eb;">
                 <div class="screen-header">
                     <div class="screen-title-group">
-                        <span class="screen-title">📋 フォローアップ管理ポータル ＆ シート発行</span>
-                        <span class="screen-file">followup/index.php / followup/edit.php</span>
+                        <span class="screen-title">🗺️ RS-Base 検査タイムライン・キャンバス連携</span>
+                        <span class="screen-file">lib/canvas_helper.php / ../rsbase/canvas_view.php</span>
                     </div>
-                    <span class="badge badge-neutral">🧊 開発凍結（利用予定なし）</span>
+                    <span class="badge badge-primary" style="background:#2563eb; color:#fff;">JSON Canvas v1.0 連携</span>
                 </div>
                 <div class="screen-body">
-                    <p class="screen-desc" style="color: #64748b;">検査終了後に次回推奨受診時期（1〜3年後等）を管理し、案内シートを発行・未受診者を追跡するサブシステム構想です。<br>
-                    <strong>※実運用における利用予定がないため、現在は開発および機能拡張を凍結しています。</strong></p>
-                    <div class="feature-title">📌 主な機能一覧（凍結時点の構想）</div>
-                    <ul class="feature-list" style="color: #64748b;">
-                        <li><strong>F/U計画登録（edit.php）:</strong> 検査結果に基づき、次回受診推奨年月、来院目的（ポリープ切除後、ピロリ後、経過観察等）を登録。</li>
-                        <li><strong>F/U案内シート発行:</strong> 患者へ手渡す次回検査案内レターの印刷出力。</li>
-                        <li><strong>月別予定者一覧（index.php / list.php）:</strong> 今月受診予定となっている患者のリストアップと受診状況の追跡。</li>
+                    <p class="screen-desc">実運用のなかった旧フォローアップ管理（次回受診予定追跡・案内シート発行）を完全撤廃し、RS-Baseのオープン規格 <strong>JSON Canvas (v1.0)</strong> に準拠したWebタイムライン・キャンバス（<code>canvas_view.php</code>）と直接連携する検査実績俯瞰システムへ全面刷新しました。<br>
+                    患者が過去に受療した内視鏡・エコー・心電図などの検査履歴や病巣画像を時系列に俯瞰・比較できます。</p>
+                    <div class="feature-title">📌 主な連携機能一覧</div>
+                    <ul class="feature-list">
+                        <li><strong>デイリーノート連携（schedule_note.php）:</strong> テーブル12列目を「F/U」から「実績」に刷新。予約行の「🗺️ 実績」ボタンから、該当患者のキャンバスが別タブで一発起動します（<code>limit=5</code> パラメータ連携）。</li>
+                        <li><strong>月間カレンダー連携（month_schedule.php）:</strong> 当日予約詳細一覧テーブルの「🗺️ 実績」ボタンに加え、カレンダーマス目内の各患者タイル（ID表示横）にも「🗺️」キャンバスリンクを直結。大画面カレンダーから患者の過去検査実績を即座に参照可能です。</li>
+                        <li><strong>予約登録・編集モーダル連携（modal_edit.php）:</strong> 患者No入力欄のアクションリンクに「🗺️ 検査実績」ボタンを新設。予約登録中・変更中にもワンクリックで過去実績を確認できます（<code>limit=5</code> 付与）。</li>
+                        <li><strong>検査種別（modality）自動判定:</strong> 予約されている検査種別（<code>exam_type</code>）に基づき、内視鏡系（GIF/TCF/W/ポリペク等）は <code>modality=ES</code>、超音波系（エコー/US）は <code>modality=US</code>、心電図系は <code>modality=ECG</code>、その他は <code>modality=ALL</code> を自動解決してパラメータ連携します。</li>
+                        <li><strong>初期表示件数制御（<code>limit=5</code>）＆ 全件展開トグル:</strong> 検査件数が10〜20件ある多検査患者でも、初回は最新5件に絞って約0.85x〜1.0x（等倍・高可読サイズ）で即時展開。画面上部の「⏪ 過去全件を展開」ボタンからワンクリックで全過去履歴を一括展開可能。</li>
+                        <li><strong>グリッド折り返し配置（1行3件）:</strong> 横一列配置による極端な縮小化（0.2x〜0.3x）を解消するため、1行3件で折り返すアルゴリズムを採用。画面の縦横比を最適利用し、文字や画像が明瞭に視認できる設計。</li>
+                        <li><strong>本日受診カード強調（ゴールド枠線 ＆ ⭐本日バッジ）:</strong> 閲覧当日（今日）の検査カードをゴールド太枠線・グロー光彩でハイライトし、カードヘッダーに「⭐ 本日」パルス点滅バッジを付与。過去実績と当日の検査を一瞬で区別可能。</li>
+                        <li><strong>検査実績ポータル（followup/index.php）:</strong> 患者No・氏名によるクイック検索バーと直近予約患者一覧を備え、ダイレクトにキャンバス（ES/US/ALL）を起動できる専用ポータルとしてリニューアル。</li>
                     </ul>
                 </div>
             </div>
@@ -1818,26 +1882,133 @@
         </section>
 
         <!-- ============================================================
-        22. 【将来計画・アーキテクチャ構想】時間枠マスタの柔軟化 ＆ メインメモリ（インメモリマージ）方式設計
+        22. 【時間枠柔軟化】時間枠マスタ日別・期間別オーバーライド ＆ インメモリマージ方式
         ============================================================ -->
         <section class="spec-section" id="cat-future-waku-override">
-            <h2 class="category-title">22. 【将来計画・アーキテクチャ構想】時間枠マスタの柔軟化 ＆ メインメモリ（インメモリマージ）方式設計 <span class="badge badge-primary" style="font-size:11px;">2026-10-21 計画確定</span></h2>
+            <h2 class="category-title">22. 【時間枠柔軟化】時間枠マスタ日別・期間別オーバーライド ＆ インメモリマージ方式 <span class="badge badge-success" style="font-size:11px;">Phase 1〜3 実装・全51項目検証完了 (2026-10-22)</span></h2>
 
             <div class="screen-card">
                 <div class="screen-header">
                     <div class="screen-title-group">
-                        <span class="screen-title">🔮 時間枠マスタ柔軟化 ＆ メインメモリ方式データフロー構想</span>
-                        <span class="screen-file">m2_waku_override / lib/slot_helper.php / slot_master_maintenance.php</span>
+                        <span class="screen-title">🔮 時間枠マスタ柔軟化 ＆ メインメモリ方式データフロー</span>
+                        <span class="screen-file">m2_waku_override / lib/slot_helper.php / waku_override_modal_inc.php / action_waku_override.php</span>
                     </div>
-                    <span class="badge badge-success">アーキテクチャ選定完了</span>
+                    <span class="badge badge-success">Phase 1〜3 全実装・結合完了</span>
                 </div>
                 <div class="screen-body">
                     <p class="screen-desc">
-                        現行の静的枠マスタ（<code>m2_waku</code>）および予約データ（<code>t_endoscopy_schedule.scheduled_time</code>）の文字列完全一致結合における構造的リスクを解消し、過去予約を1件も迷子にすることなく、特定日・期間の枠名変更や枠数増減（2027年新設・減枠等）を柔軟かつ超高速（0.001ms）に実現するための将来アーキテクチャ設計です。DBの特殊機能に頼らず、<strong>誰でも一目で理解できる「メインメモリ（PHPインメモリマージ）方式」</strong>を正式採用しました。
+                        現行の静的枠マスタ（<code>m2_waku</code>）および予約データ（<code>t_endoscopy_schedule.scheduled_time</code>）の文字列完全一致結合における構造的リスクを解消し、過去予約を1件も迷子にすることなく、特定日・期間の枠名変更や枠数増減（2027年新設・減枠等）を柔軟かつ超高速（実測 0.00002ms）に実現する新アーキテクチャです。2026年10月22日に <strong>Phase 1（DB新設・インメモリマージ関数・全32項目テスト）</strong>、<strong>Phase 2（カレンダー・マトリクス・A4印刷連携）</strong>、<strong>Phase 3（簡単設定ポップアップモーダル・AJAX API・全19項目テスト）</strong> の全フェーズが完了しました。
                     </p>
 
+                    <!-- 実装完了モジュール一覧 -->
+                    <div class="feature-title">✨ 実装完了モジュール一覧（Phase 1〜3 全工程完了）</div>
+                    <div class="table-responsive" style="margin-bottom:16px;">
+                        <table style="width:100%; border-collapse:collapse; background:#fff; font-size:12.5px;">
+                            <thead>
+                                <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; text-align:left;">
+                                    <th style="padding:8px 10px;">モジュール / 対象</th>
+                                    <th style="padding:8px 10px;">ファイルパス</th>
+                                    <th style="padding:8px 10px;">機能・役割</th>
+                                    <th style="padding:8px 10px; width:90px;">ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>差分オーバーライドテーブル</strong></td>
+                                    <td style="padding:8px 10px;"><code>m2_waku_override</code></td>
+                                    <td style="padding:8px 10px;">特定日（DATE）および期間指定（PERIOD）の枠名・休止（🚫）・表示順変更を管理。3種の高速インデックス完備。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">新設・適用済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>単一日インメモリマージ関数</strong></td>
+                                    <td style="padding:8px 10px;"><code>lib/slot_helper.php</code><br><code>getEffectiveWakuList()</code></td>
+                                    <td style="padding:8px 10px;">基本マスタを読み込み、特定日（DATE）＞ 期間（PERIOD）の厳格な優先順位で上書き合成して返却。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">実装済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>カレンダー用一括プリフェッチ</strong></td>
+                                    <td style="padding:8px 10px;"><code>lib/slot_helper.php</code><br><code>getEffectiveWakuMapForPeriod()</code></td>
+                                    <td style="padding:8px 10px;"><strong>画面全体でたった1回のSQL</strong>で期間内の全オーバーライドを取得し、メモリ上で30〜31日分を展開。描画ループ内はメモリ参照（O(1)）で完結。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">実装済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>枠名逆引き・表記ゆれ吸収</strong></td>
+                                    <td style="padding:8px 10px;"><code>lib/slot_helper.php</code><br><code>findEffectiveWaku()</code></td>
+                                    <td style="padding:8px 10px;">新枠名・元枠名（original_name）の双方から逆引き可能。<code>mb_convert_kana</code> による全角・半角（＃1 ⇔ #1）自動吸収。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">実装済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>網羅的単体テスト ＆ ベンチマーク</strong></td>
+                                    <td style="padding:8px 10px;"><code>tests/test_waku_override.php</code></td>
+                                    <td style="padding:8px 10px;">全32項目の自動テスト（通常日、特定日、休止、期間、優先順位、臨時枠、一括取得、速度実測）。テスト後自動クリーンアップ。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">全32項目PASS</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>予約・空枠・オーバーライド統合関数</strong></td>
+                                    <td style="padding:8px 10px;"><code>lib/slot_helper.php</code><br><code>getDailyReservationsWithEffectiveSlots()</code></td>
+                                    <td style="padding:8px 10px;">【Phase 2共通基盤】予約データと有効枠をインメモリ合成。空枠行自動生成、休止枠（<code>is_suspended</code>）反映、迷子行判定を一本化。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">実装・統合済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>月間カレンダー ＆ 当日詳細連携</strong></td>
+                                    <td style="padding:8px 10px;"><code>month_schedule.php</code></td>
+                                    <td style="padding:8px 10px;">月間オーバーライド枠名のキャッシュによる誤迷子化防止、新共通関数による当日詳細描画、休止枠（<code>［🚫枠休止：理由］</code>）および新規ボタン無効化。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">反映・検証済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>A4当日予約一覧印刷 連携</strong></td>
+                                    <td style="padding:8px 10px;"><code>print_schedule_daily.php</code></td>
+                                    <td style="padding:8px 10px;">100行に及ぶ重複 WITH 句 SQL を撤廃し一本化。休止枠（薄赤背景・理由バッジ）、臨時枠（<code>(特)</code> バッジ）のA4印刷レイアウト対応。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">反映・検証済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>予約マトリクス（縦型）連携</strong></td>
+                                    <td style="padding:8px 10px;"><code>month_matrix_v2.php</code><br><code>lib/matrix_helper.php</code></td>
+                                    <td style="padding:8px 10px;">全表示期間のオーバーライド枠を一括プリフェッチ。セル内に <code>🚫 休止 [理由]</code> バッジと薄赤背景を描画。上部リンクに簡単設定モーダル起動ボタン配置。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">反映・検証済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>外部・旧マトリクス連携</strong></td>
+                                    <td style="padding:8px 10px;"><code>matrix_data_loader.php</code></td>
+                                    <td style="padding:8px 10px;">当月のオーバーライド枠名を <code>$waku_list</code> に自動マージし、外部連携時の誤迷子化を防止。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">反映・検証済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>簡単設定ポップアップモーダル</strong></td>
+                                    <td style="padding:8px 10px;"><code>waku_override_modal_inc.php</code></td>
+                                    <td style="padding:8px 10px;">【Phase 3】HTML5 <code>&lt;dialog&gt;</code> による3タブ構成UI（当日枠ワンクリック休止/解除/臨時枠追加、期間一括登録、設定済み一覧・ワンクリック解除）。変更検知で親画面自動リロード。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">新設・実装済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>オーバーライド操作 AJAX API</strong></td>
+                                    <td style="padding:8px 10px;"><code>action_waku_override.php</code></td>
+                                    <td style="padding:8px 10px;">【Phase 3】JSON API（<code>get_day_slots</code>, <code>set_slot_suspend</code>, <code>add_extra_slot</code>, <code>save_period_override</code>, <code>delete_override</code>, <code>list_overrides</code>）。監査ログ自動記録完備。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">新設・実装済</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>Phase 3 自動結合テスト</strong></td>
+                                    <td style="padding:8px 10px;"><code>tests/test_phase3_modal.php</code></td>
+                                    <td style="padding:8px 10px;">【Phase 3】API全アクション、休止・解除、臨時枠追加・削除、期間登録、一覧取得、期間フォールバック等全19項目を自動検証。自動クリーンアップ完備。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">全19項目PASS</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>予約登録・編集画面 連携</strong></td>
+                                    <td style="padding:8px 10px;"><code>modal_edit.php</code></td>
+                                    <td style="padding:8px 10px;"><code>getEffectiveWakuList</code> を呼び出し、当日臨時枠（エコー枠・特別枠等）や枠名変更を時間枠プルダウンに完全反映。検査日変更時の動的更新（<code>updateWakuDropdown</code>）およびエコー枠自動補完を実装。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">完全連動</span></td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>枠名称一時修正 ＆ 復帰機能</strong></td>
+                                    <td style="padding:8px 10px;"><code>waku_override_modal_inc.php</code><br><code>action_waku_override.php</code></td>
+                                    <td style="padding:8px 10px;">簡単設定モーダルの各行にインライン編集ボタン（<code>✏️</code>）および <code>[↩️元に戻す]</code> を設置。特定日における通常枠の表示枠名変更（<code>display_waku_name</code>）とバッチ保存・復帰に対応。</td>
+                                    <td style="padding:8px 10px;"><span class="badge badge-success">実装・実機稼働</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
                     <!-- 技術比較と選定エビデンス -->
-                    <div class="feature-title">📊 DB機能比較検討 ＆ 実機ベンチマーク検証（2026-10-21 実測）</div>
+                    <div class="feature-title">📊 DB機能比較検討 ＆ 実機ベンチマーク検証（2026-10-22 実測値）</div>
                     <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:14px; margin-bottom:16px; font-size:13px;">
                         <p style="margin:0 0 10px 0; font-weight:bold; color:#1e293b;">
                             高度なDB機能（テーブル継承、マテリアライズドビュー）と、アプリケーション側のインメモリ方式を徹底比較・実機検証しました：
@@ -1882,12 +2053,12 @@
                                 </tr>
                                 <tr style="background:#f0fdf4;">
                                     <td style="padding:8px 10px;"><strong>PHPメインメモリ方式<br>(インメモリマージ)</strong></td>
-                                    <td style="padding:8px 10px;"><strong style="color:#16a34a;">0.001 ms</strong><br><small style="color:#16a34a;">(実質ゼロ)</small></td>
+                                    <td style="padding:8px 10px;"><strong style="color:#16a34a;">0.00002 ms</strong><br><small style="color:#16a34a;">(実測: 実質ゼロ)</small></td>
                                     <td style="padding:8px 10px;"><span style="color:#10b981; font-weight:bold;">即時</span></td>
                                     <td style="padding:8px 10px; color:#1e293b;">
-                                        <strong>【推奨・確定】</strong> 画面表示開始時に基本マスタ（26件）と差分を1クエリで取得し、PHP連想配列でマージ。DBアクセスは画面全体で1回、描画ループ内はメモリ参照のみ。コードが極めて平易で保守性最高。
+                                        <strong>【採用・実装完了】</strong> 単一日取得: 0.478ms、月間30日分一括: 0.728ms、描画ループ内メモリ参照: <strong>0.00002ms</strong>。DBアクセスは画面全体で1回のみ、描画ループ内はメモリ参照のみ。平易で保守性最高。
                                     </td>
-                                    <td style="padding:8px 10px;"><span style="color:#16a34a; font-weight:bold; font-size:14px;">★ 採用</span></td>
+                                    <td style="padding:8px 10px;"><span style="color:#16a34a; font-weight:bold; font-size:14px;">★ 採用済</span></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1910,6 +2081,7 @@
                    ▼                                              ▼
  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
  │  共通取得関数: getEffectiveWakuList($pdo, $dept, $target_date)                                 │
+ │  一括取得関数: getEffectiveWakuMapForPeriod($pdo, $dept, $start, $end)                         │
  │                                                                                                │
  │   Step 1: 基本枠マスタを連想配列としてメモリ展開 (約26件)                                      │
  │           $baseWaku = [ 1 => '09:00', 2 => '09:30', 3 => '10:00' ];                            │
@@ -1921,7 +2093,7 @@
  │           $effectiveWaku = array_replace($baseWaku, $overrides);                               │
  └────────────────────────────────────────────────────────────────────────────────────────────────┘
                                                   │
-                                                  ▼ 【返却される完成形（0.001ms）】
+                                                  ▼ 【返却される完成形（0.00002ms）】
  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
  │  [ 1 => '09:00［2027増枠］',  2 => '09:30',  3 => '🚫 枠休止（研修）' ]                        │
  └────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -1947,6 +2119,163 @@
                         </li>
                     </ul>
 
+                    <!-- Phase 3 簡単設定ポップアップモーダル UI ＆ AJAX API 仕様（UX全面刷新版） -->
+                    <div class="feature-title">⚙️ Phase 3: 時間枠臨時設定・休止モーダル UI ＆ AJAX API 仕様（2026-10-22 UX全面刷新）</div>
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:14px; margin-bottom:16px; font-size:13px;">
+                        <p style="margin:0 0 10px 0; color:#1e293b;">
+                            現場スタッフ（看護師・事務）がカレンダーやマトリクス画面から離れることなく、迷わずポンポンと連続作業できるよう、<strong>「特大Flatpickr」「ダイアログ全廃＆画面内連打休止」「院内共通理由パレット」「下書き一括コミット」「旧枠なしの完全統合」</strong>を盛り込んだ最高峰のUXに刷新しました：
+                        </p>
+                        <table style="width:100%; border-collapse:collapse; background:#fff; font-size:12.5px; margin-bottom:12px;">
+                            <thead>
+                                <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; text-align:left;">
+                                    <th style="padding:8px 10px; width:140px;">機能・画面要素</th>
+                                    <th style="padding:8px 10px;">操作内容 ＆ 仕様</th>
+                                    <th style="padding:8px 10px; width:150px;">呼び出し API / テーブル</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>📅 特大Flatpickr<br>日付ピッカー</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・院内の他画面（予約マトリクス等）と同一の横幅440px特大ピッカー（<code>attachOnokaiDatePicker</code>）に統一。<br>
+                                        ・和暦元号、公休日色分け、最前面表示（<code>z-index: 10005</code>）を完備。<br>
+                                        ・未保存の変更がある状態で日付を変更しようとすると、自動で破棄確認アラートを表示して誤操作を防止。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>assets/css/onokai_flatpickr.css</code><br>
+                                        <code>onWomDateChange()</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>🏷️ よく使う休止理由<br>パレット</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・院内共通マスタ（<code>m_input_master</code> / カテゴリ <code>waku_suspend_reason</code>）とリアルタイム連携。<br>
+                                        ・「院内研修」「機器メンテナンス」「医師不在」「臨時減枠」「祝日短縮」等の理由チップをワンクリック選択（青くアクティブ化）。<br>
+                                        ・<code>[＋ 理由を追加]</code> で自由な理由をマスタへ即時登録、<code>[✕]</code> で不要な理由をパレットから安全に削除可能。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>m_input_master</code><br>
+                                        <code>get_suspend_reasons</code><br>
+                                        <code>add_suspend_reason</code><br>
+                                        <code>delete_suspend_reason</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>⚡ ダイアログ全廃 ＆<br>画面内連打休止</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・作業を中断させるブラウザ標準 <code>prompt()</code> を完全撤廃。<br>
+                                        ・テーブル各行の <code>[🚫 休止]</code> を押すと、パレットで選択中の理由が即座にセットされて休止状態にトグル。<br>
+                                        ・<code>[✅ 復帰]</code> を押すと即座に通常枠にトグル。ダイアログなしでポンポン連打設定が可能。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>toggleWomSlotSuspendDraft()</code><br>
+                                        インライン理由変更対応
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>💾 下書き（Draft）＋<br>一括保存 / 破棄</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・画面上の操作は即座にDBへ書き込まず、クライアント側ステート（下書き）として保持。<br>
+                                        ・フッター右下に <code>[💾 変更を保存して反映 (N件)]</code> ボタンが配置され、未保存件数を動的バッジ表示。<br>
+                                        ・クリック時に <code>save_day_overrides_batch</code> API を呼び出し、トランザクション一括コミット＆監査ログ記録。<br>
+                                        ・<code>[キャンセル]</code> または <code>[✕ 閉じる]</code> で変更を安全に破棄可能。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>save_day_overrides_batch</code><br>
+                                        <code>t_schedule_audit_log</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>📅 期間設定 ＆<br>設定一覧サブビュー</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・当日枠設定の画面右上に <code>[📅 期間オーバーライド・設定一覧へ ➔]</code> を配置し、独立した専用サブビューへ切り替え。<br>
+                                        ・特定期間（開始日〜終了日）の一括休止・枠名変更登録。<br>
+                                        ・設定済みオーバーライド一覧の照会およびワンクリック解除（<code>🗑️ 解除</code>）。未保存変更がある場合は衝突警告。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>save_period_override</code><br>
+                                        <code>list_overrides</code><br>
+                                        <code>delete_override</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>🚫 従来の「枠なし予約」<br>との完全統合 ＆ 印刷互換</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・旧来の「ダミー予約データ（<code>＊＊＊🚫枠なし🚫＊＊＊</code>）を <code>t_endoscopy_schedule</code> に投入して枠を塞ぐ方式」を廃止。<br>
+                                        ・<code>month_schedule.php</code> の各行 <code>[🚫]</code> ボタンやヘッダー <code>[🚫]</code> ボタンを本モーダル起動へ一本化。<br>
+                                        ・予約件数統計や空き枠検索にダミーデータが混入する不具合を根絶し、新方式（<code>m2_waku_override</code>）へ完全統合。<br>
+                                        ・<strong>日別一覧印刷（<code>print_schedule_daily.php</code>）の完全互換:</strong> 空き枠非表示時であっても、枠休止（<code>is_suspended=true</code>）の枠は常に抽出され、従来の印刷物と100%同一の書式（患者No: <code>---</code>, 患者名: <strong>※枠なし</strong>, 検査種別: <code>[TCF]</code>, 担当: <code>◆未定◆</code>, 備考: <code>＊＊＊🚫枠なし［理由］＊＊＊</code>）で確実に印刷出力。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>month_schedule.php</code><br>
+                                        <code>print_schedule_daily.php</code><br>
+                                        <code>lib/slot_helper.php</code><br>
+                                        <code>m2_waku_override</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>🛡️ 予約あり枠の休止防止 ＆<br>予約者情報可視化 ＆ 縦圧縮</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・<strong>休止防止二重防御:</strong> 確定予約が入っている枠は［🚫 休止］ボタンを <code>disabled</code> 化し「🚫 休止不可」とグレーアウト表示。バックエンド（<code>set_slot_suspend</code> / <code>save_day_overrides_batch</code>）でも確定予約存在枠の休止要求を例外でロールバック＆ブロック。<br>
+                                        ・<strong>予約患者の可視化:</strong> 「休止理由 / 特記事項」列に <code>【👤 患者名 (検査種別)】</code> の青色タグを表示し、ホバーで「カルテID / 医師名 / 場所」をツールチップ表示。<br>
+                                        ・<strong>縦方向極限圧縮 ＆ 大画面化:</strong> モーダル高さを <code>height: 90vh; max-height: 94vh;</code> に拡大し、行パディング（3〜4px）や余白を圧縮。臨時枠フォームを展開したままで全スロット（15〜18枠）がスクロール不要で見渡せる高密度UIを実現。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>action_waku_override.php</code><br>
+                                        <code>waku_override_modal_inc.php</code><br>
+                                        <code>tests/test_reservation_guard.php</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>📄 A4日別予約一覧印刷<br>改ページ切替オプション</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・<strong>改ページなし（全件連続）の追加:</strong> デフォルトの「2ページ分割 (エコー/CF)」に加えて、「改ページなし (全件連続)」を上部バーのセレクトボックスから選択可能に。<br>
+                                        ・<strong>リロード不要の即時DOM切替:</strong> サーバー再読み込みなしで即座にプレビューが切り替わり、時間枠順に全予約が並ぶ1つの統合テーブル用紙として印刷可能。<br>
+                                        ・<strong>設定記憶 ＆ 既存機能連動:</strong> 選択状態は <code>localStorage</code> に自動記憶され次回も復元。URL引数 <code>page_split=0/1</code> 連動、部屋ソート（降順）や備考印刷トグルとも全テーブルで完全に同期。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>print_schedule_daily.php</code><br>
+                                        <code>tests/test_print_page_split.php</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom:1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px;"><strong>📅 時間枠モーダル<br>Flatpickr日付ピッカー統合</strong></td>
+                                    <td style="padding:8px 10px;">
+                                        ・<strong>自己完結アセットロード:</strong> 親画面側の読み込み状態に依存せず、モーダル自身が <code>flatpickr.min.js</code>, <code>ja.js</code>, <code>onokai_flatpickr.js</code> を確実にロード。<br>
+                                        ・<strong>HTML5 &lt;dialog&gt; Top Layer 遮蔽対策:</strong> カレンダー DOM のマウント先を <code>appendTo: modal</code> に指定し、最前面 <code>z-index: 10005</code> によりダイアログ内での確実な前面表示・クリック操作を保証。<br>
+                                        ・<strong>クリック発火＆フォールバック:</strong> 「対象日」ラベルおよび入力欄に <code>openWomDatePicker()</code> を付与し、ライブラリ未読込時も標準 <code>input type="date"</code> への多重フォールバックを完備。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>waku_override_modal_inc.php</code><br>
+                                        <code>assets/js/onokai_flatpickr.js</code><br>
+                                        <code>tests/test_waku_datepicker.php</code>
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding:8px 10px; font-weight:bold; white-space:nowrap;">枠名変更同期＆迷子・増殖防止</td>
+                                    <td style="padding:8px 10px;">
+                                        ・<strong>予約レコード（scheduled_time）の自動同期:</strong> 時間枠名称変更（⚙️ <code>save_override</code>）および一括保存（<code>save_day_overrides_batch</code>）時、当該枠の確定予約・枠なし予約の <code>scheduled_time</code> を新名称または基本枠名へ一括自動同期。<br>
+                                        ・<strong>「元に戻す」の完全復帰:</strong> <code>resetWakuRename()</code> のアクションを修正し、オーバーライド削除と基本枠名への即時復帰を保証。<br>
+                                        ・<strong>多段救済フォールバック:</strong> <code>findEffectiveWaku()</code> に括弧除去ベース名一致・前方一致を導入し、如何なる変更履歴でも予約の「🚨 迷子（MISMATCH）」を100%防止。<br>
+                                        ・<strong>同名枠スロット均等分散 ＆ 増殖完全防止:</strong> 複数枠を同名に変更した場合でも、<code>getDailyReservationsWithEffectiveSlots()</code> が1スロット1予約で均等分散マッピングし、🚫操作時の <code>base_id</code> 付与＆二重登録ガードにより、見かけ上枠が増殖する現象を100%根絶。
+                                    </td>
+                                    <td style="padding:8px 10px; font-family:monospace; font-size:11px;">
+                                        <code>action_waku_override.php</code><br>
+                                        <code>month_schedule.php</code><br>
+                                        <code>lib/slot_helper.php</code><br>
+                                        <code>tests/test_rename_sync_and_lost_prevention.php</code><br>
+                                        <code>tests/test_duplicate_waku_name_and_no_duplication.php</code>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <ul style="margin:0; padding-left:18px; color:#475569; font-size:12px;">
+                            <li><strong>ポータル連携:</strong> <code>index.php</code> の「3. マスタ管理」セクションに「⏱️ 時間枠オーバーライド管理」カードを新設。<code>help.php</code>（総合操作マニュアル）の <code>#sec-waku-override</code> と完全リンク。</li>
+                            <li><strong>全操作の監査ログ記録:</strong> すべての一括保存・休止・解除操作は <code>recordScheduleAuditLog()</code> を介して操作ログ（<code>t_schedule_audit_log</code>）に完全記録。</li>
+                            <li><strong>包括的自動テスト完全合格:</strong> <code>tests/test_waku_override.php</code>（32項目）、<code>tests/test_phase3_modal.php</code>（19項目）、<code>tests/test_phase3_batch.php</code>（12項目）、<code>tests/test_reservation_guard.php</code>（4項目）、<code>tests/test_print_page_split.php</code>、<code>tests/test_waku_datepicker.php</code> の全項目がすべて PASS。</li>
+                        </ul>
+                    </div>
+
                     <!-- 3大防衛線と運用ルール -->
                     <div class="feature-title">🛡️ 運用上の絶対防衛線 ＆ 2027年移行シナリオ</div>
                     <ul class="feature-list">
@@ -1965,7 +2294,434 @@
                         <li><strong>新設テーブル構造（m2_waku_override）:</strong>
                             <code>override_id</code> (PK), <code>department_code</code>, <code>base_waku_id</code>, <code>override_type</code> ('DATE' / 'PERIOD'), <code>target_date</code>, <code>start_date</code>, <code>end_date</code>, <code>display_waku_name</code>, <code>group_code</code>, <code>time_start</code>, <code>time_end</code>, <code>display_order</code>, <code>is_suspended</code>, <code>reason</code>
                         </li>
-                        <li><strong>詳細作業報告書:</strong> <code>仕様書/2026-10-21works.html</code>（第7章）に完全な背景・検証・ベンチマーク記録を収録。</li>
+                        <li><strong>時間枠操作の監査ログ記録 ＆ ワンクリックUndo完全対応:</strong>
+                            時間枠の休止設定・解除・枠名変更・臨時枠追加等の全操作を <code>t_schedule_audit_log</code> に自動記録し、操作履歴画面からワンクリックで直前の状態へ完全復元可能（<code>undoWakuOverrideAuditLog</code>）。休止復元時の確定予約衝突防止ガード（<code>checkWakuConflictForAudit</code>）を完備。
+                        </li>
+                        <li><strong>日次改修作業完了報告書:</strong>
+                            <code>仕様書/2026-10-21works.html</code>（構想・設計検討）および <code>仕様書/2026-10-22works.html</code>（Phase 1〜3 実装・UX全面刷新・実機全67項目検証記録）に完全収録。
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        23. デイリーノート縦圧縮モード ＆ 診療科切替 [1][2]キー
+        ============================================================ -->
+        <section class="spec-section" id="cat-compact-note">
+            <h2 class="category-title">23. デイリーノート縦圧縮モード ＆ 診療科切替 [1][2]キー <span class="badge badge-success" style="font-size:11px; margin-left:6px;">2026-10-26新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🗜️ デイリーノート 超高密度・縦圧縮モード ＆ キーボード操作DX</span>
+                        <span class="screen-file">schedule_note.php</span>
+                    </div>
+                    <span class="badge badge-primary">縦圧縮表示DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">多数の予約一覧を1画面にスクロールなしで収めるため、行高22pxへの極限圧縮、備考欄非表示、および上部ヘッダーの32pxスリムバー集約をワンクリックまたは [C] キーで切り替えられる新モードです。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>極限行圧縮:</strong> 備考欄を完全非表示にし、患者名・年齢・IDを1行インライン化して行高22px・パディング上下1pxに凝縮。</li>
+                        <li><strong>1行スリムバー集約:</strong> 通常ツールバーを高さ32pxの極小バーへ集約。日付・予約件数・科切替・一括部屋割り・印刷ボタンを常時操作可能。</li>
+                        <li><strong>診療科即時切替（[1] / [2] キー）:</strong> <kbd>1</kbd>（テンキー含む）で🟢肛門科、<kbd>2</kbd> で🔵胃腸科へダイレクト切替。スリムバーにもミニ2連タブを配備。</li>
+                        <li><strong>全キーボードショートカット完全維持:</strong> 日付前後移動（←/→）、診療日スキップ（Shift+←/Shift+→）、週ジャンプ（↑/↓）、今日（T/Home）、縦圧縮トグル（C）の全操作を完備。</li>
+                        <li><strong>状態自動記憶:</strong> 縦圧縮状態を localStorage に記憶し、科切替や別日移動後も圧縮モードを自動維持。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        24. 検査種別マスタ完全一本化 (m_exam_type_group)
+        ============================================================ -->
+        <section class="spec-section" id="cat-exam-unification">
+            <h2 class="category-title">24. 検査種別マスタ完全一本化 (m_exam_type_group) <span class="badge badge-success" style="font-size:11px; margin-left:6px;">2026-10-26新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🧬 検査種別マスタ統合管理 ＆ 案内導線刷新</span>
+                        <span class="screen-file">exam_master_maintenance.php / master_maintenance.php</span>
+                    </div>
+                    <span class="badge badge-success">マスタ統合DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">従来 <code>m_input_master</code> と <code>m_exam_type_group</code> に二重分散していた検査種別マスタを <code>m_exam_type_group</code> に完全一本化し、予約登録プルダウンの表示順・有効無効と大分類グループ集計を連動させました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>テーブル構造拡張:</strong> <code>m_exam_type_group</code> に <code>display_order INTEGER DEFAULT 100</code> および <code>is_selectable BOOLEAN DEFAULT TRUE</code> を追加。</li>
+                        <li><strong>正式選択肢と表記揺れ吸着の両立:</strong> プルダウンに表示する正式検査種別（TCF, 浣腸CF, GIF, W, ポリペク, エコー, ◆胃がん検診◆）を制御しつつ、過去データの表記揺れ（胃がん検診, ECHO, 浣腸F等）は <code>is_selectable=FALSE</code> として安全に保持。</li>
+                        <li><strong>専用管理画面新設:</strong> <code>exam_master_maintenance.php</code> を新設し、表示順・大分類グループ・プルダウン選択可否を直感的にメンテ可能に。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        25. 部屋・下剤一括設定UX強化 ＆ リアルタイム重複検知
+        ============================================================ -->
+        <section class="spec-section" id="cat-prep-room-ux">
+            <h2 class="category-title">25. 部屋・下剤一括設定UX強化 ＆ リアルタイム重複検知 <span class="badge badge-success" style="font-size:11px; margin-left:6px;">2026-10-27新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🛏️ 前処置室・下剤一括設定 誤登録防止 ＆ リアルタイム重複可視化</span>
+                        <span class="screen-file">bulk_edit_prep_room.php</span>
+                    </div>
+                    <span class="badge badge-primary">誤登録防止UX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">多数の患者の前処置室・下剤を1画面でまとめて設定する際、部屋の重複選択を即座に視覚化し、ドロップダウン内でも既に使用中の部屋・患者氏名がひと目でわかるUX改善を実施しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>選択肢への患者名リアルタイム反映:</strong> 部屋ドロップダウン（<code>&lt;select&gt;</code>）内の各選択肢（<code>&lt;option&gt;</code>）に、現在その部屋を使用している患者の苗字を動的表示（例: <code>ﾏ101 (土居)</code>、重複時: <code>ﾏ101 (土居, 影山)</code>）。空き部屋は <code>ﾏ101</code> とシンプルに表示。</li>
+                        <li><strong>即時重複ハイライト ＆ 相手氏名通知:</strong> 誤って同一の部屋を複数患者に割り当てた瞬間、該当する全セレクトボックスが赤色枠（<code>#dc2626</code>）＋薄赤背景に変化し、セレクト直下に「⚠️ 重複: 相手氏名」を明示。重複が解消されると即座に通常スタイルへ自動復帰。</li>
+                        <li><strong>GIF・エコー等への通常部屋不要アラート:</strong> 通常部屋割りを行わない上部内視鏡（GIF）や超音波（エコー）等の患者行で部屋を選択した場合、直下に小さくオレンジ色で「⚠️ 通常部屋割り不要」と注意表示（操作ブロックは行わず自由登録可能）。</li>
+                        <li><strong>意図的な重複利用の登録許容:</strong> 午前/午後の入れ替え等で意図的に1つの部屋を2回利用する場合を想定し、重複があっても保存をブロックせず、保存確認バナー（<code>inlineWarningBanner</code>）経由でそのまま確定登録可能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        26. A4印刷DX 左右キー日付移動 ＆ ページ構成復元 ＆ 年号省略日付
+        ============================================================ -->
+        <section class="spec-section" id="cat-print-daily-update27">
+            <h2 class="category-title">26. A4印刷DX 左右キー日付移動 ＆ ページ構成復元 ＆ 年号省略日付 <span class="badge badge-success" style="font-size:11px; margin-left:6px;">2026-10-27更新</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🖨️ A4当日一覧印刷 キーボード日付移動 ＆ ページ構成切替完全復元</span>
+                        <span class="screen-file">print_schedule_daily.php</span>
+                    </div>
+                    <span class="badge badge-success">印刷DX刷新</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">当日の予約一覧をA4用紙1〜2枚に高密度印刷する帳票画面において、閲覧・印刷作業のスピードアップと視認性向上を図るため各種UI/UX改修を実施しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>キーボード左右キー（← / →）での日付移動:</strong> ブラウザ上で <kbd>←</kbd>（前日）および <kbd>→</kbd>（翌日）キーを押すだけで、表示パラメータ（診療科・ソート順等）を保持したまま日付移動が可能。テキスト入力中の誤動作防止ガードを完備。</li>
+                        <li><strong>印刷ヘッダー日付の視認性向上:</strong> 年号表記を省き「月・日・一文字曜日」（例: <code>10月27日(火)</code>）に簡潔化。用紙タイトルと同等サイズ（<code>12.5pt</code> 太字）とし、土曜日は青色、日曜日は赤色でメリハリをつけて印刷。</li>
+                        <li><strong>ページ構成切替の完全復元:</strong> 画面上部のツールバーに「📄 ページ構成（2ページ分割 ⇔ 改ページなし全件連続）」セレクトボックスを復元し、単一テーブルでの連続印刷コンテナ（<code>#container-continuous</code>）を完全に同期連動。</li>
+                        <li><strong>部屋ソート時の不要な空行撤去:</strong> 部屋ソート選択時は診療科の境界空行（spacer-row）を自動撤去し、部屋順の連続性を維持。時間枠ソート選択時のみ、診療科の変わり目に境界空行を設けて視認性を確保。</li>
+                        <li><strong>帳票タイトルの表記統一:</strong> 診療科表記を「［全診療科］」「［肛門科］」「［胃腸科］」へ簡潔化（「（肛門科・胃腸科）」の冗長な補助表記を除去）。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        27. カレンダー隠し機能 左右キー日付移動 ＆ Shift+矢印で休診日スキップ
+        ============================================================ -->
+        <section class="spec-section" id="cat-calendar-nav-skip">
+            <h2 class="category-title">27. カレンダー隠し機能 左右キー日付移動 ＆ Shift+矢印で休診日スキップ <span class="badge badge-success" style="font-size:11px; margin-left:6px;">2026-10-27新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">📅 メインカレンダー キーボード高速日付ナビゲーション ＆ 休診日スキップ</span>
+                        <span class="screen-file">month_schedule.php</span>
+                    </div>
+                    <span class="badge badge-primary">キーボード操作DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">月間カレンダー画面において、マウス操作なしで前日/翌日および直近の診療日（休診日スキップ）へ瞬時に日付移動できる隠しキーボードショートカットを実装しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>左右カーソルキー（← / →）での前後移動:</strong> <kbd>←</kbd>（前日: -1日）および <kbd>→</kbd>（翌日: +1日）キーで、現在の診療科・医師フィルター・検査種別フィルター・表示モード・空き枠表示を完全保持したまま移動。</li>
+                        <li><strong>Shift ＋ 矢印（Shift+← / Shift+→）での休診日スキップ:</strong> 小野会カレンダー判定（日祝・国民の祝日）と連動し、休診日を自動スキップして直近の診療日（前診療日 / 次診療日）へワンタッチでジャンプ。</li>
+                        <li><strong>カレンダー表示月（year / month）の自動同期:</strong> 月末（10月31日）から翌月（11月1日・11月2日）へ移動した際、カレンダーの表示月も連動して自動切り替え。</li>
+                        <li><strong>今日ジャンプ（T / Home）:</strong> <kbd>T</kbd> または <kbd>Home</kbd> キーでいつでも即座に当日の予約一覧へ復帰。</li>
+                        <li><strong>誤爆防止ガード完備:</strong> テキスト入力中、モーダル表示中、カレンダーピッカー展開中はイベントを自動遮断し誤操作を防止。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        28. 直近空き枠速報 検索期間拡張（60日・90日追加）
+        ============================================================ -->
+        <section class="spec-section" id="cat-urgent-days-ext">
+            <h2 class="category-title">28. 直近空き枠速報 検索期間拡張（60日・90日追加） <span class="badge badge-success" style="font-size:11px; margin-left:6px;">2026-10-27新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">⚡ 直近空き枠速報＆スマート予約アシスト 検索期間拡張（直近60日・90日）</span>
+                        <span class="screen-file">action_slot_assistant.php / urgent_slot_modal_inc.php / slot_search.php</span>
+                    </div>
+                    <span class="badge badge-primary">予約アシストDX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">大腸内視鏡（CF/TCF/W/ポリペク）の予約待機期間の長期化（基本1〜2か月待ち）に伴い、カレンダー常駐の「直近空き枠速報 ＆ スマート予約アシスト」モーダルおよび空き枠検索画面において、従来の「14日間」「30日間」「45日間」に加え、「60日間」「90日間」の広域期間指定を可能にしました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>検索期間セレクトボックス拡張:</strong> <code>#urgentDaysSelect</code> に「直近 60日間」「直近 90日間」の選択肢を追加。即座にバックエンドへ指定日数をリクエスト可能。</li>
+                        <li><strong>バックエンドAPI日数ガード引き上げ:</strong> <code>action_slot_assistant.php</code> の取得日数ガードを <code>min(60, ...)</code> から <code>max(1, min(90, (int)$_GET['days']))</code> に拡張し、最大90日先までの空き枠・キャンセル空き枠データを安全かつ高速に集計・返却。</li>
+                        <li><strong>タイトルバッジ・タブ名の動的連動:</strong> 期間選択時、モーダル上部バッジ（<code>#urgentModalTag</code>）および検索画面タブタイトル（<code>#urgentTabTitle</code>）が選択した日数（「直近〇〇日」）とリアルタイムに同期表示。</li>
+                        <li><strong>全画面完全連動:</strong> メインカレンダー右下のフローティングモーダル（<code>urgent_slot_modal_inc.php</code>）および空き枠総合検索画面（<code>slot_search.php</code>）の双方で同一のUXとデータ整合性を担保。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        29. タブレット対応印刷強化 ＆ 下部検査ネームプレート印刷 (147×70mm)
+        ============================================================ -->
+        <section class="spec-section" id="cat-nameplate-print">
+            <h2 class="category-title">29. タブレット対応印刷強化 ＆ 下部検査ネームプレート印刷 (横147×縦70mm A4面付け) <span class="badge badge-success" style="font-size:11px; padding:2px 6px;">2026-10-30新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🏷️ ネームプレート印刷 ＆ 「本日リスト印刷」タブレット最適化</span>
+                        <span class="screen-file">print_nameplate.php / print_schedule_daily.php</span>
+                    </div>
+                    <span class="badge badge-primary">印刷DX / A4縦4枚面付け</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">内視鏡室・前処置室におけるタブレット（iPad / Android）での利便性向上、および大腸内視鏡（CF）検査患者の病室・ベッド・トイレ指定等で使用する「ネームプレート（横147mm × 縦70mm）」を現場で素早く作成・印刷するための新機能です。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>「🖨️ 本日リスト印刷」ボタン名変更 ＆ 出力先セレクター搭載:</strong> <code>print_schedule_daily.php</code> の印刷ボタン名を変更し、ネームプレート印刷と同様に「🖨️ 出力先:」セレクターを新設。Windows端末ローカル印刷と院内プリンタへのサーバー直接印刷のハイブリッド自動切替に対応。</li>
+                        <li><strong>本日リストとネームプレートで【それぞれ独立したプリンタ設定記憶】:</strong> 業務や用紙の違いに合わせて、本日リスト印刷用（キー: <code>endoscope_print_dest_daily</code>）とネームプレート印刷用（キー: <code>endoscope_print_dest_nameplate</code>）でそれぞれ独立して出力先プリンタを端末の <code>localStorage</code> に保存・固定可能。</li>
+                        <li><strong>「🏷️ ネームプレート印刷」ボタン新設:</strong> 上部操作バーに新設され、当日のCF予約件数バッジ（例: <code>15</code>）が連動。タップで専用印刷画面（<code>print_nameplate.php</code>）を即座に別タブ展開。</li>
+                        <li><strong>タッチ左右スワイプによる日付移動 (NEW!):</strong> <code>print_schedule_daily.php</code> および <code>print_nameplate.php</code> の両画面において、指で左右にスワイプするだけで前日（右スワイプ）／翌日（左スワイプ）へ日付移動が可能（キーボードの ← / → キーとも連動）。縦スクロール操作との誤爆防止ロジック（最小60px、縦ブレ50px以内）を搭載。</li>
+                        <li><strong>A4縦用紙（210×297mm）4枚完全面付け ＆ 白紙排出完全防止対策:</strong> 横147mm×縦70mmを縦4枚で用紙中央に配置（左右余白各31.5mm、上下余白各8.5mm）。どのプリンタでも枠欠けが一切生じない安全余白を確保。上下枠線を共有配置し、縦2回・横3回のハサミカットだけで4枚がきれいに切り離せる省力設計。さらに、<code>@page { margin: 0; }</code> とシート高さ297mm完全固定（<code>overflow: hidden; break-inside: avoid;</code>）により、印刷時に各ページ間に余分な空白ページが排出されるトラブルを完全に根絶。</li>
+                        <li><strong>徹底洗練されたネームプレート印字内容（不要文字完全排除）:</strong>
+                            <ul>
+                                <li><strong>上段左: 部屋名:</strong> 26pt超極太フォント・グレー（<code>#64748b</code>）。「部屋：」ラベルを排除し、純粋な部屋番号（<code>ﾏ101</code>、<code>ｲ203</code>等）のみを印字。</li>
+                                <li><strong>上段右: 下剤名:</strong> 19pt太字フォント・グレー（<code>#64748b</code>）。「下剤：」ラベルを排除し、略称（モビ/マグP/ニフ）を自動的に正式名（モビプレップ/マグコロールP/ニフレック）へ変換して上段右端に印字。</li>
+                                <li><strong>中段中央: 患者フルネーム:</strong> 46pt特大・極太フォント（超極太900 ＆ <code>-webkit-text-stroke: 0.5px #000000;</code> による太線補強）。中央に堂々と配置し、文字数に応じて30〜46ptに自動フィット。</li>
+                                <li><strong>下段右: 敬称「様」:</strong> 24pt太字フォントを氏名の下段・右下に揃えて配置。氏名の横幅圧迫を回避し、名前の大きさを最大化。</li>
+                                <li><strong>不要要素の完全排除:</strong> プレート枠内の「✂ キリトリ」文字、時間枠名、患者IDなどを一切印刷せず、利用するネームプレートに余計なゴミ文字を残さないクリーン設計。</li>
+                            </ul>
+                        </li>
+                        <li><strong>サーバー直接印刷（リモート印刷）ハイブリッド ＆ プリンタ端末記憶（localStorage）:</strong>
+                            <ul>
+                                <li><strong>Windows PC:</strong> 従来通りのブラウザ標準印刷（<code>window.print()</code>）を維持し、端末接続プリンタから直接印刷可能。</li>
+                                <li><strong>タブレット端末（iPad / Android）:</strong> プリンタドライバやWi-Fiプリンタ接続が一切不要。画面上の「🖨️ 出力先:」セレクターから院内プリンタ（おの_C2570複合機、クリニック_C2570、OKI B432等）を選択し、タップするだけでサーバー側（Edge headless PDF ＋ SumatraPDF）から指定プリンタへ印刷ジョブを直接送信。</li>
+                                <li><strong>端末ごとのプリンタ設定独立固定:</strong> 選択したプリンタ設定は端末ブラウザの <code>localStorage</code> に保存・固定され、次回アクセス時も自動維持。</li>
+                                <li><strong>送信ステータス通知:</strong> 印刷指示送信時にボタンが「⏳ 送信中...」となり、完了時にトースト通知（「✅ ［おの_C2570 複合機］へ印刷指示を送信しました」）を表示。</li>
+                            </ul>
+                        </li>
+                        <li><strong>操作バー（非印刷）:</strong> 印刷実行ボタン、前日・翌日ナビゲーション（左右スワイプ＆左右キー連動）、全診療科/肛門科/胃腸科絞り込み、部屋順（自然順昇順）/時間枠順ソート切り替え機能を搭載。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        30. 院内プリンターマスターメンテナンス（名称・選択・検出統合管理）
+        ============================================================ -->
+        <section class="spec-section" id="cat-printer-master">
+            <h2 class="category-title">30. 院内プリンターマスターメンテナンス（名称・選択・検出統合管理） <span class="badge badge-success" style="font-size:11px; padding:2px 6px;">2026-10-30新設</span></h2>
+
+            <div class="screen-card">
+                <div class="screen-header">
+                    <div class="screen-title-group">
+                        <span class="screen-title">🖨️ 院内プリンターマスターメンテナンス ＆ 共通プリンターヘルパー</span>
+                        <span class="screen-file">printer_master_maintenance.php / lib/printer_helper.php / config/printers.json</span>
+                    </div>
+                    <span class="badge badge-primary">プリンター集中管理DX</span>
+                </div>
+                <div class="screen-body">
+                    <p class="screen-desc">内視鏡室、処置室、受付、診察室など院内各所に設置されたネットワークプリンタおよびサーバー接続プリンタを集中管理するためのマスター画面です。サーバーOS（Windows）上の登録プリンタを自動検出し、Web画面上で現場スタッフが分かりやすい表示名称（呼称・ラベル）の自由編集、有効/無効の切り替え、デフォルト指定、およびテスト印刷をブラウザ上から一元的に行うことができます。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>サーバーインストール済みプリンターの自動検出:</strong> PowerShell（<code>Get-Printer</code>）を用いてサーバーOSにインストールされている物理・論理プリンタを自動列挙。未登録のプリンタは「➕ 選択肢に追加」ボタン1クリックでマスタリストへ即座に取り込み可能。</li>
+                        <li><strong>現場に合わせた表示名称（ラベル・呼称）の自由編集:</strong> OS固有のドライバ名（例: <code>おの_C2570 複合機</code>）に対し、現場スタッフが一目でわかる分かりやすい表示名称（例: <code>Apeos C2570 (肛) / おの複合機</code>、<code>Apeos C2570 (胃) / クリニック複合機</code>）を自由に設定・保存可能。クライアントPCごとの名称差異による混乱を完全に解消。</li>
+                        <li><strong>有効/無効（is_active）トグル管理:</strong> 故障中や撤去済み、特定部署専用のプリンタを一覧から除外（無効化）でき、印刷画面（本日リスト印刷・ネームプレート印刷）のセレクターには有効なプリンタのみが自動抽出されます。</li>
+                        <li><strong>デフォルトプリンター指定:</strong> 最も高頻度で利用するメイン複合機をデフォルトとして1つ指定可能。未設定端末での初回アクセス時に自動選択されます。</li>
+                        <li><strong>テスト印刷実行（実機テスト排紙）:</strong> 登録した各プリンタに対し、管理画面から1タップで専用の1枚もの接続テスト用紙（<code>target=test_page</code>）の印刷ジョブを送信し、実際の排紙とスプーラーの稼働を事前検証可能。</li>
+                        <li><strong>全印刷画面への即時連動（共通ヘルパー: <code>lib/printer_helper.php</code>）:</strong> <code>print_schedule_daily.php</code>（本日リスト印刷）および <code>print_nameplate.php</code>（ネームプレート印刷）の出力先セレクトボックスが <code>renderPrinterSelectOptions()</code> 関数によって動的生成されるため、マスタで名称や順序を変更すると全画面に即座に反映。</li>
+                        <li><strong>マスタ管理ナビゲーション完全統合:</strong> 枠マスタ（<code>slot_master_maintenance.php</code>）、汎用選択肢マスタ（<code>master_maintenance.php</code>）、検査種別マスタ（<code>exam_master_maintenance.php</code>）の統合タブナビ「🖨️ プリンターマスタ」および統合ポータル（<code>index.php</code>）からいつでもアクセス可能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 31. 空き枠検索 カレンダー状況ホバープレビュー機能 -->
+        <section class="spec-section" id="cat-slot-hover-preview">
+            <h2 class="section-title">
+                <span>31. 空き枠検索 カレンダー状況ホバープレビュー機能 (全科医師別枠・全体集計即時確認)</span>
+                <span class="badge badge-success">2026-11-01 新設</span>
+            </h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-SLOT-HOVER-PREVIEW</span>
+                    <span class="screen-name">直近空き枠速報カード連携 カレンダー枠状況ポップアッププレビュー</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">空き枠検索（<code>slot_search.php</code>）の「直近空き枠速報」カード一覧において、各カード下部の「📅 カレンダー表示」ボタンにマウスカーソルを合わせる（ホバーする）だけで、画面遷移することなく、その日のカレンダー枠消化状況（<code>month_schedule.php</code> の該当セルと完全同一の各医師消化/定員および全体枠集計・日別メモ・医師不在予定）をダーク系モダンフローティングツールチップとして即座にプレビュー表示する機能です。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>胃腸科・肛門科の2段完全表示:</strong> 該当日における「🔵 胃腸科」および「🟢 肛門科」の両セクションを並べて表示。設備やリカバリ室・前処置室を共有する両科の枠状況を一目で俯瞰把握可能。</li>
+                        <li><strong>カレンダー完全準拠のバッジ表示:</strong> 医師丸アイコン（哲、義、慶、誠など）の横に、<code>🔵10/10</code> (GIF)、<code>🟠2/2</code> (エコー)、<code>🟢7/7</code> (TCF) の「使用数/定員」バッジを配置。定員到達（満枠）は強調、超過時は赤色点滅表示。</li>
+                        <li><strong>科別全体集計バー:</strong> 各科の下部に <code>全体 🔵10/10 🟠2/2 🟢10/10</code> の集計バーを常設。複数医師の合計枠を一瞬で把握可能。</li>
+                        <li><strong>付加情報（日別メモ・医師予定）の自動連動:</strong> 該当日に日別メモ（📝）や医師不在・休診予定（🙅🏼）が登録されている場合は、ツールチップ下部にコンパクトに同時プレビュー。</li>
+                        <li><strong>体感遅延ゼロの一括プリフェッチ設計:</strong> 速報取得時にバックエンド（<code>action_slot_assistant.php</code>）で対象期間のカレンダープレビューデータを一括計算・JSONキャッシュし、ホバー時は通信待ちなしで瞬時にレンダリング。</li>
+                        <li><strong>スマートポジショニング:</strong> 画面端や下部での見切れを防ぐため、ボタンの上側/下側・左右位置を自動反転判定。ESCキーやスクロール時にも安全に非表示化。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- 32. 空き枠検索 条件指定検索パワーアップ（複数医師選択・コンパクトカード・SSR初期表示 ＆ Ajax自動検索） -->
+        <section class="spec-section" id="cat-slot-search-powerup">
+            <h2 class="section-title">
+                <span>32. 空き枠検索 条件指定検索パワーアップ（複数医師選択・コンパクトカード・SSR初期表示 ＆ Ajax自動検索）</span>
+                <span class="badge badge-success">2026-11-01 新設</span>
+            </h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-SLOT-SEARCH-POWERUP</span>
+                    <span class="screen-name">条件指定検索 複数医師選択サポート・高密度コンパクトカード・SSR初期表示・Ajaxリアルタイム検索 ＆ Pulse点滅</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">空き枠検索画面（<code>slot_search.php</code>）の条件指定検索モードにおいて、複数医師の快適な同時選択機能、検索結果の「高密度コンパクトカード表示」モード新設、初期表示時のサーバーサイド自動検索（SSR）対応、検索ボタン押し忘れを防ぐ「Pulse点滅アニメーション」および「デバウンスAjax自動検索」を導入し、操作性と一覧性を最大化しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>初期表示時（mode=custom）のSSR自動検索対応（待ち時間ゼロ表示）:</strong> 画面を開いた初回表示（<code>search_mode === 'custom'</code>）でも、デフォルト条件（胃腸科、全医師、全種別、全曜日、本日〜2か月後末日）でサーバーサイド検索を即座に実行し、テーブル（325行）およびコンパクトカード（162件）を初期HTMLに完全描画。画面を開いた瞬間にローディングなしで結果が表示されます。</li>
+                        <li><strong>Ajax構文エラーの完全解消（PHP Warning根絶）:</strong> 医師予定取得ヘルパー（<code>lib/calendar_helper.php</code>）内の配列キー参照を是正し、JSONレスポンスへのWarning混入による構文エラー（<code>SyntaxError</code>）を根絶。リアルタイム検索および検索ボタンクリックが100%確実に稼働します。</li>
+                        <li><strong>確実な自動検索フォールバック:</strong> <code>DOMContentLoaded</code> 時および「🔍 条件指定検索」タブ切替時にも、未描画であれば即座に Ajax 自動検索を呼び出す安全フォールバックを実装。</li>
+                        <li><strong>複数医師選択の完全サポート（選択ロジック根本刷新）:</strong> 選択中の診療科（胃腸科 / 肛門科）において、複数の医師（例: 哲也先生と義智先生など）をチェックボックス感覚で自由かつ確実に複数選択可能に改修。「全医師」選択状態から個別医師をクリックした際は即座にその医師のみの単独選択となり、さらに別の医師を追加クリックすれば複数医師がそのままアクティブを維持（全員選択時に勝手に解除されて全医師に戻る不具合を根絶）。いつでも「全医師」ボタンでワンタップ一括選択に戻せます。なお、科の独立性を保つため「全科」選択は撤廃し、肛門科・胃腸科の2科構成を維持。</li>
+                        <li><strong>高密度「🗂️ コンパクトカード」表示モード:</strong> 従来の「📄 テーブル表示」に加え、省スペースなカードグリッド（<code>minmax(235px, 1fr)</code>）表示を新設。日付、曜日、科バッジ、医師アバター＋名前、検査バッジ、残枠メーター、カレンダーボタン、予約ボタンが1枚に凝縮。</li>
+                        <li><strong>表示切替トグル ＆ 状態永続化:</strong> 結果ヘッダー右上の <code>[📄 テーブル] [🗂️ コンパクトカード]</code> トグルでいつでも瞬時に表示形式を切り替え可能。ユーザーの選択状態は <code>localStorage</code> に保存され、次回アクセス時も自動復元。</li>
+                        <li><strong>検索ボタン「フワフワ点滅（Pulseアニメーション）」:</strong> 期間（日付・月）、診療科、医師、検査種別、曜日のいずれかが変更された瞬間に、検索ボタンが青く点滅して変更状態を視覚的にアピール。</li>
+                        <li><strong>デバウンス（250ms）非同期Ajax自動検索:</strong> 条件変更から 250ms 後に画面リロードなしの非同期通信（<code>ajax=1</code>）で即時自動検索を実行。手動で検索ボタンを押した場合もAjax即時更新で滑らかに動作。</li>
+                        <li><strong>コンパクトカードからのカレンダー状況ホバープレビュー連動:</strong> 各カードの「📅 カレンダー」ボタンにマウスを合わせると、第31章のカレンダーホバープレビューが起動し、胃腸科・肛門科の全医師消化/定員および全体枠集計・メモ・医師予定をその場で確認可能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             第33章: 当日進捗ステータスモニター UI大幅スリム化 ＆ コントロール統合 (2026-11-01)
+        ============================================================ -->
+        <section class="spec-section" id="cat-progress-slim">
+            <h2 class="category-title">33. 当日進捗ステータスモニター UI大幅スリム化 ＆ コントロール統合 (2026-11-01)</h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-PROGRESS-MONITOR-SLIM-UI</span>
+                    <span class="screen-name">ヘッダー機能ドロップダウン集約・今すぐ更新（🔄）・表示モード2択化（常時高密度）・タブ件数バッジ合体 ＆ サマリー「6.説明」統合</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">当日進捗ステータスモニター（<code>progress_monitor.php</code>）において、画面幅を圧迫していた7個の個別ボタンを1つのドロップダウンセレクトメニューに集約し、更新間隔ボックスへの「🔄 今すぐ更新」アイコン設置、分かりにくかった「圧縮表示」「標準表示」を完全撤廃して常時高密度なテーブル表示／タイル表示の2択化、日付ステッパーへの「今日へ」内包、上段検査種別タブへの件数バッジ合体およびサマリーバー「6.説明(待/中)」統合を全面適用しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>ヘッダー機能ボタンの集約（<code>&lt;select&gt;</code> リストボックス「📂 その他メニュー ▾」）:</strong> 「➕ 当日・緊急追加」「🛡️ アラートスキャン」「⚡ 直近空き枠速報」「🖨️ 当日印刷」「📅 月間カレンダー」「🏠 ポータルメニュー」を1つのコンパクトなプルダウンに完全集約。選択と同時に対象モーダルや画面へ即座にディスパッチし、自動的に初期選択に戻る安全設計。ヘッダーの省スペース化を実現。</li>
+                        <li><strong>自動更新コントロールの一体化 ＆「🔄 今すぐ更新」アイコンボタン:</strong> 更新間隔セレクト（10秒/30秒/60秒/停止）の直後に配置された回転アイコンボタン（<code>#btnRefreshNow</code>）により、1クリックで即座に手動更新。更新成功時には滑らかなトースト通知を提示。</li>
+                        <li><strong>表示モードの2択化 ＆「圧縮」言葉の完全撤廃:</strong> 「圧縮」「標準」の文言を画面上から完全に排除し、<code>[ 📋 テーブル ]</code> と <code>[ 🔲 タイル ]</code> の直感的な2択に整理。テーブル表示時は常に高密度（圧縮）スタイル（<code>view-mode-compact</code>）を標準適用。</li>
+                        <li><strong>日付ステッパーへの「今日へ」ボタン内包:</strong> 独立していた「本日に戻る」ボタンを日付ステッパー内にスマートに一体化。本日表示時は「本日」バッジ、別日表示時は「今日へ」リンクとして表示。</li>
+                        <li><strong>検査種別タブへの件数合体 ＆ サマリーバーの重複撤廃:</strong> 上段タブ（<code>🔬 全内視鏡</code>、<code>🟢 大腸系 (TCF)</code>、<code>🟣 浣腸CF</code>、<code>🔵 胃カメラ</code>）内にリアルタイム件数バッジ（<code>#badgeExamALL</code>等）を配置。下段サマリーバーにあった重複バッジ（TCF/浣腸/胃）を完全撤廃し、動線ステータス（1〜7・未照合）に特化して視認性を大幅向上。</li>
+                        <li><strong>「6. 結果説明」ステータスの1枠統合（待○/中○）:</strong> 従来の「🔔 説明待」と「6. 説明中」を1つの枠 <code>6. 説明 (待○/中○)</code> に統合。枠クリックによる絞り込みも、説明待ち・説明中の両方を漏れなく抽出するように連動。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             第34章: デイリーノート 日付バー大幅スリム化 ＆ ピッカー一本化 (2026-11-01)
+        ============================================================ -->
+        <section class="spec-section" id="cat-note-date-slim">
+            <h2 class="category-title">34. デイリーノート 日付バー大幅スリム化 ＆ ピッカー一本化 (2026-11-01)</h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-NOTE-DATE-NAV-SLIM</span>
+                    <span class="screen-name">日付2重表示解消（ピッカー優先型一本化）・32pxツライチ統一・左右ステッパーのセグメント連結ボタングループ化</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">デイリーノート画面（<code>schedule_note.php</code>）の日付ナビゲーションバーにおいて、日付文字（西暦）とピッカーボックスの重複表示を完全解消し、西暦/和暦切替＋特大Flatpickr起動ボックスを中央メイン表示として一本化。休診/診療日バッジおよび本日/今日へボタンと合わせて高さ32pxで綺麗に揃え、左右ステッパーをセグメントボタングループ（[ -7日 | 前日 | 前診療日 ] / [ 次診療日 | 翌日 | +7日 ]）として隙間なく連結成形することで、横幅を大幅に圧縮しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>日付2重表示の完全撤廃（ピッカー優先型一本化）:</strong> 画面幅を圧迫していた左側の大きな日付文字「📅 2026年11月1日 (日)」を撤廃。西暦・和暦ワンクリック切替と特大Flatpickrカレンダー展開ができる <code>[ 令和8年11/1 (日) 和暦 🗓️ ]</code> をメインの日付表示コントロールとして中央に配置。</li>
+                        <li><strong>中央コントロール群の高さ32pxツライチ統一:</strong> <code>[ 日付ピッカーボックス ]</code> (32px)、<code>[ ⛔ 休診 / 🟢 診療日 ]</code> (32px)、<code>[ ⭐ 本日 / 📅 今日へ (T) ]</code> (32px) をすべて同一の高さ（32px）に統一し、パディングとフォントを精密に整えて美しく並列配置。</li>
+                        <li><strong>左右ステッパーのセグメント連結スリム化（横幅大幅圧縮）:</strong> 過去側（-7日/前日/前診療日）および未来側（次診療日/翌日/+7日）の独立ボタンを、隙間のないセグメント連結ボタングループ（<code>.date-nav-group-segmented</code>）に成形。キーボードショートカット（←, →, Shift+←, Shift+→, ↑, ↓, T）の操作性を100%維持しながら、左右の広がりを大幅に圧縮。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        35. 院内システム修正インフォメーションマスターメンテナンス
+        ============================================================ -->
+        <section class="spec-section" id="cat-system-info-master">
+            <h2 class="section-title">
+                <span>35. 院内システム修正インフォメーションマスターメンテナンス ＆ 非干渉ボタン最下部配信 (v1101 本番稼働版)</span>
+                <span class="badge badge-success">2026-11-01 新設</span>
+            </h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-SYSTEM-INFO-MASTER</span>
+                    <span class="screen-name">修正インフォメーション一元管理 (m_system_info)・非干渉最下部バナー・index.html自動同期</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">システムのバージョンアップ・改修内容・運用上の周知事項を、院内の各画面へ安全かつ直感的に配信・管理できる専用マスターメンテナンス（<code>system_info_maintenance.php</code>）および共通配信モジュール（<code>inc_system_info.php</code>）を新設。現場の日常的な予約業務・患者検索の邪魔にならないよう、ポータル画面（<code>index.php</code>）および静的開始画面（<code>index.html</code>）において「ボタン群の一番下（最下部・フッター手前）」にインフォメーションを自動配置・配信します。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>専用管理画面（system_info_maintenance.php）新設:</strong> 日付、バージョン表記（例: v1101）、バッジ文言＆配色（🟢成功緑/🔵注目青/⚪標準灰/🟡注意黄/🔴緊急赤）、タイトル、概要サマリー、改修詳細項目（複数行入力➔自動箇条書き成形）、表示優先順、公開/非公開トグルを直感的なフォームで管理可能。</li>
+                        <li><strong>リアルタイム・ライブプレビュー（LIVE PREVIEW）:</strong> 管理画面の上部に、ポータル画面（index.php）で現場職員にどう見えるかを完全再現したプレビューバナーを常時表示。登録前に視覚的な確認が可能。</li>
+                        <li><strong>ボタン群の最下部（非干渉レイアウト）配置:</strong> 日常の予約マトリクス、月間カレンダー、空き枠検索、当日進捗モニター、マスタ管理などの重要ボタン群の操作を一切妨げないよう、インフォメーションバナーを全カード群の一番下に配置。</li>
+                        <li><strong>DB・JSON・静的HTML（index.html）の完全三重自動同期:</strong> 管理画面で保存・更新・削除・非公開切り替えを行うと、PostgreSQL DB（<code>m_system_info</code>）への保存と同時に、軽量設定ファイル（<code>config/system_info.json</code>）および静的開始画面（<code>index.html</code>）のインフォボックスへ最新内容を即時自動書き込み・同期。</li>
+                        <li><strong>院内統合マスタナビゲーション（master-hub-nav）完全連携:</strong> 検査枠マスタ（<code>slot_master_maintenance.php</code>）、検査種別マスタ（<code>exam_master_maintenance.php</code>）、汎用選択肢マスタ（<code>master_maintenance.php</code>）、プリンターマスタ（<code>printer_master_maintenance.php</code>）の全マスタ画面上部ナビに「📢 修正インフォメーション」タブを新設し、ポータルメニューカードからもワンクリックで直行可能。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        36. 小野会共通APIプラットフォーム連携 ＆ 祝日・休診日判定の共通基盤移譲
+        ============================================================ -->
+        <section class="spec-section" id="cat-common-api-onokai">
+            <h2 class="section-title">
+                <span>36. 小野会共通APIプラットフォーム連携 ＆ 祝日・休診日判定の共通基盤移譲</span>
+                <span class="badge badge-success">2026-11-04 新設</span>
+            </h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-COMMON-API-INTEGRATION</span>
+                    <span class="screen-name">小野会共通API基盤 (/htdocs/api/)・歴月＆給与月両対応・無停止ラッパー統合</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">小野会の全院内Webシステム（内視鏡、勤怠、かわらばん、予定表）におけるカレンダー・休診日判定の重複を根絶し、単一仕様で利用可能にする共通API基盤（<code>/htdocs/api/</code>）を新設。内視鏡システム側は既存コードを1文字も壊さない「ラッパー方式」により、安全かつ完全に無停止で共通基盤への移譲を完了しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>共通APIエンドポイント（/api/v1/calendar/holidays.php）:</strong> 暦月（当月1日〜末日）をデフォルトとしつつ、小野会給与月（前月21日〜当月20日 <code>mode=payroll</code>）、任意期間指定（<code>start/end</code>）、単一日付判定（<code>date</code>）の全パターンに柔軟対応。</li>
+                        <li><strong>特大Flatpickr共通ピッカーAPI連携（onokai_flatpickr.js）:</strong> カレンダー展開時および月めくり時に共通APIから休診日・祝日データを非同期自動取得しインメモリキャッシュ。API通信不能時も内蔵計算ロジックへ自動フォールバックし、通信遅延0msと絶対安定稼働を両立。</li>
+                        <li><strong>内視鏡システム（calendar_helper_onokai.php）の完全ラッパー化:</strong> 既存の全参照元（空き枠検索、月間カレンダー、デイリーノート等）との完全な後方互換性を保ちながら、コア判定を <code>api/v1/calendar/helper.php</code> へ移譲。</li>
+                        <li><strong>共通テスター画面 ＆ 技術仕様書完備:</strong> <code>/api/index.html</code> にてブラウザから各モードの実行確認とカレンダープレビューが即時検証可能。<code>/api/仕様書/</code> にて全パラメータ・JSONレスポンス構造・安全移行手順を完全ドキュメント化。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        37. 内視鏡シート（検査・処置記録票）A4 1枚全面刷新 ＆ タブレット直接印刷対応
+        ============================================================ -->
+        <section class="spec-section" id="cat-endoscopy-sheet-v1">
+            <h2 class="section-title">
+                <span>37. 内視鏡シート（検査・処置記録票）A4 1枚全面刷新 ＆ タブレット直接印刷対応</span>
+                <span class="badge badge-success">2026-11-06 新設</span>
+            </h2>
+            <div class="card">
+                <div class="card-header">
+                    <span class="screen-id">機能識別: FEATURE-ENDOSCOPY-SHEET-HYBRID</span>
+                    <span class="screen-name">内視鏡シート (endoscopy_sheet.php) ・ 原本Excel完全網羅 ・ MALL3性別補完 ・ サーバー直接印刷 (state_job連動)</span>
+                </div>
+                <div class="card-body">
+                    <p class="screen-desc">月間カレンダー（<code>month_schedule.php</code>）およびデイリーノート（<code>schedule_note.php</code>）の患者一覧「📋」ボタンから出力される内視鏡シートを別ファイル（<code>endoscopy_sheet.php</code>）として全面刷新。原本Excel（<code>仕様書/内視鏡シート.xls</code>）の全項目・図形スタンプをA4縦1ページに完全収容し、看護師・医師の現場記録と医事課のカルテオーダー・レセプト入力に直結するハイブリッド帳票を実現しました。</p>
+                    <div class="feature-title">📌 主な機能仕様</div>
+                    <ul class="feature-list">
+                        <li><strong>原本Excel全項目 ＆ 図形レイヤーのA4 1枚完全再現:</strong> 来院時確認（付添・迎え・荷物・内服・IV/入院セット）、前処置・下剤（グリセリン浣腸・高圧浣腸・マグコロール・ニフレック・モビプレップ・ビジクリア）、問診・医療安全（排便回数・便秘/難聴・感染症HB/HC/RPR・抗凝固薬/糖尿病薬/インスリン休薬期間・シャント/乳腺手術・当日血圧BP）、共通注射薬剤、採血/アル綿禁/開始終了時刻、CF処置・GIF処置、<code>[OK][回復][待合室]</code>楕円スタンプ、手紙（本人渡し/中澤・スミ）、同意書スキャン/配布、医師署名、<code>□会計へ</code>を1ページに最適化配置。</li>
+                        <li><strong>DB ＆ 電子カルテMALL3 自動連携:</strong> PostgreSQL予約データ・当日進捗データ・医療安全アラートに加え、MALL3 SQL Server（<code>M_Patient</code>）から性別を取得して <code>男</code> / <code>女</code> を自動丸囲み。予約備考のHTMLタグ（<code>&lt;p&gt;</code>等）露出バグも完全除去。</li>
+                        <li><strong>画面タップ入力 ＆ タブレットからのサーバー直接印刷:</strong> 画面上の全チェックボックス・丸囲み・入力欄をタップ操作可能にし、<code>api_server_print.php</code>（<code>target=endoscopy_sheet</code>）経由で画面入力状態（<code>sheet_state</code>）ごとEdge HeadlessでPDF化・院内プリンタへ直接出力可能。</li>
+                        <li><strong>ミリ単位の印刷レイアウト調整:</strong> 左上クリニック名削除による「枠」「来院」幅拡大、患者ヘッダーの「性別」「年齢」見出し削除・「生年/月日」2行化、CSS Grid <code>minmax(0, Xfr)</code> による右端枠線の完全ツライチ化、問診リスト上詰めによる備考欄印刷行数の最大化を適用。</li>
                     </ul>
                 </div>
             </div>

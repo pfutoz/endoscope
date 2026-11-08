@@ -3,8 +3,34 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\schedule_note.php
  * ファイル名: schedule_note.php
  * 概要: 内視鏡予約 デイリーノート表示モード (Ultra Fast Daily Note View)
- * 更新日時: 2026-10-20 23:08
+ * 更新日時: 2026-11-06 16:39
  * 修正履歴:
+ *   - 2026-11-06: 【下剤表示（ビジクリア等）の先頭3文字略称化 ＆ 専用カラー・フォールバック色対応】
+ *     - 下剤（bowel_prep）に「ビジクリア」等の4文字以上の名称が設定された場合、先頭3文字（例: 「ビジク」）で略称表示する特殊処理を実装（ツールチップで正式名称を表示）
+ *     - ビジクリア専用色（prep-visi: パープル #7c3aed）および未定義下剤フォールバック色（prep-other: スレート #64748b）に対応
+ *   - 2026-11-06: 【内視鏡シート（endoscopy_sheet.php）全面刷新に伴う出力リンク更新】
+ *     - 予約一覧テーブルの「📋（内視鏡シート印刷・入力）」ボタン遷移先を旧 print_endoscopy_sheet.php から新設 endoscopy_sheet.php へ更新
+ *   - 2026-11-01: 【日付バー大幅スリム化 ＆ ピッカー一本化・コントロール統合】
+ *     - 日付の2重表示を解消：重複していた左側の大きな日付文字「📅 2026年11月1日 (日)」を撤廃し、西暦/和暦切替＋特大Flatpickr起動ができる [ 令和8年11/1 (日) 和暦 🗓️ ] を中央のメイン日付表示として一本化
+ *     - 中央コントロール群の高さ32pxツライチ統一：ピッカーボックス、休診/診療日バッジ、本日/今日へボタンの3つを高さ32pxで綺麗に揃えて並列配置
+ *     - 左右ステッパーのセグメント連結スリム化：過去側3ボタン（-7日/前日/前診療日）、未来側3ボタン（次診療日/翌日/+7日）の隙間をなくし、一体化した連結ボタングループ（Segmented Button Group）に成形して横幅を大幅圧縮
+ *   - 2026-10-27: 【診療科端末永続記憶 ＆ セッション保存不具合解消】
+ *     - 診療科切替時に $_SESSION['ui_state']['schedule_dept'] への保存が漏れていた不具合を完全解消
+ *     - 1年間Cookie（endoscope_selected_dept）およびLocalStorageへの永続記憶を追加し、ブラウザ再起動時も科を完全維持
+ *     - [1]/[2]キー切替時のLocalStorage同期を強化
+ *   - 2026-10-26: 【診療科切替（[1][2]キー＆スリムバー2連タブ）対応】
+ *     - [1]キー（テンキー対応）で肛門科、[2]キーで胃腸科へ即座に直接切り替え可能に
+ *     - スリムバー（縦圧縮時）にマウスクリック可能なミニ2連タブ [🟢 肛門 (1)] [🔵 胃腸 (2)] を新設
+ *     - 通常ツールバーの科切替タブにも [1][2] のショートカットヒントバッジを付与
+ *     - 画面全体で一貫したキーボード操作とマウスクリックの両立を実現
+ *   - 2026-10-26: 【縦圧縮モード（Compact Mode）新設 ＆ ツールバー集約】
+ *     - [C]キー または画面上のトグルボタンで即時切り替え可能な縦圧縮モードを新設
+ *     - ヘッダー部を高さ32pxの極小1行スリムバー（日付・科・件数・ショートカットガイド・「🚪 部屋・下剤一括」「🖨️ ノート印刷」ボタン）へ集約
+ *     - テーブル備考欄を完全非表示にし、行高を22px〜24px（パディング上下1px、患者名・年齢1行インライン化）へ極限圧縮
+ *     - ボタン列（➕/🚫/✏️/シート/実績）を極小幅化して維持
+ *     - 上部ツールバーの多機能ボタン群を「⚙️ その他機能 ▾」ドロップダウンへ押し込み画面混雑を防止
+ *     - 全キーボードショートカット（前後日/前次診療日/前次週/今日/圧縮トグル）を完全維持
+ *     - 状態のlocalStorage自動記憶＆URLパラメータ（?compact=1）連携に対応
  *   - 2026-10-20: 【特大Flatpickr導入・西暦/和暦切替・ツールバー寸法保護】
  *     - ブラウザ標準日付ピッカーからオフライン特大Flatpickr（assets/vendor/flatpickr/）へ刷新
  *     - ツールバー上のコントロール高さ（32px）と横幅（195px）を完全固定し画面デザインのツライチを絶対保護
@@ -48,6 +74,7 @@ require_once __DIR__ . '/lib/audit_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
 require_once __DIR__ . '/lib/calendar_helper.php';
 require_once __DIR__ . '/calendar_helper_onokai.php';
+require_once __DIR__ . '/lib/canvas_helper.php';
 
 $pdo = getDbConnection();
 if (!$pdo) {
@@ -55,9 +82,24 @@ if (!$pdo) {
 }
 
 $dept = isset($_GET['dept']) ? (string)$_GET['dept'] : 
-        (string)($_SESSION['ui_state']['schedule_dept'] ?? 'PROCT');
+        (isset($_COOKIE['endoscope_selected_dept']) && in_array($_COOKIE['endoscope_selected_dept'], ['PROCT', 'GASTRO'], true)
+            ? (string)$_COOKIE['endoscope_selected_dept']
+            : (string)($_SESSION['ui_state']['schedule_dept'] ?? 'PROCT'));
 if (!in_array($dept, ['PROCT', 'GASTRO'], true)) {
     $dept = 'PROCT';
+}
+
+if (!isset($_SESSION['ui_state']) || !is_array($_SESSION['ui_state'])) {
+    $_SESSION['ui_state'] = [];
+}
+$_SESSION['ui_state']['schedule_dept'] = $dept;
+
+if (!headers_sent()) {
+    setcookie('endoscope_selected_dept', $dept, [
+        'expires'  => time() + 365 * 86400,
+        'path'     => '/',
+        'samesite' => 'Lax'
+    ]);
 }
 
 $selected_date = isset($_GET['date']) && is_string($_GET['date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date'])
@@ -146,6 +188,7 @@ if (isset($_GET['action'])) {
                   ON w.department_code = :dept2 
                   AND w.waku_name = :waku2 
                   AND w.is_active = TRUE
+                  AND :date BETWEEN w.valid_from AND w.valid_to
             ");
             $ins->execute([
                 ':dept'  => $dept,
@@ -308,7 +351,9 @@ if (!function_exists('getDailyReservationsWithMismatch')) {
             all_slots AS (
                 SELECT waku_name, display_order, group_code
                 FROM m2_waku
-                WHERE department_code = :dept AND is_active = TRUE
+                WHERE department_code = :dept
+                  AND is_active = TRUE
+                  AND :date BETWEEN valid_from AND valid_to
             ),
             reserved_data AS (
                 SELECT 
@@ -325,6 +370,7 @@ if (!function_exists('getDailyReservationsWithMismatch')) {
                     ON s.department_code = w.department_code 
                     AND s.scheduled_time = w.waku_name
                     AND w.is_active = TRUE
+                    AND s.exam_date BETWEEN w.valid_from AND w.valid_to
                 WHERE s.department_code = :dept 
                   AND s.exam_date = :date 
                   AND s.is_canceled = FALSE
@@ -397,6 +443,7 @@ if (!function_exists('getDailyReservationsWithMismatch')) {
                 ON s.department_code = w.department_code 
                 AND s.scheduled_time = w.waku_name
                 AND w.is_active = TRUE
+                AND s.exam_date BETWEEN w.valid_from AND w.valid_to
             WHERE s.department_code = :dept 
               AND s.exam_date = :date 
               AND s.is_canceled = FALSE
@@ -526,6 +573,408 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
     <style>
+        /* ── 🗜️ 縦圧縮モード（Compact Mode）スタイリング ── */
+        .compact-header-bar {
+            display: none;
+        }
+
+        body.compact-mode .top-toolbar,
+        body.compact-mode .note-date-nav,
+        body.compact-mode .filters-compact,
+        body.compact-mode .note-summary-bar {
+            display: none !important;
+        }
+
+        body.compact-mode .compact-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #ffffff;
+            padding: 2px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            height: 32px;
+            box-sizing: border-box;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        body.compact-mode .note-container {
+            padding: 3px 6px !important;
+            max-width: 100% !important;
+            border-radius: 4px !important;
+        }
+
+        /* 備考欄の完全削除（非表示） */
+        body.compact-mode .col-remarks,
+        body.compact-mode .cell-remarks {
+            display: none !important;
+        }
+
+        /* テーブル全体の超高密度化（行高 22px〜24px） */
+        body.compact-mode .note-table {
+            font-size: 11px !important;
+            line-height: 1.15 !important;
+        }
+
+        body.compact-mode .note-table th {
+            padding: 2px 3px !important;
+            font-size: 10.5px !important;
+            height: 22px !important;
+            box-sizing: border-box;
+        }
+
+        body.compact-mode .note-table td {
+            padding: 1px 3px !important;
+            height: 22px !important;
+            font-size: 11px !important;
+            box-sizing: border-box;
+            vertical-align: middle !important;
+        }
+
+        body.compact-mode .note-table tr {
+            height: 22px !important;
+        }
+
+        /* 患者名・年齢を1行インライン表示、生年月日は非表示 */
+        body.compact-mode .cell-patient-name > div {
+            line-height: 1.15 !important;
+        }
+        body.compact-mode .cell-patient-name > div > div {
+            display: inline-flex !important;
+            align-items: center !important;
+            flex-wrap: nowrap !important;
+            gap: 4px !important;
+            white-space: nowrap !important;
+        }
+        body.compact-mode .cell-patient-name strong {
+            font-size: 11.5px !important;
+            font-weight: 700 !important;
+        }
+        body.compact-mode .cell-patient-name div[style*="font-size:10px"] {
+            display: none !important; /* 生年月日(🎂)は非表示にして1行化 */
+        }
+        body.compact-mode .cell-patient-name .age-box {
+            font-size: 9px !important;
+            padding: 0 3px !important;
+            height: 14px !important;
+            line-height: 14px !important;
+        }
+
+        /* ボタン列の極小化 */
+        body.compact-mode .col-act-add,
+        body.compact-mode .col-act-suspend,
+        body.compact-mode .col-act-edit {
+            width: 20px !important;
+            padding: 0 !important;
+            text-align: center !important;
+            font-size: 10.5px !important;
+        }
+        body.compact-mode .col-act-add .icon-btn,
+        body.compact-mode .col-act-suspend .icon-btn,
+        body.compact-mode .col-act-edit .icon-btn {
+            font-size: 11px !important;
+            padding: 0 !important;
+            line-height: 1 !important;
+        }
+        body.compact-mode .col-sheet {
+            width: 24px !important;
+            padding: 0 !important;
+        }
+        body.compact-mode .sheet-btn-small {
+            font-size: 10px !important;
+            padding: 0 2px !important;
+            line-height: 1 !important;
+        }
+        body.compact-mode .col-canvas {
+            width: 36px !important;
+            padding: 0 !important;
+        }
+        body.compact-mode .btn-canvas-inline {
+            padding: 1px 3px !important;
+            font-size: 9px !important;
+            height: 16px !important;
+            line-height: 16px !important;
+            border-radius: 3px !important;
+        }
+
+        /* 時間枠・部屋・下剤・担当・種別バッジの極小化 */
+        body.compact-mode .waku-name-label {
+            font-size: 11px !important;
+        }
+        body.compact-mode .waku-name-gear-btn {
+            font-size: 10px !important;
+        }
+        body.compact-mode .room-badge,
+        body.compact-mode .prep-badge,
+        body.compact-mode .exam-badge {
+            font-size: 9.5px !important;
+            padding: 0 3px !important;
+            border-radius: 2px !important;
+            line-height: 1.3 !important;
+        }
+        body.compact-mode .doctor-badge-inline {
+            font-size: 10px !important;
+        }
+
+        /* ── 🗜️ 縦圧縮スリムバー専用 アクションボタン ── */
+        .compact-bar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            color: #ffffff;
+            transition: all 0.15s ease;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+        .compact-bar-btn-prep {
+            background: #0d9488;
+        }
+        .compact-bar-btn-prep:hover {
+            background: #0f766e;
+        }
+        .compact-bar-btn-print {
+            background: #16a34a;
+        }
+        .compact-bar-btn-print:hover {
+            background: #15803d;
+        }
+        .compact-mini-pill {
+            background: #ffffff;
+            color: #0d9488;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 0 4px;
+            border-radius: 8px;
+            line-height: 14px;
+        }
+
+        /* ── 🗜️ 縦圧縮スリムバー 診療科ミニ2連タブ ── */
+        .compact-dept-tabs {
+            display: inline-flex;
+            align-items: center;
+            background: #0f172a;
+            padding: 1px;
+            border-radius: 5px;
+            border: 1px solid #334155;
+            gap: 1px;
+        }
+        .compact-dept-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-decoration: none;
+            color: #94a3b8;
+            transition: all 0.12s ease;
+            line-height: 1.3;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .compact-dept-tab:hover {
+            color: #ffffff;
+            background: rgba(255,255,255,0.08);
+        }
+        .compact-dept-tab.active-proct {
+            background: #16a34a;
+            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .compact-dept-tab.active-gastro {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .compact-dept-tab kbd {
+            background: rgba(0,0,0,0.3);
+            color: rgba(255,255,255,0.85);
+            padding: 0 3px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-weight: 800;
+            border: 1px solid rgba(255,255,255,0.2);
+            line-height: 1.1;
+        }
+        .compact-dept-tab.active-proct kbd,
+        .compact-dept-tab.active-gastro kbd {
+            background: rgba(0,0,0,0.25);
+            color: #ffffff;
+            border-color: rgba(255,255,255,0.35);
+        }
+
+        /* ── 🗜️ 縦圧縮スリムバー クリック可能キーバッジ ＆ リンク ── */
+        .compact-kbd-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            background: #0f172a;
+            color: #38bdf8;
+            border: 1px solid #475569;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 800;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            box-sizing: border-box;
+            line-height: 1;
+            user-select: none;
+        }
+        .compact-kbd-btn:hover {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #38bdf8;
+            transform: scale(1.1);
+        }
+        .compact-kbd-btn:active {
+            transform: scale(0.95);
+        }
+
+        .compact-pill-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px 6px;
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            line-height: 1.3;
+            white-space: nowrap;
+            user-select: none;
+            box-sizing: border-box;
+            height: 22px;
+        }
+        .compact-pill-link:hover {
+            background: #334155;
+            color: #ffffff;
+            border-color: #64748b;
+        }
+        .compact-pill-link kbd {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-size: 9.5px;
+            font-family: inherit;
+            border: 1px solid #334155;
+        }
+        .compact-pill-today {
+            background: #1e3a5f;
+            border-color: #2563eb;
+            color: #93c5fd;
+        }
+        .compact-pill-today:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #60a5fa;
+        }
+        .compact-pill-today kbd {
+            background: #1e40af;
+            color: #ffffff;
+            border-color: #60a5fa;
+        }
+        .compact-pill-toggle {
+            background: #334155;
+            color: #e2e8f0;
+            border-color: #475569;
+        }
+        .compact-pill-toggle:hover {
+            background: #475569;
+            color: #ffffff;
+            border-color: #94a3b8;
+        }
+        .compact-pill-toggle kbd {
+            background: #38bdf8;
+            color: #0f172a;
+            font-weight: 800;
+            border-color: #0284c7;
+        }
+
+        /* ── その他機能 ドロップダウンメニュー ── */
+        .more-menu-container {
+            position: relative;
+            display: inline-block;
+        }
+        .more-menu-btn {
+            background: #f8fafc;
+            color: #334155;
+            border: 1.5px solid #cbd5e1;
+            font-weight: 700;
+        }
+        .more-menu-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+        .more-menu-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 100050;
+            min-width: 195px;
+            padding: 6px 0;
+            animation: fadeInMenu 0.15s ease-out;
+        }
+        .more-menu-dropdown.show {
+            display: block;
+        }
+        .more-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 14px;
+            color: #334155;
+            font-size: 12.5px;
+            font-weight: 700;
+            text-decoration: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.12s ease, color 0.12s ease;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+        .more-menu-item:hover {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+        .more-menu-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 4px 0;
+        }
+        @keyframes fadeInMenu {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* ── ノート表示専用 スタイリング ── */
         .note-container {
             max-width: 1720px;
@@ -556,6 +1005,35 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
             align-items: center;
             gap: 5px;
         }
+        /* ── セグメント連結ボタングループ ── */
+        .date-nav-group.date-nav-group-segmented {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .date-nav-group.date-nav-group-segmented .date-nav-btn {
+            border-radius: 0;
+            margin-left: -1px;
+            height: 32px;
+            padding: 0 9px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .date-nav-group.date-nav-group-segmented .date-nav-btn:first-child {
+            margin-left: 0;
+            border-top-left-radius: 6px;
+            border-bottom-left-radius: 6px;
+        }
+        .date-nav-group.date-nav-group-segmented .date-nav-btn:last-child {
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
+        }
+        .date-nav-group.date-nav-group-segmented .date-nav-btn:hover {
+            z-index: 2;
+        }
+
         .date-nav-btn {
             display: inline-flex;
             align-items: center;
@@ -579,9 +1057,15 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
             transform: translateY(-1px);
         }
         .date-nav-btn.btn-today {
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 12px;
+            font-weight: 800;
             background: #eff6ff;
             color: #1d4ed8;
-            border-color: #93c5fd;
+            border: 1.5px solid #93c5fd;
         }
         .date-nav-btn.btn-today:hover {
             background: #dbeafe;
@@ -598,45 +1082,31 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
         .date-display-center {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
-        .date-title-main {
-            font-size: 19px;
-            font-weight: 800;
-            color: #0f172a;
-            letter-spacing: -0.02em;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .dow-badge {
-            display: inline-block;
-            padding: 2px 7px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 800;
-        }
-        .dow-sun { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-        .dow-sat { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-        .dow-weekday { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
         .clinic-status-badge {
-            font-size: 11px;
-            font-weight: 700;
-            padding: 3px 8px;
-            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            box-sizing: border-box;
+            white-space: nowrap;
         }
-        .status-open { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
-        .status-closed { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+        .status-open { background: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
+        .status-closed { background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; }
 
         /* ── ツールバー日付ピッカー（西暦・和暦切替＋特大Flatpickr起動） ── */
         .custom-date-control {
             display: inline-flex;
             align-items: center;
             height: 32px; /* 32pxツライチ完全固定 */
-            width: 195px; /* 固定幅で西暦/和暦切替時も周囲を1ミリも押し出さない */
+            width: 205px; /* 固定幅で西暦/和暦切替時も周囲を1ミリも押し出さない */
             border: 2px solid #3b82f6;
-            border-radius: 8px;
+            border-radius: 6px;
             background: #eff6ff;
             box-shadow: 0 1px 3px rgba(59, 130, 246, 0.15);
             user-select: none;
@@ -944,6 +1414,77 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
 
 <div class="note-container">
 
+    <!-- ── 🗜️ 縦圧縮モード用 極小スリムヘッダーバー (高さ32px) ── -->
+    <div class="compact-header-bar" id="compactHeaderBar">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:800; font-size:13px; color:#38bdf8;">📖 <?= htmlspecialchars($selected_date, ENT_QUOTES, 'UTF-8') ?> (<?= $day_str ?>)</span>
+            
+            <!-- 診療科ミニ2連タブ (マウスクリック＆キー[1][2]対応) -->
+            <div class="compact-dept-tabs">
+                <a href="?dept=PROCT&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" 
+                   class="compact-dept-tab <?= $dept === 'PROCT' ? 'active-proct' : '' ?>" 
+                   title="肛門科へ切り替え [1キー]">
+                    🟢 肛門 <kbd>1</kbd>
+                </a>
+                <a href="?dept=GASTRO&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" 
+                   class="compact-dept-tab <?= $dept === 'GASTRO' ? 'active-gastro' : '' ?>" 
+                   title="胃腸科へ切り替え [2キー]">
+                    🔵 胃腸 <kbd>2</kbd>
+                </a>
+            </div>
+
+            <span style="color:#94a3b8; font-size:11px;">
+                予約: <strong style="color:#f8fafc;"><?= $booked_count ?></strong>件
+                <?php if ($show_empty): ?> / 空き: <strong style="color:#c084fc;"><?= $empty_count ?></strong>枠<?php endif; ?>
+            </span>
+
+            <!-- 🚪 部屋・下剤一括（圧縮時表示） -->
+            <button type="button" onclick="openBulkPrepRoomModal('<?= $dept ?>', '<?= $selected_date ?>')" class="compact-bar-btn compact-bar-btn-prep" title="当日の部屋割り・下剤を一括設定">
+                🚪 部屋・下剤一括
+                <?php if ($cf_counts['total_cf'] > 0): ?>
+                    <span class="compact-mini-pill"><?= $cf_counts['total_cf'] ?></span>
+                <?php endif; ?>
+            </button>
+
+            <!-- 🖨️ ノート印刷（圧縮時表示） -->
+            <button type="button" onclick="openPrintSchedule('<?= $dept ?>', '<?= $selected_date ?>')" class="compact-bar-btn compact-bar-btn-print" title="当日の内視鏡予約一覧を別タブで印刷">
+                🖨️ ノート印刷
+            </button>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <!-- 前後日 (← / →) -->
+            <div style="display:inline-flex; align-items:center; gap:2px; background:#1e293b; padding:1px 4px; border-radius:4px; border:1px solid #334155;">
+                <a href="?dept=<?=$dept?>&date=<?=$prev_day_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-kbd-btn" title="前日へ移動 [←キー]">←</a>
+                <a href="?dept=<?=$dept?>&date=<?=$next_day_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-kbd-btn" title="翌日へ移動 [→キー]">→</a>
+                <span style="font-size:10px; color:#cbd5e1; margin-left:2px; user-select:none;">前後日</span>
+            </div>
+
+            <!-- 診療日 (Shift+← / Shift+→) -->
+            <div style="display:inline-flex; align-items:center; gap:2px; background:#1e293b; padding:1px 4px; border-radius:4px; border:1px solid #334155;">
+                <a href="?dept=<?=$dept?>&date=<?=$prev_clinic_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-kbd-btn" title="休診日をスキップして前診療日へ [Shift+←キー]">⇧←</a>
+                <a href="?dept=<?=$dept?>&date=<?=$next_clinic_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-kbd-btn" title="休診日をスキップして次診療日へ [Shift+→キー]">⇧→</a>
+                <span style="font-size:10px; color:#cbd5e1; margin-left:2px; user-select:none;">診療日</span>
+            </div>
+
+            <!-- 週 (↑ / ↓) -->
+            <div style="display:inline-flex; align-items:center; gap:2px; background:#1e293b; padding:1px 4px; border-radius:4px; border:1px solid #334155;">
+                <a href="?dept=<?=$dept?>&date=<?=$prev_week_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-kbd-btn" title="前週（-7日）へジャンプ [↑キー]">↑</a>
+                <a href="?dept=<?=$dept?>&date=<?=$next_week_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-kbd-btn" title="翌週（+7日）へジャンプ [↓キー]">↓</a>
+                <span style="font-size:10px; color:#cbd5e1; margin-left:2px; user-select:none;">週</span>
+            </div>
+
+            <!-- 今日 (T) -->
+            <a href="?dept=<?=$dept?>&date=<?=$today_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="compact-pill-link compact-pill-today" title="今日へジャンプ [TまたはHomeキー]">
+                <kbd>T</kbd> 今日
+            </a>
+
+            <!-- 圧縮解除 (C) -->
+            <button type="button" onclick="toggleCompactMode()" class="compact-pill-link compact-pill-toggle" title="通常表示モードに戻す [Cキー]">
+                <kbd>C</kbd> ✕ 通常
+            </button>
+        </div>
+    </div>
+
     <!-- ── トップツールバー ── -->
     <div class="top-toolbar">
         <div class="top-left-group">
@@ -952,45 +1493,59 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                 <span class="header-badge" style="background:#fef3c7; color:#92400e; border-color:#fde68a; font-weight:700;">⚡ 超高速 ノート表示</span>
             </div>
             <div class="dept-tabs-inline">
-                <a href="?dept=PROCT&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='PROCT'?'active-PROCT':''?>">🟢 肛門科</a>
-                <a href="?dept=GASTRO&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='GASTRO'?'active-GASTRO':''?>">🔵 胃腸科</a>
+                <a href="?dept=PROCT&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='PROCT'?'active-PROCT':''?>" title="🟢 肛門科へ切替 [1キー]">🟢 肛門科 <kbd class="nav-kbd" style="font-size:10px; margin-left:3px; padding:1px 4px; border-radius:3px; background:rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.2);">1</kbd></a>
+                <a href="?dept=GASTRO&date=<?=$selected_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="dept-tab-inline <?=$dept==='GASTRO'?'active-GASTRO':''?>" title="🔵 胃腸科へ切替 [2キー]">🔵 胃腸科 <kbd class="nav-kbd" style="font-size:10px; margin-left:3px; padding:1px 4px; border-radius:3px; background:rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.2);">2</kbd></a>
             </div>
         </div>
         <div class="header-nav">
+            <button type="button" class="nav-btn btn-compact-toggle" id="btnCompactToggle" onclick="toggleCompactMode()" style="background:#0f172a; color:#38bdf8; border:1.5px solid #38bdf8; font-weight:700;" title="画面を最大限縦圧縮して高密度表示 [Cキー]">
+                <span>🗜️</span> 縦圧縮 <kbd style="font-size:10px; background:#1e293b; color:#38bdf8; padding:1px 4px; border-radius:3px; border:1px solid #38bdf8;">C</kbd>
+            </button>
             <a href="month_schedule.php?dept=<?=$dept?>&date=<?=$selected_date?>" class="nav-btn" style="background:#3b82f6; color:#fff;" title="月間カレンダー表示に切り替え">
                 <span>📅</span> カレンダー表示へ
             </a>
-            <a href="index.php" class="nav-btn nav-btn-home">
+            <a href="index.php" class="nav-btn nav-btn-home" title="ポータルホームへ">
                 <span>🏠</span> 
             </a>
-            <a href="progress_monitor.php?dept=<?=$dept?>" class="nav-btn nav-btn-whiteboard">
-                <span>📊</span> 当日ホワイトボード
-            </a>
-            <a href="month_matrix_v2.php?dept=<?=$dept?>&year=<?=date('Y', $sel_ts)?>&month=<?=date('n', $sel_ts)?>" class="nav-btn nav-btn-matrix">
-                <span>📊</span> 予約マトリクス
-            </a>
-            <a href="slot_search.php?dept=<?=$dept?>" class="nav-btn nav-btn-search">
-                <span>🔍</span> 空き枠検索
-            </a>
-            <button type="button" onclick="openDuplicateCheckModal()" class="nav-btn nav-btn-duplicate" title="同一患者の未来複数予約・重複チェック">
-                <span>⚠️</span> 重複チェック
-            </button>
-            <button type="button" onclick="openAuditLogModal()" class="nav-btn nav-btn-audit" title="直近の操作履歴・ワンクリック復元（Undo）">
-                <span>🕒</span> 操作履歴
-            </button>
-            <button type="button" onclick="openMedicalAlertScanModal({date: '<?=$selected_date?>', dept: '<?=$dept?>'})" class="nav-btn nav-btn-alert-scan" title="抗血栓薬・アレルギー・感染症・風邪アラートスキャン">
-                <span>🛡️</span> アラートスキャン
-            </button>
-            <a href="furiwake_daymemo.php" class="nav-btn" style="background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; font-weight: 700;" title="日別メモの診療科振り分けメンテナンス（データ整理）">
-                <span>📝</span> メモ振分
-            </a>
+
+            <!-- ── カレンダー・ホーム以外の機能を「その他機能」ドロップダウンへ集約 ── -->
+            <div class="more-menu-container">
+                <button type="button" class="nav-btn more-menu-btn" id="moreMenuBtn" onclick="toggleMoreMenu(event)" title="その他の機能メニューを展開">
+                    <span>⚙️</span> その他機能 ▾
+                </button>
+                <div class="more-menu-dropdown" id="moreMenuDropdown">
+                    <a href="progress_monitor.php?dept=<?=$dept?>" class="more-menu-item">
+                        <span>📊</span> 当日ホワイトボード
+                    </a>
+                    <a href="month_matrix_v2.php?dept=<?=$dept?>&year=<?=date('Y', $sel_ts)?>&month=<?=date('n', $sel_ts)?>" class="more-menu-item">
+                        <span>📊</span> 予約マトリクス
+                    </a>
+                    <a href="slot_search.php?dept=<?=$dept?>" class="more-menu-item">
+                        <span>🔍</span> 空き枠検索
+                    </a>
+                    <div class="more-menu-divider"></div>
+                    <button type="button" onclick="openDuplicateCheckModal(); closeMoreMenu();" class="more-menu-item">
+                        <span>⚠️</span> 重複チェック
+                    </button>
+                    <button type="button" onclick="openAuditLogModal(); closeMoreMenu();" class="more-menu-item">
+                        <span>🕒</span> 操作履歴 (Undo)
+                    </button>
+                    <button type="button" onclick="openMedicalAlertScanModal({date: '<?=$selected_date?>', dept: '<?=$dept?>'}); closeMoreMenu();" class="more-menu-item">
+                        <span>🛡️</span> アラートスキャン
+                    </button>
+                    <div class="more-menu-divider"></div>
+                    <a href="furiwake_daymemo.php" class="more-menu-item" style="color:#92400e;">
+                        <span>📝</span> メモ振分メンテナンス
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- ── 日付ナビゲーションバー（1〜4すべて完備 ＆ キーボードショートカット対応） ── -->
+    <!-- ── 日付ナビゲーションバー（セグメント連結 ＆ ピッカー一本化 ＆ 32pxツライチ統一） ── -->
     <div class="note-date-nav">
-        <!-- 過去側ナビ -->
-        <div class="date-nav-group">
+        <!-- 過去側ナビ（セグメント連結ボタングループ） -->
+        <div class="date-nav-group date-nav-group-segmented">
             <a href="?dept=<?=$dept?>&date=<?=$prev_week_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="date-nav-btn" id="navPrevWeek" title="前週（-7日）へジャンプ [↑キー]">
                 ◀◀ -7日 <kbd class="nav-kbd">↑</kbd>
             </a>
@@ -1002,24 +1557,8 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
             </a>
         </div>
 
-        <!-- 中央：現在日付 ＆ 大型ピッカー ＆ 今日 ＆ ショートカットヒント -->
+        <!-- 中央：日付ピッカー（西暦・和暦切替＋特大Flatpickr起動） ＆ 休診バッジ ＆ 本日/今日へ -->
         <div class="date-display-center">
-            <div class="date-title-main">
-                <span>📅 <?= date('Y年n月j日', $sel_ts) ?></span>
-                <?php
-                $dow_cls = 'dow-weekday';
-                if ($sel_w === 0) $dow_cls = 'dow-sun';
-                elseif ($sel_w === 6) $dow_cls = 'dow-sat';
-                ?>
-                <span class="dow-badge <?=$dow_cls?>">(<?=$day_str?>)</span>
-            </div>
-
-            <?php if ($is_closed): ?>
-                <span class="clinic-status-badge status-closed">⛔ 休診<?= $close_reason ? " ({$close_reason})" : '' ?></span>
-            <?php else: ?>
-                <span class="clinic-status-badge status-open">🟢 診療日</span>
-            <?php endif; ?>
-
             <!-- 🖨️ 直感特大Flatpickr日付コントロール（西暦/和暦切替＋小野会カラー・ツールバー高さ32px完全保護） -->
             <div class="custom-date-control" id="customDateControl" title="クリックで西暦／和暦 表示切替、📅で特大カレンダー展開">
                 <div class="date-text-toggle" id="dateTextToggle" title="クリックで西暦／和暦 表示切替">
@@ -1032,6 +1571,12 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                 <input type="text" id="mainFlatpickr" style="display:none;" value="<?= $selected_date ?>">
             </div>
 
+            <?php if ($is_closed): ?>
+                <span class="clinic-status-badge status-closed">⛔ 休診<?= $close_reason ? " ({$close_reason})" : '' ?></span>
+            <?php else: ?>
+                <span class="clinic-status-badge status-open">🟢 診療日</span>
+            <?php endif; ?>
+
             <?php if (!$is_today): ?>
                 <a href="?dept=<?=$dept?>&date=<?=$today_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="date-nav-btn btn-today" id="navToday" title="本日の予約一覧へ移動 [Tキー / Homeキー]">
                     📅 今日へ <kbd class="nav-kbd">T</kbd>
@@ -1043,8 +1588,8 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
             <?php endif; ?>
         </div>
 
-        <!-- 未来側ナビ -->
-        <div class="date-nav-group">
+        <!-- 未来側ナビ（セグメント連結ボタングループ） -->
+        <div class="date-nav-group date-nav-group-segmented">
             <a href="?dept=<?=$dept?>&date=<?=$next_clinic_date?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="date-nav-btn btn-clinic" id="navNextClinic" title="休診日をスキップして次の診療日へ移動 [Shift+→]">
                 次診療日 (<?=date('m/d', strtotime($next_clinic_date))?>) ▶ <kbd class="nav-kbd">Shift+→</kbd>
             </a>
@@ -1207,18 +1752,18 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
         <table class="note-table" id="reservationTable">
             <thead>
                 <tr>
-                    <th style="width:30px; text-align:center;" title="新規追加">➕</th>
-                    <th style="width:34px; text-align:center;" title="枠なし設定・復帰">🚫</th>
-                    <th style="width:30px; text-align:center;" title="編集・削除">✏️</th>
-                    <th style="width:115px;">時間枠</th>
-                    <th style="width:90px; text-align:center;">患者No</th>
-                    <th style="width:220px;">患者名</th>
-                    <th style="width:95px; text-align:center;">担当 / 種別</th>
-                    <th style="width:68px; text-align:center;">部屋</th>
-                    <th style="width:58px; text-align:center;">下剤</th>
-                    <th>備考</th>
-                    <th style="width:45px; text-align:center;">シート</th>
-                    <th style="width:65px; text-align:center;">F/U</th>
+                    <th class="col-act-add" style="width:30px; text-align:center;" title="新規追加">➕</th>
+                    <th class="col-act-suspend" style="width:34px; text-align:center;" title="枠なし設定・復帰">🚫</th>
+                    <th class="col-act-edit" style="width:30px; text-align:center;" title="編集・削除">✏️</th>
+                    <th class="col-waku" style="width:115px;">時間枠</th>
+                    <th class="col-patient-id" style="width:90px; text-align:center;">患者No</th>
+                    <th class="col-patient-name" style="width:220px;">患者名</th>
+                    <th class="col-doctor-exam" style="width:95px; text-align:center;">担当 / 種別</th>
+                    <th class="col-room" style="width:68px; text-align:center;">部屋</th>
+                    <th class="col-prep" style="width:58px; text-align:center;">下剤</th>
+                    <th class="col-remarks">備考</th>
+                    <th class="col-sheet" style="width:45px; text-align:center;">シート</th>
+                    <th class="col-canvas" style="width:58px; text-align:center;">実績</th>
                 </tr>
             </thead>
             <tbody>
@@ -1312,10 +1857,13 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                 }
 
                 $prep_val = trim((string)($row['bowel_prep'] ?? ''));
-                $prep_cls = '';
-                if ($prep_val === 'モビ') $prep_cls = 'prep-mobi';
-                elseif ($prep_val === 'マグP') $prep_cls = 'prep-magp';
-                elseif ($prep_val === 'ニフ') $prep_cls = 'prep-nif';
+                $prep_cls = 'prep-other';
+                if (mb_strpos($prep_val, 'モビ') === 0) $prep_cls = 'prep-mobi';
+                elseif (mb_strpos($prep_val, 'マグ') === 0) $prep_cls = 'prep-magp';
+                elseif (mb_strpos($prep_val, 'ニフ') === 0) $prep_cls = 'prep-nif';
+                elseif (mb_strpos($prep_val, 'ビジ') === 0) $prep_cls = 'prep-visi';
+                // 特殊処理: 4文字以上の下剤名称（ビジクリア等）は先頭3文字で略称表示
+                $prep_disp = (mb_strlen($prep_val, 'UTF-8') > 3) ? mb_substr($prep_val, 0, 3, 'UTF-8') : $prep_val;
 
                 $created_at_val = $row['created_at'] ?? '';
                 $updated_at_val = $row['updated_at'] ?? '';
@@ -1326,7 +1874,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     class="<?= $row_class ?>">
                     
                     <!-- 1列目: ➕新規追加 -->
-                    <td style="text-align:center; white-space:nowrap;">
+                    <td class="col-act-add" style="text-align:center; white-space:nowrap;">
                         <?php if (!$is_no_waku && !$is_mismatch): ?>
                             <a href="#" onclick="openModal('<?= $modal_date ?>', '<?= htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8') ?>', 0, '<?= $modal_dept ?>')" class="icon-btn add" title="この枠に新規予約を追加">➕</a>
                         <?php else: ?>
@@ -1335,7 +1883,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
 
                     <!-- 2列目: 🚫枠なし設定 ／ ⭕通常枠復帰 -->
-                    <td style="text-align:center; white-space:nowrap;">
+                    <td class="col-act-suspend" style="text-align:center; white-space:nowrap;">
                         <?php if ($is_empty): ?>
                             <a href="?dept=<?=$dept?>&date=<?=$selected_date?>&action=set_no_waku&waku=<?=urlencode($waku)?>&doctor=<?=urlencode($filter_doctor)?>&exam=<?=urlencode($filter_exam)?>&show_empty=<?=$show_empty?'1':'0'?>" class="icon-btn" title="この枠を「枠なし」に設定します" style="color:#dc2626; font-size:12px; font-weight:bold;">🚫</a>
                         <?php elseif ($is_no_waku): ?>
@@ -1346,7 +1894,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
                     
                     <!-- 3列目: ✏️編集・削除 -->
-                    <td style="text-align:center;">
+                    <td class="col-act-edit" style="text-align:center;">
                         <?php if (!$is_empty && !$is_no_waku && $schedule_id > 0): ?>
                             <a href="#" onclick="openModal('<?= $modal_date ?>', '<?= htmlspecialchars($modal_waku, ENT_QUOTES, 'UTF-8') ?>', <?= $schedule_id ?>, '<?= $modal_dept ?>')" 
                                class="icon-btn edit" title="この予約を編集・枠再割当・削除">✏️</a>
@@ -1356,7 +1904,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
                     
                     <!-- 4列目: 時間枠名 -->
-                    <td>
+                    <td class="col-waku">
                         <?php if ($is_no_waku): ?>
                             <span style="color:#dc2626; text-decoration:line-through; font-weight:bold;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></span>
                         <?php else: ?>
@@ -1365,7 +1913,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
                     
                     <!-- 5列目: 患者No -->
-                    <td style="text-align:center;">
+                    <td class="col-patient-id" style="text-align:center;">
                         <?php if ($is_empty || $is_no_waku || empty($p_id_str) || $p_id_str === '---'): ?>
                             <?= ($is_empty || $is_no_waku) ? '' : '---' ?>
                         <?php else: ?>
@@ -1380,7 +1928,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
                     
                     <!-- 6列目: 患者名・年齢・アラート -->
-                    <td>
+                    <td class="cell-patient-name col-patient-name">
                         <?php if ($is_empty): ?>
                             <span style="color:#8b5cf6; font-size:11.5px; font-weight:700;">［空き枠］</span>
                         <?php elseif ($is_no_waku): ?>
@@ -1411,7 +1959,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
 
                     <!-- 7列目: 担当医師 ＆ 検査種別 -->
-                    <td style="text-align:left;">
+                    <td class="col-doctor-exam" style="text-align:left;">
                         <?php if (!$is_empty && !$is_no_waku): ?>
                             <div style="display:inline-flex; align-items:left; gap:3px; justify-content:left;">
                                 <?= getDoctorBadgeHTML((string)($row['doctor_name'] ?? '')) ?>
@@ -1421,7 +1969,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
 
                     <!-- 8列目: 部屋番号 -->
-                    <td style="text-align:center;">
+                    <td class="col-room" style="text-align:center;">
                         <?php if (!$is_empty && !$is_no_waku && !empty($room_val) && $room_val !== '未指定' && $room_val !== '-'): ?>
                             <?php if ($is_room_duplicate): ?>
                                 <span class="room-duplicate" title="⚠️ 同日に同一の部屋が重複設定されています"><?= htmlspecialchars($room_val, ENT_QUOTES, 'UTF-8') ?></span>
@@ -1434,34 +1982,32 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
 
                     <!-- 9列目: 下剤 -->
-                    <td style="text-align:center;">
+                    <td class="col-prep" style="text-align:center;">
                         <?php if (!$is_empty && !$is_no_waku && !empty($prep_val) && $prep_val !== '未指定'): ?>
-                            <span class="prep-badge <?= $prep_cls ?>"><?= htmlspecialchars($prep_val, ENT_QUOTES, 'UTF-8') ?></span>
+                            <span class="prep-badge <?= $prep_cls ?>" title="<?= htmlspecialchars($prep_val, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($prep_disp, ENT_QUOTES, 'UTF-8') ?></span>
                         <?php else: ?>
                             <span style="color:#cbd5e1;">-</span>
                         <?php endif; ?>
                     </td>
 
                     <!-- 10列目: 備考 -->
-                    <td style="min-width:180px;">
+                    <td class="cell-remarks col-remarks" style="min-width:180px;">
                         <?= renderRemarksRtfHtml($remarks_str) ?>
                     </td>
                     
                     <!-- 11列目: シート印刷 -->
-                    <td style="text-align:center;">
+                    <td class="col-sheet" style="text-align:center;">
                         <?php if ($can_sheet): ?>
-                            <a href="month_schedule.php?dept=<?=$dept?>&date=<?=$selected_date?>&sheet_single=<?=$row['schedule_id']?>" target="_blank" class="sheet-btn-small" title="検査シート印刷">📋</a>
+                            <a href="endoscopy_sheet.php?schedule_id=<?=$row['schedule_id']?>" target="_blank" class="sheet-btn-small" title="内視鏡シート（印刷・入力）">📋</a>
                         <?php else: ?>
                             <span style="font-size:8px; color:#cbd5e1;">-</span>
                         <?php endif; ?>
                     </td>
 
-                    <!-- 12列目: F/U登録 -->
-                    <td style="text-align:center;">
+                    <!-- 12列目: 検査実績（タイムラインキャンバス） -->
+                    <td class="col-canvas" style="text-align:center;">
                         <?php if (!$is_empty && !$is_no_waku && !empty($p_id_str)): ?>
-                            <a href="<?= $fu_url ?>" target="_blank" class="sheet-btn-small <?= $fu_class ?>" title="<?= $fu_title ?>">
-                                📋 <?= $fu_label ?>
-                            </a>
+                            <?= renderCanvasButtonHTML($p_id_str, $exam, '🗺️ 実績') ?>
                         <?php else: ?>
                             <span style="font-size:8px; color:#cbd5e1;">-</span>
                         <?php endif; ?>
@@ -1566,8 +2112,15 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
 <script>
 window.currentScheduleDept = '<?= htmlspecialchars($dept, ENT_QUOTES, 'UTF-8') ?>';
 
+// LocalStorage への端末記憶同期
+try {
+    localStorage.setItem('endoscope_selected_dept', window.currentScheduleDept);
+} catch (e) {}
+
 // ── キーボードショートカット用ナビゲーションURL＆日付マップ ──
 window.scheduleNavUrls = {
+    deptProct:  <?= json_encode("?dept=PROCT&date={$selected_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&show_empty=" . ($show_empty ? '1' : '0')) ?>,
+    deptGastro: <?= json_encode("?dept=GASTRO&date={$selected_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&show_empty=" . ($show_empty ? '1' : '0')) ?>,
     prevWeek:   <?= json_encode("?dept={$dept}&date={$prev_week_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&show_empty=" . ($show_empty ? '1' : '0')) ?>,
     prevDay:    <?= json_encode("?dept={$dept}&date={$prev_day_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&show_empty=" . ($show_empty ? '1' : '0')) ?>,
     prevClinic: <?= json_encode("?dept={$dept}&date={$prev_clinic_date}&doctor=" . urlencode($filter_doctor) . "&exam=" . urlencode($filter_exam) . "&show_empty=" . ($show_empty ? '1' : '0')) ?>,
@@ -1585,6 +2138,66 @@ window.scheduleNavDates = {
     nextDay:    <?= json_encode($next_day_date) ?>,
     nextWeek:   <?= json_encode($next_week_date) ?>
 };
+
+// ── 🗜️ 縦圧縮モード（Compact Mode）制御 ──
+function toggleCompactMode(forceState) {
+    const body = document.body;
+    const isCurrentlyCompact = body.classList.contains('compact-mode');
+    const newState = (typeof forceState === 'boolean') ? forceState : !isCurrentlyCompact;
+
+    if (newState) {
+        body.classList.add('compact-mode');
+    } else {
+        body.classList.remove('compact-mode');
+    }
+
+    try {
+        localStorage.setItem('schedule_note_compact_mode', newState ? '1' : '0');
+    } catch (e) {}
+
+    // トグルボタンのラベル・見た目更新
+    const toggleBtn = document.getElementById('btnCompactToggle');
+    if (toggleBtn) {
+        if (newState) {
+            toggleBtn.style.background = '#38bdf8';
+            toggleBtn.style.color = '#0f172a';
+            toggleBtn.style.borderColor = '#0284c7';
+            toggleBtn.innerHTML = '<span>🗜️</span> 圧縮中 <kbd style="font-size:10px; background:#0f172a; color:#38bdf8; padding:1px 4px; border-radius:3px;">C</kbd>';
+        } else {
+            toggleBtn.style.background = '#0f172a';
+            toggleBtn.style.color = '#38bdf8';
+            toggleBtn.style.borderColor = '#38bdf8';
+            toggleBtn.innerHTML = '<span>🗜️</span> 縦圧縮 <kbd style="font-size:10px; background:#1e293b; color:#38bdf8; padding:1px 4px; border-radius:3px; border:1px solid #38bdf8;">C</kbd>';
+        }
+    }
+
+    // 手動切替時にトースト通知
+    if (typeof forceState !== 'boolean' && typeof showToast === 'function') {
+        showToast(newState ? '🗜️ 縦圧縮モードをONにしました [Cキーで解除]' : '📖 通常表示モードに戻しました', 'info');
+    }
+}
+
+// 初期ロード時の縦圧縮モード自動復元（URL引数 compact=1 または localStorage）
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let initCompact = false;
+    if (urlParams.get('compact') === '1') {
+        initCompact = true;
+    } else {
+        try {
+            initCompact = (localStorage.getItem('schedule_note_compact_mode') === '1');
+        } catch (e) {}
+    }
+    if (initCompact) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                toggleCompactMode(true);
+            });
+        } else {
+            toggleCompactMode(true);
+        }
+    }
+})();
 
 // ── キーボード操作イベントリスナー（誤爆防止ガード付き） ──
 document.addEventListener('keydown', function(e) {
@@ -1604,6 +2217,49 @@ document.addEventListener('keydown', function(e) {
     let targetUrl = null;
     let targetDate = null;
     let targetLabel = '';
+
+    // [1] キー（テンキー1含む）: 🟢 肛門科へ切替
+    // [2] キー（テンキー2含む）: 🔵 胃腸科へ切替
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === '1' || e.code === 'Numpad1') {
+            e.preventDefault();
+            if (window.currentScheduleDept === 'PROCT') {
+                if (typeof showToast === 'function') {
+                    showToast('⭐ 既に🟢 肛門科を表示しています', 'info');
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🏥 🟢 肛門科へ切り替え中...', 'info');
+            }
+            try { localStorage.setItem('endoscope_selected_dept', 'PROCT'); } catch(e) {}
+            window.location.href = window.scheduleNavUrls.deptProct;
+            return;
+        } else if (e.key === '2' || e.code === 'Numpad2') {
+            e.preventDefault();
+            if (window.currentScheduleDept === 'GASTRO') {
+                if (typeof showToast === 'function') {
+                    showToast('⭐ 既に🔵 胃腸科を表示しています', 'info');
+                }
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🏥 🔵 胃腸科へ切り替え中...', 'info');
+            }
+            try { localStorage.setItem('endoscope_selected_dept', 'GASTRO'); } catch(e) {}
+            window.location.href = window.scheduleNavUrls.deptGastro;
+            return;
+        }
+    }
+
+    // [C] / [c] キー: 縦圧縮モード切替
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'c' || e.key === 'C') {
+            e.preventDefault();
+            toggleCompactMode();
+            return;
+        }
+    }
 
     // Shift + 矢印: 診療日スキップ移動
     if (e.shiftKey && e.key === 'ArrowLeft') {
@@ -1780,6 +2436,29 @@ document.addEventListener('keydown', function(e) {
         }
     }
 })();
+
+/* ── その他機能ドロップダウンメニュー制御 ── */
+function toggleMoreMenu(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('moreMenuDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
+function closeMoreMenu() {
+    const dropdown = document.getElementById('moreMenuDropdown');
+    if (dropdown) {
+        dropdown.classList.remove('show');
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const container = document.querySelector('.more-menu-container');
+    if (container && !container.contains(e.target)) {
+        closeMoreMenu();
+    }
+});
 </script>
 <script src="assets/js/month_schedule.js?v=<?= time() ?>"></script>
 

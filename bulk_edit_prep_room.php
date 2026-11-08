@@ -3,7 +3,19 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\bulk_edit_prep_room.php
  * ファイル名: bulk_edit_prep_room.php
  * 概要: 当日予約の「マイトイレ部屋番号」「下剤」一括編集・保存画面 (m_input_master連携版)
+ * 更新日時: 2026-11-06 16:40
  * 修正履歴:
+ *   - 2026-11-06: 【ビジクリア専用カラー（パープル #7c3aed）＆ 未定義下剤フォールバック色（スレート #64748b）対応】
+ *       1. 下剤プルダウン選択肢および選択後スタイルにて、ビジクリア（^ビジ）に専用パープル色（#7c3aed）、その他の未定義下剤にフォールバック色（#64748b）を適用
+ *   - 2026-10-27: 【部屋重複リアルタイム検知 ＆ 使用中部屋の氏名表示 ＆ GIF/エコー注意】
+ *       1. 選択肢表示: 選択中の部屋全てに使用者の苗字をリアルタイム表示（例: 「ﾏ101 (土居)」、重複時は「ﾏ101 (土居, 影山)」）
+ *       2. 重複リアルタイム警告: 重複したセレクトボックスを即座に赤色（#dc2626）化し、直下に「⚠️ 重複: 相手氏名」を表示
+ *       3. GIF/エコー注意: 通常部屋割り不要の検査行で部屋が選択された際、直下に「⚠️ 通常部屋割り不要」と小さくオレンジ色で注意表示
+ *       4. 重複登録の許容: 意図した重複登録（1日2回利用等）は保存時の警告バナー経由でそのまま保存可能
+ *   - 2026-10-23: 【部屋・下剤 選択状態カラーリング強化】
+ *       1. 下剤選択時: 選択後もバッジカラーを維持（モビ: 青 #2563eb、マグP: オレンジ #ea580c、ニフ: 緑 #16a34a、白文字・太字）
+ *       2. 部屋選択時: 頭文字に応じた色分け（ﾏ: 緑 #16a34a、ｲ: 青 #2563eb、ｺ: ベージュ #c28e4e、白文字・太字）
+ *       3. 「⚡ 下剤一括設定」ボタン実行時も各行の選択後カラーを瞬時に動的反映
  *   - 2026-10-21: GIFなど下剤不要検査において、下剤未設定時の70歳以上ワーニング判定を除外
  *   - 2026-09-10: 【下剤一括設定の絞り込み】下剤一括設定ボタンの対象を「下部内視鏡（TCF / ポリペク / W）」の予約行のみに限定
  */
@@ -84,16 +96,30 @@ function getRoomOptionStyle(string $roomName): string {
     if ($trimmed === '') return '';
 
     if (preg_match('/^(?:ﾏ|マ)/u', $trimmed)) {
-        return 'background-color: #ffffff; color: #1e293b;';
+        return 'background-color: #16a34a; color: #ffffff; font-weight: bold;';
     }
     if (preg_match('/^(?:ｲ|イ)/u', $trimmed)) {
-        return 'background-color: #eff6ff; color: #1e40af; font-weight: bold;';
+        return 'background-color: #2563eb; color: #ffffff; font-weight: bold;';
     }
-    if (preg_match('/^(?:ｵ|オ)/u', $trimmed)) {
-        return 'background-color: #fef2f2; color: #b91c1c; font-weight: bold;';
+    if (preg_match('/^(?:ｺ|コ)/u', $trimmed)) {
+        return 'background-color: #c28e4e; color: #ffffff; font-weight: bold;';
     }
 
     return '';
+}
+
+function getRoomSelectStyle(string $roomName): string {
+    $trimmed = trim($roomName);
+    if (preg_match('/^(?:ﾏ|マ)/u', $trimmed)) {
+        return 'background-color: #16a34a; color: #ffffff; border-color: #15803d; font-weight: bold;';
+    }
+    if (preg_match('/^(?:ｲ|イ)/u', $trimmed)) {
+        return 'background-color: #2563eb; color: #ffffff; border-color: #1d4ed8; font-weight: bold;';
+    }
+    if (preg_match('/^(?:ｺ|コ)/u', $trimmed)) {
+        return 'background-color: #c28e4e; color: #ffffff; border-color: #a16207; font-weight: bold;';
+    }
+    return 'background-color: #ffffff; color: #64748b; border-color: #cbd5e1;';
 }
 
 function getPrepOptionStyle(string $prepName): string {
@@ -101,16 +127,39 @@ function getPrepOptionStyle(string $prepName): string {
     if ($trimmed === '') return '';
 
     if (preg_match('/^モビ/u', $trimmed)) {
-        return 'background-color: #eff6ff; color: #1e40af; font-weight: bold;';
+        return 'background-color: #2563eb; color: #ffffff; font-weight: bold;';
     }
-    if (preg_match('/^マグP/u', $trimmed)) {
-        return 'background-color: #fef2f2; color: #b91c1c; font-weight: bold;';
+    if (preg_match('/^マグ/u', $trimmed)) {
+        return 'background-color: #ea580c; color: #ffffff; font-weight: bold;';
     }
     if (preg_match('/^ニフ/u', $trimmed)) {
-        return 'background-color: #f0fdf4; color: #166534; font-weight: bold;';
+        return 'background-color: #16a34a; color: #ffffff; font-weight: bold;';
+    }
+    if (preg_match('/^ビジ/u', $trimmed)) {
+        return 'background-color: #7c3aed; color: #ffffff; font-weight: bold;';
     }
 
-    return '';
+    return 'background-color: #64748b; color: #ffffff; font-weight: bold;';
+}
+
+function getPrepSelectStyle(string $prepName): string {
+    $trimmed = trim($prepName);
+    if ($trimmed === '') {
+        return 'background-color: #ffffff; color: #64748b; border-color: #cbd5e1;';
+    }
+    if (preg_match('/^モビ/u', $trimmed)) {
+        return 'background-color: #2563eb; color: #ffffff; border-color: #1d4ed8; font-weight: bold;';
+    }
+    if (preg_match('/^マグ/u', $trimmed)) {
+        return 'background-color: #ea580c; color: #ffffff; border-color: #c2410c; font-weight: bold;';
+    }
+    if (preg_match('/^ニフ/u', $trimmed)) {
+        return 'background-color: #16a34a; color: #ffffff; border-color: #15803d; font-weight: bold;';
+    }
+    if (preg_match('/^ビジ/u', $trimmed)) {
+        return 'background-color: #7c3aed; color: #ffffff; border-color: #6d28d9; font-weight: bold;';
+    }
+    return 'background-color: #64748b; color: #ffffff; border-color: #475569; font-weight: bold;';
 }
 
 // 保存処理
@@ -185,7 +234,38 @@ $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
         table { width: 100%; border-collapse: collapse; margin-bottom: 14px; table-layout: fixed; }
         th, td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
         th { background: #f1f5f9; font-weight: 700; color: #334155; }
-        select { padding: 4px 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 11px; font-weight: bold; width: 100%; background: #fff; }
+        select {
+            padding: 4px 6px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 5px;
+            font-size: 11.5px;
+            font-weight: bold;
+            width: 100%;
+            background: #fff;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+
+        /* 部屋セレクト重複・注意スタイル */
+        select.room-select.is-duplicate {
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border-color: #b91c1c !important;
+            font-weight: bold !important;
+        }
+        .room-alert-msg {
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 3px;
+            line-height: 1.25;
+            word-break: break-all;
+        }
+        .room-alert-msg.is-duplicate {
+            color: #dc2626;
+        }
+        .room-alert-msg.is-notice {
+            color: #d97706;
+        }
         
         .dept-select-box {
             width: auto;
@@ -432,22 +512,24 @@ $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </td>
 
                         <td style="background:#eff6ff;">
-                            <select name="items[<?= $sid ?>][room_number]" class="room-select">
-                                <option value="">--未指定--</option>
+                            <select name="items[<?= $sid ?>][room_number]" class="room-select" style="<?= getRoomSelectStyle((string)$row['room_number']) ?>">
+                                <option value="" data-raw-room="">--未指定--</option>
                                 <?php foreach ($rooms as $r): 
                                     $roomStyle = getRoomOptionStyle($r);
                                 ?>
                                     <option value="<?= htmlspecialchars($r, ENT_QUOTES, 'UTF-8') ?>" 
+                                            data-raw-room="<?= htmlspecialchars($r, ENT_QUOTES, 'UTF-8') ?>"
                                             style="<?= $roomStyle ?>" 
                                             <?= $row['room_number'] === $r ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($r, ENT_QUOTES, 'UTF-8') ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <div class="room-alert-msg" style="display:none;"></div>
                         </td>
 
                         <td style="background:#f0fdf4;">
-                            <select name="items[<?= $sid ?>][bowel_prep]" class="prep-select">
+                            <select name="items[<?= $sid ?>][bowel_prep]" class="prep-select" style="<?= getPrepSelectStyle((string)$row['bowel_prep']) ?>">
                                 <option value="">-- 未指定 --</option>
                                 <?php foreach ($preps as $p_val): 
                                     $sub_lbl = isset($prep_labels[$p_val]) ? " ({$prep_labels[$p_val]})" : "";
@@ -504,6 +586,7 @@ function autoAssignPreps() {
         for (let i = 0; i < prepSelect.options.length; i++) {
             if (prepSelect.options[i].value === targetPrep) {
                 prepSelect.selectedIndex = i;
+                applyPrepSelectStyle(prepSelect);
                 updatedCount++;
                 break;
             }
@@ -587,6 +670,217 @@ function dismissWarningBanner() {
 function forceSubmitForm() {
     document.getElementById('bulkForm').submit();
 }
+
+/* ── 苗字抽出ヘルパー ── */
+function extractLastName(fullName) {
+    if (!fullName) return '';
+    const trimmed = fullName.trim();
+    const parts = trimmed.split(/[\s　]+/);
+    return parts[0] || trimmed;
+}
+
+/* ── GIF/エコー（通常部屋割り不要）判定 ── */
+function isUpperOrEcho(examType) {
+    if (!examType) return false;
+    const t = examType.trim().toUpperCase();
+    return t === 'GIF' || t.includes('GIF') || examType.includes('胃') || t === 'ECHO' || t.includes('ECHO') || examType.includes('エコー');
+}
+
+/* ── 部屋セレクトボックスの選択後カラー動的適用（通常色 / 重複赤色） ── */
+function applyRoomSelectStyle(selectEl, isDuplicate) {
+    if (!selectEl) return;
+    const val = (selectEl.value || '').trim();
+
+    if (isDuplicate) {
+        selectEl.classList.add('is-duplicate');
+        selectEl.style.backgroundColor = '#dc2626';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#b91c1c';
+        selectEl.style.fontWeight = 'bold';
+        return;
+    }
+
+    selectEl.classList.remove('is-duplicate');
+    if (/^(?:ﾏ|マ)/.test(val)) {
+        selectEl.style.backgroundColor = '#16a34a';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#15803d';
+        selectEl.style.fontWeight = 'bold';
+    } else if (/^(?:ｲ|イ)/.test(val)) {
+        selectEl.style.backgroundColor = '#2563eb';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#1d4ed8';
+        selectEl.style.fontWeight = 'bold';
+    } else if (/^(?:ｺ|コ)/.test(val)) {
+        selectEl.style.backgroundColor = '#c28e4e';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#a16207';
+        selectEl.style.fontWeight = 'bold';
+    } else {
+        selectEl.style.backgroundColor = '#ffffff';
+        selectEl.style.color = '#64748b';
+        selectEl.style.borderColor = '#cbd5e1';
+        selectEl.style.fontWeight = 'normal';
+    }
+}
+
+/* ── 全行の部屋状態・重複・選択肢ラベル一括更新 ── */
+function refreshAllRoomStates() {
+    const rows = Array.from(document.querySelectorAll('.reservation-row'));
+    
+    // 1. 各部屋の使用状況を集計
+    const roomUsageMap = {};
+    const rowInfoList = [];
+
+    rows.forEach(row => {
+        const sid = row.getAttribute('data-sid');
+        const pName = row.getAttribute('data-patient-name') || '';
+        const lastName = extractLastName(pName);
+        const examType = row.getAttribute('data-exam-type') || '';
+        const roomSelect = row.querySelector('.room-select');
+        const alertMsg = row.querySelector('.room-alert-msg');
+        const selectedRoom = roomSelect ? (roomSelect.value || '').trim() : '';
+
+        const info = {
+            row: row,
+            sid: sid,
+            pName: pName,
+            lastName: lastName,
+            examType: examType,
+            select: roomSelect,
+            alertMsg: alertMsg,
+            room: selectedRoom
+        };
+        rowInfoList.push(info);
+
+        if (selectedRoom !== '') {
+            if (!roomUsageMap[selectedRoom]) {
+                roomUsageMap[selectedRoom] = [];
+            }
+            roomUsageMap[selectedRoom].push(info);
+        }
+    });
+
+    // 2. 各行のセレクトスタイル ＆ 警告メッセージ（重複・GIF/エコー注意）を更新
+    rowInfoList.forEach(info => {
+        if (!info.select) return;
+
+        const rm = info.room;
+        const isUpperEcho = isUpperOrEcho(info.examType);
+        const isAssigned = (rm !== '');
+        const duplicates = (isAssigned && roomUsageMap[rm] && roomUsageMap[rm].length > 1) ? roomUsageMap[rm] : [];
+        const isDuplicate = duplicates.length > 0;
+
+        // セレクトボックスのスタイル（重複時は赤色、通常時は緑/青/茶）
+        applyRoomSelectStyle(info.select, isDuplicate);
+
+        // セレクト直下のアラートメッセージ
+        if (info.alertMsg) {
+            if (isDuplicate) {
+                // 自分以外の重複相手の苗字を抽出
+                const otherNames = duplicates
+                    .filter(d => d.sid !== info.sid)
+                    .map(d => d.lastName);
+                const partnerText = otherNames.length > 0 ? otherNames.join(', ') : '他患者';
+                
+                let text = `⚠️ 重複: ${partnerText}`;
+                if (isUpperEcho) {
+                    text += ` (通常部屋不要)`;
+                }
+                info.alertMsg.textContent = text;
+                info.alertMsg.className = 'room-alert-msg is-duplicate';
+                info.alertMsg.style.display = 'block';
+            } else if (isAssigned && isUpperEcho) {
+                // 重複はないが GIF/エコー で部屋が設定されている場合
+                info.alertMsg.textContent = '⚠️ 通常部屋割り不要';
+                info.alertMsg.className = 'room-alert-msg is-notice';
+                info.alertMsg.style.display = 'block';
+            } else {
+                info.alertMsg.textContent = '';
+                info.alertMsg.className = 'room-alert-msg';
+                info.alertMsg.style.display = 'none';
+            }
+        }
+    });
+
+    // 3. 全行のセレクトボックスの <option> 表示テキストを動的更新
+    rowInfoList.forEach(info => {
+        if (!info.select) return;
+        const options = Array.from(info.select.options);
+        options.forEach(opt => {
+            const rawRoom = opt.getAttribute('data-raw-room') || opt.value;
+            if (!rawRoom) {
+                opt.textContent = '--未指定--';
+                return;
+            }
+
+            const users = roomUsageMap[rawRoom] || [];
+            if (users.length === 0) {
+                opt.textContent = rawRoom;
+            } else if (users.length === 1) {
+                opt.textContent = `${rawRoom} (${users[0].lastName})`;
+            } else {
+                const userNames = users.map(u => u.lastName).join(', ');
+                opt.textContent = `${rawRoom} (${userNames})`;
+            }
+        });
+    });
+}
+
+function applyPrepSelectStyle(selectEl) {
+    if (!selectEl) return;
+    const val = (selectEl.value || '').trim();
+    if (val === '') {
+        selectEl.style.backgroundColor = '#ffffff';
+        selectEl.style.color = '#64748b';
+        selectEl.style.borderColor = '#cbd5e1';
+        selectEl.style.fontWeight = 'normal';
+    } else if (/^モビ/.test(val)) {
+        selectEl.style.backgroundColor = '#2563eb';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#1d4ed8';
+        selectEl.style.fontWeight = 'bold';
+    } else if (/^マグ/.test(val)) {
+        selectEl.style.backgroundColor = '#ea580c';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#c2410c';
+        selectEl.style.fontWeight = 'bold';
+    } else if (/^ニフ/.test(val)) {
+        selectEl.style.backgroundColor = '#16a34a';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#15803d';
+        selectEl.style.fontWeight = 'bold';
+    } else if (/^ビジ/.test(val)) {
+        selectEl.style.backgroundColor = '#7c3aed';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#6d28d9';
+        selectEl.style.fontWeight = 'bold';
+    } else {
+        selectEl.style.backgroundColor = '#64748b';
+        selectEl.style.color = '#ffffff';
+        selectEl.style.borderColor = '#475569';
+        selectEl.style.fontWeight = 'bold';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 部屋変更時に全行の状態をリアルタイム再評価
+    document.querySelectorAll('.room-select').forEach(select => {
+        select.addEventListener('change', function() {
+            refreshAllRoomStates();
+        });
+    });
+
+    // 初期化時に実行
+    refreshAllRoomStates();
+
+    document.querySelectorAll('.prep-select').forEach(select => {
+        applyPrepSelectStyle(select);
+        select.addEventListener('change', function() {
+            applyPrepSelectStyle(this);
+        });
+    });
+});
 </script>
 </body>
 </html>

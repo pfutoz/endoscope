@@ -4,8 +4,10 @@
  * 汎用マスタメンテナンス アクション処理（シーケンス一括修復・監査ログ＆Undo対応版）
  * 生成日時: 2026-09-29 14:32:00 JST
  * 修正履歴:
+ *   - 2026-10-26: 【検査種別マスタ一本化】category = exam_type の追加・更新・削除を m_exam_type_group へ完全連動
  *   - 2026-09-01: シーケンス一括修復（fix_sequence）および操作履歴クリーンアップ対応
  *   - 2026-09-29: マスタ変更監査ログ（t_master_audit_log）への自動差分記録、ワンクリックUndo（undo_master）、履歴一括削除（clear_audit_logs）を実装
+ *   - 2026-10-22: シーケンス一括修復対象に m2_waku_override および t_schedule_audit_log を追加
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -37,6 +39,8 @@ if ($action === 'fix_sequence') {
         ['table' => 't_endoscopy_schedule',         'col' => 'schedule_id'],
         ['table' => 'm_input_master',              'col' => 'master_id'],
         ['table' => 'm2_waku',                     'col' => 'id'],
+        ['table' => 'm2_waku_override',            'col' => 'override_id'],
+        ['table' => 't_schedule_audit_log',        'col' => 'log_id'],
         ['table' => 'm2_doctor_slot_pattern',      'col' => 'id'],
         ['table' => 'm2_doctor_attendance',        'col' => 'id'],
         ['table' => 'm2_doctor_daily_capacity_v2', 'col' => 'id'],
@@ -122,6 +126,53 @@ if ($action === 'insert_item') {
         exit;
     }
 
+    // ★ exam_type の場合は一本化マスタ m_exam_type_group へ登録
+    if ($category === 'exam_type') {
+        try {
+            $slot_group    = isset($_POST['slot_group']) ? trim($_POST['slot_group']) : 'TCF';
+            $is_selectable = !empty($_POST['is_selectable']);
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO m_exam_type_group (exam_type, slot_group, display_order, is_selectable, is_active, created_at)
+                VALUES (:t, :grp, :ord, :sel, TRUE, CURRENT_TIMESTAMP)
+                RETURNING id
+            ");
+            $stmt->execute([
+                ':t'   => $item_value,
+                ':grp' => $slot_group,
+                ':ord' => $display_order,
+                ':sel' => $is_selectable ? 1 : 0
+            ]);
+            $new_id = (int)$stmt->fetchColumn();
+
+            recordMasterAuditLog(
+                $pdo,
+                'exam_type_group',
+                'insert',
+                'exam_type',
+                (string)$new_id,
+                $item_value,
+                null,
+                [
+                    'id'            => $new_id,
+                    'exam_type'     => $item_value,
+                    'slot_group'    => $slot_group,
+                    'display_order' => $display_order,
+                    'is_selectable' => $is_selectable
+                ],
+                "「exam_type」に新規追加: 「{$item_value}」(グループ: {$slot_group}, 表示順: {$display_order})"
+            );
+
+            $msg = "検査種別「{$item_value}」（グループ: {$slot_group}）を新設マスタに登録しました。";
+            header("Location: master_maintenance.php?category=exam_type&op_mode=edit&msg=" . urlencode($msg));
+            exit;
+        } catch (PDOException $e) {
+            $errMsg = "検査種別追加エラー: " . $e->getMessage();
+            header("Location: master_maintenance.php?category=exam_type&op_mode=add&error=1&msg=" . urlencode($errMsg));
+            exit;
+        }
+    }
+
     try {
         $stmt = $pdo->prepare("
             INSERT INTO m_input_master (category, item_value, display_order)
@@ -178,6 +229,56 @@ if ($action === 'bulk_update') {
 
     try {
         $pdo->beginTransaction();
+
+        // ★ exam_type の場合は m_exam_type_group を一括更新
+        if ($category === 'exam_type') {
+            $stmt_cur = $pdo->query("SELECT id, exam_type, slot_group, display_order, is_selectable FROM m_exam_type_group");
+            $current_rows = [];
+            foreach ($stmt_cur->fetchAll() as $r) {
+                $current_rows[$r['id']] = $r;
+            }
+
+            $stmt_upd = $pdo->prepare("
+                UPDATE m_exam_type_group 
+                SET exam_type = :t, slot_group = :grp, display_order = :ord, is_selectable = :sel 
+                WHERE id = :id
+            ");
+
+            $updatedCount = 0;
+            foreach ($items as $item) {
+                $id            = isset($item['id']) ? (int)$item['id'] : 0;
+                $item_value    = isset($item['item_value']) ? trim($item['item_value']) : '';
+                $slot_group    = isset($item['slot_group']) ? trim($item['slot_group']) : 'TCF';
+                $display_order = isset($item['display_order']) ? (int)$item['display_order'] : 100;
+                $is_selectable = !empty($item['is_selectable']);
+
+                if ($id > 0 && $item_value !== '' && isset($current_rows[$id])) {
+                    $cur = $current_rows[$id];
+                    $has_change = (
+                        $cur['exam_type'] !== $item_value || 
+                        $cur['slot_group'] !== $slot_group || 
+                        (int)$cur['display_order'] !== $display_order || 
+                        (bool)$cur['is_selectable'] !== $is_selectable
+                    );
+
+                    if ($has_change) {
+                        $stmt_upd->execute([
+                            ':t'   => $item_value,
+                            ':grp' => $slot_group,
+                            ':ord' => $display_order,
+                            ':sel' => $is_selectable ? 1 : 0,
+                            ':id'  => $id
+                        ]);
+                        $updatedCount++;
+                    }
+                }
+            }
+
+            $pdo->commit();
+            $msg = "検査種別マスタ（m_exam_type_group）を {$updatedCount} 件更新しました。";
+            header("Location: master_maintenance.php?category=exam_type&op_mode=edit&msg=" . urlencode($msg));
+            exit;
+        }
 
         // 更新前の状態を取得
         $stmt_cur = $pdo->prepare("SELECT master_id, item_value, display_order FROM m_input_master WHERE category = :cat");
@@ -279,6 +380,34 @@ if ($action === 'single_delete') {
     }
 
     try {
+        // ★ exam_type の場合は m_exam_type_group から削除
+        if ($category === 'exam_type') {
+            $stmt_cur = $pdo->prepare("SELECT * FROM m_exam_type_group WHERE id = :id");
+            $stmt_cur->execute([':id' => $master_id]);
+            $old_row = $stmt_cur->fetch();
+
+            $stmt = $pdo->prepare("DELETE FROM m_exam_type_group WHERE id = :id");
+            $stmt->execute([':id' => $master_id]);
+
+            if ($old_row) {
+                recordMasterAuditLog(
+                    $pdo,
+                    'exam_type_group',
+                    'delete',
+                    'exam_type',
+                    (string)$master_id,
+                    $old_row['exam_type'],
+                    $old_row,
+                    null,
+                    "「exam_type」から削除: 「{$old_row['exam_type']}」(ID: {$master_id}, グループ: {$old_row['slot_group']})"
+                );
+            }
+
+            $msg = "検査種別「{$old_row['exam_type']}」（ID: {$master_id}）を削除しました。";
+            header("Location: master_maintenance.php?category=exam_type&op_mode=edit&msg=" . urlencode($msg));
+            exit;
+        }
+
         // 削除前レコードを取得
         $stmt_cur = $pdo->prepare("SELECT * FROM m_input_master WHERE master_id = :id");
         $stmt_cur->execute([':id' => $master_id]);

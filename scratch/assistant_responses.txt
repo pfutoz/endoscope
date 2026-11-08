@@ -1,0 +1,131 @@
+=== STEP 204 ===
+ご相談いただいた **`month_schedule.php` / `schedule_note.php` / `month_matrix_v2.php` で毎回「胃腸科」「肛門科」の選択が必要になる問題** について、合意いただいた仕様に基づき改善実装を完了しました。
+
+---
+
+### 🛠️ 主な改善内容
+
+#### 1. 端末（ブラウザ）ごとの診療科永続記憶（Cookie ＋ LocalStorage ＋ セッション同期）
+- **1年間有効なCookie（`endoscope_selected_dept`）および `localStorage` 連携**:
+  - いずれかの画面で診療科を切り替えると、端末側の記憶（Cookie & LocalStorage）とサーバー側セッション（`$_SESSION['ui_state']['schedule_dept']`）に即座に同期保存されます。
+- **URL引数なしアクセス時の自動復元**:
+  - ポータル（[index.php](file:///c:/Apache24/htdocs/endoscope/index.php)）からの遷移、ブラウザのお気に入り・ショートカット、翌朝ブラウザを再起動した直後など、URLに `?dept=` が付いていない場合でも、**その端末で最後に選んでいた診療科（胃腸科または肛門科）が自動適用**されます。
+- **不具合解消**:
+  - [schedule_note.php](file:///c:/Apache24/htdocs/endoscope/schedule_note.php) においてセッションへの診療科保存が欠落していた不具合を同時に解消しました。
+
+#### 2. `[1]` / `[2]` キー即時切替ショートカットの3画面共通化
+- これまでデイリーノートのみで利用可能だったキーボード切替ショートカットを、カレンダー・マトリクスにも共通配備しました。
+  - <kbd>1</kbd>（テンキーの `1` 含む）: **🟢 肛門科** へ即時切替
+  - <kbd>2</kbd>（テンキーの `2` 含む）: **🔵 胃腸科** へ即時切替
+- **誤爆防止ガード**: 入力フォームフォーカス中（`<input>`, `<textarea>`, `<select>` 等）やモーダル・カレンダーピッカー表示中はキー押下が無効化されます。
+- **トースト通知**: 切り替え時に画面上にトースト通知を表示し、即座にフィードバックします。
+
+#### 3. タブUIでのショートカットバッジ表示統一
+- 3画面すべての診療科切替タブに、キーボードで押下できる番号バッジ（`1` / `2`）を表示し、マウスでもキーボードでも直感的に操作できるようにしました。
+
+---
+
+### 📂 改修対象ファイル
+
+1. [month_schedule.php](file:///c:/Apache24/htdocs/endoscope/month_schedule.php)
+   - 起動時のCookie参照、Cookie保存処理、タブUIの `[1]`/`[2]` バッジ追加、およびキーボードショートカットイベントリスナーを配備。
+2. [schedule_note.php](file:///c:/Apache24/htdocs/endoscope/schedule_note.php)
+   - 起動時のCookie参照、セッション保存欠落の解消、Cookie保存処理、およびキー切替時のLocalStorage同期を追加。
+3. [month_matrix_v2.php](file:///c:/Apache24/htdocs/endoscope/month_matrix_v2.php)
+   - 起動時のCookie参照、Cookie保存処理、タブUIの `[1]`/`[2]` バッジ追加、およびキーボードショートカットイベントリスナーを配備。
+
+---
+
+### 🧪 検証結果
+プロセス分離テスト（[test_dept_persistence.php](file:///c:/Apache24/htdocs/endoscope/scratch/test_dept_persistence.php)）および構文検証（`php -l`）を実施し、以下の全項目が正常に動作することを確認しました。
+- ✅ Cookieに「GASTRO（胃腸科）」が保持されている場合、引数なしアクセスで3画面とも胃腸科で起動
+- ✅ `schedule_note.php` での科切替時、セッションおよびCookieが正しく更新される
+- ✅ URLに明示的に `?dept=PROCT` が指定された場合はURL指定を最優先し、同時に端末記憶を更新
+- ✅ 3画面すべてでシンタックスエラーなし（`No syntax errors detected`）
+
+=== STEP 304 ===
+ご要望いただいた **[print_schedule_daily.php](file:///c:/Apache24/htdocs/endoscope/print_schedule_daily.php) の部屋ソート（リストボックス化 ＆ 部屋ソート▲昇順の追加）** について、合意いただいた仕様に基づき実装および動作検証を完了しました。
+
+---
+
+### 🛠️ 主な改修内容
+
+#### 1. 操作バーのセレクトボックス（リストボックス）化
+- 従来の `[ ] 🚪 部屋ソート（降順）` チェックボックスを廃止し、「📄 ページ構成」と同スタイルの **「🚪 並び順:」** セレクトボックスに刷新しました。
+- **選択肢**:
+  - **`時間枠`**: 標準の時間枠順（元の登録順）
+  - **`部屋ソート▲`**: 部屋名自然順昇順（例：`ｺ1` ➔ `ｺ2` ➔ `ﾏ1` ➔ `ﾏ2`）
+  - **`部屋ソート▼`**: 部屋名自然順降順（例：`ﾏ2` ➔ `ﾏ1` ➔ `ｺ2` ➔ `ｺ1`）
+
+#### 2. 「部屋ソート▲（昇順）」の並び替え＆区切り空行仕様
+- **部屋未指定（空欄・未割当）の最優先配置**:
+  - 降順ソートと同様、**部屋未定の患者を一番先頭**にまとめます（未定患者内、および同一部屋内は標準の時間枠順）。これにより、部屋の割り当て漏れを即座に確認できます。
+- **区切り空行（スペーサー）の自動挿入**:
+  - ①「部屋未指定 ⇔ 部屋あり」の切り替わり
+  - ② 部屋の頭文字（例: `ｺ` ⇔ `ﾏ` ⇔ `ｲ`）が変わる境界
+  に自動的に高さ10pxの空行を挿入し、前処置室・部屋ブロックごとの視認性を向上させています。
+
+#### 3. 印刷ヘッダー（用紙タイトル横）のバッジ動的連動
+- 選択された並び順に合わせて、印刷ヘッダーの表示が動的に切り替わります。
+  - **時間枠**: バッジ非表示（用紙タイトルのみ）
+  - **部屋ソート▲**: **`［部屋ソート▲］`** を青太字で印字
+  - **部屋ソート▼**: **`［部屋ソー
+<truncated 320 bytes>
+me`、`?sort=room_asc`、`?sort=room_desc`）での直接指定にも完全対応。従来の `?sort=room`（降順）や過去のLocalStorage設定（`'1'` / `'0'`）も自動的に正規化して引き継ぐ後方互換性を完備しています。
+
+---
+
+### 📂 改修対象ファイル
+
+- [print_schedule_daily.php](file:///c:/Apache24/htdocs/endoscope/print_schedule_daily.php)
+  - 操作バーのチェックボックスを `<select id="selectRoomSort">` へ置換
+  - フォーム送信時のパラメータ保持用 `<input type="hidden" name="sort">` を追加
+  - JavaScript関数 [changeRoomSort()](file:///c:/Apache24/htdocs/endoscope/print_schedule_daily.php#L1040-L1218) を新設（昇順・降順・時間枠の即時DOM並び替えおよびバッジテキスト切り替え）
+  - [changePageSplit()](file:///c:/Apache24/htdocs/endoscope/print_schedule_daily.php#L1228-L1257) との連動および [DOMContentLoaded](file:///c:/Apache24/htdocs/endoscope/print_schedule_daily.php#L1260-L1322) での初期値復元処理を更新
+
+---
+
+### 🧪 検証結果
+- ✅ **PHP構文検証**: `No syntax errors detected in print_schedule_daily.php`
+- ✅ **自動化テスト（[test_print_room_sort.php](file:///c:/Apache24/htdocs/endoscope/scratch/test_print_room_sort.php)）**:
+  - `sort=time` 時: リストボックスで［時間枠］が選択され、ヘッダーバッジが非表示になることを確認
+  - `sort=room_asc` 時: ［部屋ソート▲］が選択され、ヘッダーに `［部屋ソート▲］` が印字されることを確認
+  - `sort=room_desc` 時: ［部屋ソート▼］が選択され、ヘッダーに `［部屋ソート▼］` が印字されることを確認
+  - 後方互換（`sort=room`）: 自動的に `room_desc` へ正規化されることを確認
+- ✅ **ソートロジック検証**: 未指定患者が先頭に維持され、昇順（`ｺ1 ➔ ｺ2 ➔ ﾏ1 ➔ ﾏ2`）および降順（`ﾏ2 ➔ ﾏ1 ➔ ｺ2 ➔ ｺ1`）が期待通りに並び替えられることを確認
+
+=== STEP 533 ===
+[print_schedule_daily.php](file:///c:/Apache24/htdocs/endoscope/print_schedule_daily.php) の画面上部操作バーについて、ご要望の通り**最初から整然とした2段組レイアウト**へデザイン刷新し、**「当日ホワイトボード」ボタンの撤去**および**「🚪 部屋・下剤一括」ボタン（大腸CF件数バッジ付き）の設置**を完了しました。
+
+---
+
+### 🎨 改修内容の概要
+
+#### 1. 操作バーを最初から美しい2段組へ刷新
+従来の1行詰め込み（横幅によってボタンがはみ出したり折り返されたりする問題）を解消し、最初から役割別の2段構成に整理しました。
+
+* **1段目（メイン操作・条件 ＆ 主アクション）**:
+  * **左側**: `🖨️ A4当日一覧印刷` 見出し ＋ `診療科` ＋ `検査種別` ＋ `[ ] 空き枠を含む`
+  * **右側**: **`🚪 部屋・下剤一括 [件数]`** ＋ **`🖨️ 印刷を実行`** ＋ **`✕ 閉じる`**
+* **2段目（印刷・表示設定オプション）**:
+  * **`🚪 並び順:`** ドロップダウン（`時間枠` / `部屋ソート▲` / `部屋ソート▼`）
+  * **`📝 備考を印刷` / `✏️ 手書きメモ余白`** トグル
+  * 右端に印刷除外ガイダンスを配置
+
+---
+
+#### 2. 「当日ホワイトボード」撤去 ＆ 「🚪 部屋・下剤一括」ボタンの新設
+* 「📊 当日ホワイトボード」リンクボタンを操作バーから撤去しました。
+* デイリーノート画面（ご提示の画像2）と完全同期したデザインのティール色ボタン（`compact-bar-btn-prep`）を設置しました。
+  * **大腸CF件数バッジ**: 当日の大腸CF（TCF/W/ポリペク）件数を自動集計し、白いミニカプセルバッジ（例: `17`）で表示（0件時はすっきりテキストのみ）。
+  * **ツールチップ**: ホバー時に胃腸科・肛門科の内訳サマリを表示。
+  * **モーダル連動**: クリックで `bulk_edit_prep_room.php` をポップアップ起動。モーダルを閉じた際は自動的に印刷プレビュー画面をリロードし、設定した最新の部屋番号が即座に一覧へ反映されます。
+
+---
+
+### 🧪 検証結果
+
+* **2段組＆一括ボタン検証**（[`scratch/test_print_toolbar_2row.php`](file:///c:/Apache24/htdocs/endoscope/scratch/test_print_toolbar_2row.php)）: **🎉 全テスト合格**
+* **並び順リストボックス＆昇順/降順検証**（[`scratch/test_print_room_sort.php`](file:///c:/Apache24/htdocs/endoscope/scratch/test_print_room_sort.php)）: **🎉 全テスト合格**
+* **手書きメモ余白・印字機能検証**（[`tests/test_print_memo_blank.php`](file:///c:/Apache24/htdocs/endoscope/tests/test_print_memo_blank.php)）: **🎉 全テスト合格**
+

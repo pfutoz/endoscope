@@ -15,6 +15,7 @@
  *     - 診療科フィルター（全件 / 肛門科 / 胃腸科）、年月フィルター、キーワード絞り込み
  *     - month_schedule.php / schedule_note.php / month_matrix_v2.php へのシームレスな相互リンク
  *   - 2026-10-20: 新規登録モーダルの日付入力に特大Flatpickr（小野会カレンダー・公休日色分け）導入
+ *   - 2026-10-26: 画面存在意義と運用の位置づけ（元々診療科共通だった日別メモを科別独立化させた際の移行ツールであり、移行完了に伴い現在は特殊確認・保守用である旨）を画面内および仕様に明記。新規日付メモ直接登録フォームを撤去
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -693,10 +694,10 @@ $w_map = ['日', '月', '火', '水', '木', '金', '土'];
         }
     </style>
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
-    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
-    <script src="assets/js/onokai_flatpickr.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
 </head>
 <body>
 
@@ -708,6 +709,7 @@ $w_map = ['日', '月', '火', '水', '木', '金', '土'];
             <div class="header-title-badge">
                 <span>📝 日別メモ 診療科振り分けメンテナンス</span>
             </div>
+            <code style="font-size: 11px; font-weight: 600; font-family: ui-monospace, monospace; background: #ffffff; color: #475569; padding: 2px 7px; border-radius: 4px; border: 1.5px solid #cbd5e1;" title="PostgreSQL 対象テーブル">TABLE: t_daily_memo</code>
             <span class="header-sub-badge">🔧 データ整理・科別完全独立</span>
         </div>
         <div class="header-nav-btns">
@@ -726,6 +728,20 @@ $w_map = ['日', '月', '火', '水', '木', '金', '土'];
             <a href="index.php" class="header-btn btn-primary">
                 <span>🏠</span> メニュー
             </a>
+        </div>
+    </div>
+
+    <!-- ── 画面の設置経緯と運用の位置づけ（案内パネル） ── -->
+    <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1.5px solid #cbd5e1; border-left: 5px solid #64748b; border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; font-size: 13px; line-height: 1.6; color: #334155; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div style="font-weight: 800; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>ℹ️</span> <span>【本画面の存在意義と運用の位置づけ】</span>
+        </div>
+        <p style="margin: 0 0 6px 0;">
+            従来の内視鏡システムでは、日別カレンダーメモは<strong>「全診療科共通」</strong>として扱われていましたが、科別のスケジュール管理を明確化するため<strong>「🟢 肛門科」と「🔵 胃腸科」で完全独立・科別管理</strong>へと仕様変更されました。<br>
+            本メンテナンス画面は、その移行時に旧システムで登録されていた既存の共通メモを各科へ安全に振り分けるために作成されたものです。
+        </p>
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #475569;">
+            📌 <strong>現在の運用状況:</strong> 過去メモの振り分け移行はすでに大半が完了しており、日常業務において本画面で頻繁に作業する必要性はほぼありません。現在は「過去のメモ履歴の確認・検索」や「特殊な日付メモの緊急整理・保守」用として機能しています。
         </div>
     </div>
 
@@ -752,24 +768,6 @@ $w_map = ['日', '月', '火', '水', '木', '金', '土'];
             </div>
             <span style="font-size: 26px;">🔵</span>
         </div>
-    </div>
-
-    <!-- ── 新規メモ追加カード ── -->
-    <div class="add-card">
-        <div class="add-card-header">
-            <span>➕</span> <span>新規日付メモの直接登録</span>
-        </div>
-        <form id="addMemoForm" onsubmit="submitAddMemo(event)">
-            <div class="add-form-row">
-                <input type="text" id="newDate" class="form-input onokai-date-picker" required autocomplete="off" value="<?= date('Y-m-d') ?>" style="width: 150px; font-weight: bold;">
-                <select id="newDept" class="form-select" required>
-                    <option value="PROCT">🟢 肛門科 (PROCT)</option>
-                    <option value="GASTRO">🔵 胃腸科 (GASTRO)</option>
-                </select>
-                <input type="text" id="newMemo" class="form-input" placeholder="連絡メモ・医師休診など（例：哲也先生午後休診）" style="flex: 1; min-width: 260px;" required>
-                <button type="submit" class="btn-add-submit">＋ 登録する</button>
-            </div>
-        </form>
     </div>
 
     <!-- ── ツールバー（フィルター ＆ 検索） ── -->
@@ -1116,43 +1114,6 @@ async function deleteMemo(id) {
     }
 }
 
-// ── 新規メモ追加 (AJAX) ──
-async function submitAddMemo(e) {
-    e.preventDefault();
-
-    const date = document.getElementById('newDate').value;
-    const dept = document.getElementById('newDept').value;
-    const memo = document.getElementById('newMemo').value.trim();
-
-    if (!date || !dept || !memo) {
-        alert('すべての日付・科・メモを入力してください');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('action', 'add_memo');
-    formData.append('date', date);
-    formData.append('dept', dept);
-    formData.append('memo', memo);
-
-    try {
-        const res = await fetch('furiwake_daymemo.php', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await res.json();
-
-        if (data.success) {
-            showToast(data.message, 'success');
-            setTimeout(() => window.location.reload(), 500);
-        } else {
-            showToast('登録失敗: ' + (data.error || '不明なエラー'), 'error');
-        }
-    } catch (err) {
-        showToast('通信エラーが発生しました: ' + err, 'error');
-    }
-}
-
 // ── KPI カウンターリアルタイム再計算 ──
 function updateKpiCounters() {
     const rows = document.querySelectorAll('#memoTableBody tr[data-id]');
@@ -1182,7 +1143,8 @@ function updateKpiCounters() {
 <script>
 function initFuriwakeDatePicker() {
     if (window.OnokaiDatePicker) {
-        OnokaiDatePicker.attach('#newDate');
+        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を新規メモ日付にバインド
+        OnokaiDatePicker.bindControl('#newDate');
     }
 }
 if (document.readyState === 'loading') {
