@@ -42,6 +42,8 @@
  *       1. 時間枠（#scheduled_time）のリストボックス候補に、既に登録されている予約の患者名・担当医（例: TCF13:30① 【山田 太郎(哲也)】）を初期表示・日付変更時の双方で表示
  *       2. 1枠複数予約（イレギュラー対応）を許容しつつ、既存予約がある枠を選択した際に #duplicateAlert で登録済み患者をリアルタイム案内
  *       3. 基本情報パネル下部に「📊 当日医師別枠状況（CF/GIF 使用/上限）」サマリーバーを新設（ワンクリック医師選択連動）
+ *   - 2026-11-08: 【患者Noテンキー自動クローズ対応】
+ *       1. 患者No入力後のEnter確定や同期実行（doSyncPatient）でMALL3の患者がマッチした際、患者Noソフトウェアテンキー（#patientVirtualKeyboard）を自動で閉じ、入力欄のフォーカスを外すよう改善
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -4210,6 +4212,11 @@ function doSyncPatient() {
         .then(res => res.json())
         .then(data => {
             if (data && data.success) {
+                closeVirtualKeyboard();
+                if (pidInput && document.activeElement === pidInput) {
+                    pidInput.blur();
+                }
+
                 document.getElementById('patient_name').value = data.patient_name || '';
                 document.getElementById('patient_kana').value = data.patient_kana || '';
                 document.getElementById('birthday').value = data.birthday ? data.birthday.substring(0, 10) : '';
@@ -4293,6 +4300,7 @@ function toggleManualInput(show) {
     if (!cardDisplay || !manualBox) return;
 
     if (show) {
+        closeVirtualKeyboard();
         cardDisplay.style.display = 'none';
         manualBox.style.display = 'flex';
         document.getElementById('manual_patient_name').value = document.getElementById('patient_name').value;
@@ -4384,6 +4392,7 @@ function openPatientSearch() {
 }
 
 function selectPatientFromSearch(patientNo, patientName, birthday, kana) {
+    closeVirtualKeyboard();
     document.getElementById('patient_id').value = patientNo || '';
     document.getElementById('patient_name').value = patientName || '';
     document.getElementById('patient_kana').value = kana || '';

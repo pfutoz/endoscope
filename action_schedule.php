@@ -42,7 +42,53 @@ if (!$pdo) {
     echo json_encode(['success' => false, 'message' => "データベース接続失敗"]);
     exit;
 }
+if (function_exists('ensureSlotSeqColumn')) {
+    ensureSlotSeqColumn($pdo);
+}
 writeLog('SCHEDULE', 'データベース接続成功');
+
+function getNextSlotSeq(PDO $pdo, string $dept, string $exam_date, string $scheduled_time, int $exclude_sid = 0): int {
+    try {
+        $sql = "SELECT schedule_id, COALESCE(slot_seq, 0) AS slot_seq, patient_name, remarks
+                FROM t_endoscopy_schedule
+                WHERE department_code = :dept AND exam_date = :date AND scheduled_time = :time AND is_canceled = FALSE";
+        $params = [':dept' => $dept, ':date' => $exam_date, ':time' => $scheduled_time];
+        if ($exclude_sid > 0) {
+            $sql .= " AND schedule_id <> :sid";
+            $params[':sid'] = $exclude_sid;
+        }
+        $sql .= " ORDER BY CASE WHEN COALESCE(slot_seq, 0) > 0 THEN slot_seq ELSE 999999 END ASC, schedule_id ASC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $active_rows = [];
+        foreach ($rows as $r) {
+            $pn = trim((string)($r['patient_name'] ?? ''));
+            $rm = trim((string)($r['remarks'] ?? ''));
+            if ($pn === '' || $pn === '※枠なし' || mb_strpos($pn, '枠なし') !== false || mb_strpos($rm, '枠なし') !== false) {
+                continue;
+            }
+            $active_rows[] = $r;
+        }
+
+        if (empty($active_rows)) {
+            return 1;
+        }
+
+        // 既存予約がある枠に追加・移動してきた場合は、既存予約も 1..K に整列して K+1 を返す
+        $up = $pdo->prepare("UPDATE t_endoscopy_schedule SET slot_seq = :seq WHERE schedule_id = :sid");
+        foreach ($active_rows as $idx => $ar) {
+            $expected_seq = $idx + 1;
+            if ((int)$ar['slot_seq'] !== $expected_seq) {
+                $up->execute([':seq' => $expected_seq, ':sid' => (int)$ar['schedule_id']]);
+            }
+        }
+        return count($active_rows) + 1;
+    } catch (Exception $e) {
+        return 1;
+    }
+}
 
 // 💡 共通ガード関数で、insert時の古い schedule_id 混入を完全にシャットアウト
 list($action_type, $schedule_id) = sanitizeActionTypeAndId(
@@ -148,6 +194,7 @@ try {
         }
 
         $waku_no = getWakuDisplayOrderFromM2($pdo, $department_code, $scheduled_time, $exam_date);
+        $slot_seq = getNextSlotSeq($pdo, $department_code, $exam_date, $scheduled_time);
 
         if ($patient_id) {
             writeLog('SCHEDULE', "MALLメモ同期試行: patient_id = {$patient_id}");
@@ -163,6 +210,7 @@ try {
             ':exam_date'       => $exam_date,
             ':scheduled_time'  => $scheduled_time,
             ':waku_no'         => $waku_no,
+            ':slot_seq'        => $slot_seq,
             ':department_code' => $department_code,
             ':patient_id'      => $patient_id,
             ':patient_name'    => $patient_name,
@@ -183,11 +231,11 @@ try {
         writeLog('SCHEDULE', 'INSERT実行パラメータ', $params);
 
         $sql = "INSERT INTO t_endoscopy_schedule (
-                    exam_date, scheduled_time, waku_no, department_code, patient_id, patient_name, patient_kana, birthday,
+                    exam_date, scheduled_time, waku_no, slot_seq, department_code, patient_id, patient_name, patient_kana, birthday,
                     doctor_name, exam_type, arrival_time, exam_location, remarks, room_number, bowel_prep,
                     has_sedation, has_drive_caution, is_admission, is_vip, is_canceled, created_at, updated_at
                 ) VALUES (
-                    :exam_date, :scheduled_time, :waku_no, :department_code, :patient_id, :patient_name, :patient_kana, :birthday,
+                    :exam_date, :scheduled_time, :waku_no, :slot_seq, :department_code, :patient_id, :patient_name, :patient_kana, :birthday,
                     :doctor_name, :exam_type, :arrival_time, :exam_location, :remarks, :room_number, :bowel_prep,
                     :has_sedation, :has_drive, :is_admission, :is_vip, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )";
@@ -436,10 +484,20 @@ function normalizeRemarksForDiff(?string $text): string {
             ? (!empty($_POST['is_admission']) ? 'true' : 'false') 
             : (isset($_POST['is_admission']) ? (!empty($_POST['is_admission']) ? 'true' : 'false') : (isset($old_row['is_admission']) && $old_row['is_admission'] !== null ? (!empty($old_row['is_admission']) ? 'true' : 'false') : null));
 
+        $is_slot_changed_on_update = (
+            (string)($old_row['exam_date'] ?? '') !== (string)$exam_date ||
+            (string)($old_row['scheduled_time'] ?? '') !== (string)$scheduled_time ||
+            (string)($old_row['department_code'] ?? '') !== (string)$department_code
+        );
+        $update_slot_seq = $is_slot_changed_on_update
+            ? getNextSlotSeq($pdo, $department_code, $exam_date, $scheduled_time, (int)$schedule_id)
+            : (int)($old_row['slot_seq'] ?? 1);
+
         $params = [
             ':exam_date'       => $exam_date,
             ':scheduled_time'  => $scheduled_time,
             ':waku_no'         => $waku_no,
+            ':slot_seq'        => $update_slot_seq,
             ':department_code' => $department_code,
             ':patient_id'      => $patient_id,
             ':patient_name'    => $patient_name,
@@ -461,7 +519,7 @@ function normalizeRemarksForDiff(?string $text): string {
         writeLog('SCHEDULE', 'UPDATE実行パラメータ', $params);
 
         $sql = "UPDATE t_endoscopy_schedule SET 
-                    exam_date = :exam_date, scheduled_time = :scheduled_time, waku_no = :waku_no, department_code = :department_code, 
+                    exam_date = :exam_date, scheduled_time = :scheduled_time, waku_no = :waku_no, slot_seq = :slot_seq, department_code = :department_code, 
                     patient_id = :patient_id, patient_name = :patient_name, patient_kana = :patient_kana, birthday = :birthday,
                     doctor_name = :doctor_name, exam_type = :exam_type, arrival_time = :arrival_time,
                     exam_location = :exam_location, remarks = :remarks, room_number = :room_number, bowel_prep = :bowel_prep,
@@ -672,10 +730,11 @@ function normalizeRemarksForDiff(?string $text): string {
         $target_dept = $d_row ? $d_row['department_code'] : 'PROCT';
 
         $waku_no = getWakuDisplayOrderFromM2($pdo, $target_dept, $scheduled_time, $exam_date);
+        $slot_seq = getNextSlotSeq($pdo, $target_dept, $exam_date, $scheduled_time, (int)$schedule_id);
 
-        $sql = "UPDATE t_endoscopy_schedule SET exam_date = :exam_date, scheduled_time = :scheduled_time, waku_no = :waku_no, updated_at = CURRENT_TIMESTAMP WHERE schedule_id = :schedule_id";
+        $sql = "UPDATE t_endoscopy_schedule SET exam_date = :exam_date, scheduled_time = :scheduled_time, waku_no = :waku_no, slot_seq = :slot_seq, updated_at = CURRENT_TIMESTAMP WHERE schedule_id = :schedule_id";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([':exam_date' => $exam_date, ':scheduled_time' => $scheduled_time, ':waku_no' => $waku_no, ':schedule_id' => $schedule_id]);
+        $stmt->execute([':exam_date' => $exam_date, ':scheduled_time' => $scheduled_time, ':waku_no' => $waku_no, ':slot_seq' => $slot_seq, ':schedule_id' => $schedule_id]);
 
         writeLog('SCHEDULE', "D&D移動成功: schedule_id = {$schedule_id}");
 
@@ -699,6 +758,198 @@ function normalizeRemarksForDiff(?string $text): string {
         writeLog('SCHEDULE', "--- 分岐: ワンクリック復元 (undo) --- log_id = {$log_id}");
         $undo_res = undoScheduleAuditLog($pdo, $log_id, $operator);
         echo json_encode($undo_res, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // ============================================================
+    // 【分岐7】同一時間枠内の予約順番入れ替え (reorder_slot)
+    // ============================================================
+    if ($action_type === 'reorder_slot') {
+        $raw_ordered = $_POST['ordered_ids'] ?? '';
+        $ordered_ids = [];
+        if (is_array($raw_ordered)) {
+            $ordered_ids = array_values(array_filter(array_map('intval', $raw_ordered), fn($v) => $v > 0));
+        } elseif (is_string($raw_ordered) && trim($raw_ordered) !== '') {
+            $decoded = json_decode($raw_ordered, true);
+            if (is_array($decoded)) {
+                $ordered_ids = array_values(array_filter(array_map('intval', $decoded), fn($v) => $v > 0));
+            } else {
+                $ordered_ids = array_values(array_filter(array_map('intval', explode(',', $raw_ordered)), fn($v) => $v > 0));
+            }
+        }
+
+        $anchor_sid = (int)$schedule_id;
+        if ($anchor_sid <= 0 && !empty($ordered_ids)) {
+            $anchor_sid = $ordered_ids[0];
+        }
+        if ($anchor_sid <= 0) {
+            echo json_encode(['success' => false, 'message' => '対象の予約IDが指定されていません']);
+            exit;
+        }
+
+        $stmt_anchor = $pdo->prepare("
+            SELECT schedule_id, exam_date::text AS exam_date, department_code, scheduled_time
+            FROM t_endoscopy_schedule
+            WHERE schedule_id = :sid AND is_canceled = FALSE
+        ");
+        $stmt_anchor->execute([':sid' => $anchor_sid]);
+        $anchor = $stmt_anchor->fetch(PDO::FETCH_ASSOC);
+        if (!$anchor) {
+            echo json_encode(['success' => false, 'message' => '対象の予約が見つかりません']);
+            exit;
+        }
+
+        $stmt_peers = $pdo->prepare("
+            SELECT schedule_id, patient_id, patient_name, patient_kana, remarks, COALESCE(slot_seq, 0) AS slot_seq
+            FROM t_endoscopy_schedule
+            WHERE exam_date = :date
+              AND department_code = :dept
+              AND scheduled_time = :time
+              AND is_canceled = FALSE
+            ORDER BY CASE WHEN COALESCE(slot_seq, 0) > 0 THEN slot_seq ELSE 999999 END ASC, schedule_id ASC
+        ");
+        $stmt_peers->execute([
+            ':date' => $anchor['exam_date'],
+            ':dept' => $anchor['department_code'],
+            ':time' => $anchor['scheduled_time']
+        ]);
+        $all_peers = $stmt_peers->fetchAll(PDO::FETCH_ASSOC);
+
+        $active_sids = [];
+        $peer_info_map = [];
+        $old_seq_map = [];
+        foreach ($all_peers as $p) {
+            $pn = trim((string)($p['patient_name'] ?? ''));
+            $rm = trim((string)($p['remarks'] ?? ''));
+            if ($pn === '' || $pn === '※枠なし' || mb_strpos($pn, '枠なし') !== false || mb_strpos($rm, '枠なし') !== false) {
+                continue;
+            }
+            $psid = (int)$p['schedule_id'];
+            $active_sids[] = $psid;
+            $peer_info_map[$psid] = $p;
+            $old_seq_map[$psid] = (int)$p['slot_seq'];
+        }
+
+        if (count($active_sids) < 2) {
+            echo json_encode(['success' => true, 'action' => 'reorder_slot', 'ordered_ids' => $active_sids, 'slot_seq_map' => []]);
+            exit;
+        }
+
+        $final_order = [];
+        if (!empty($ordered_ids)) {
+            foreach ($ordered_ids as $oid) {
+                if (in_array($oid, $active_sids, true) && !in_array($oid, $final_order, true)) {
+                    $final_order[] = $oid;
+                }
+            }
+            foreach ($active_sids as $asid) {
+                if (!in_array($asid, $final_order, true)) {
+                    $final_order[] = $asid;
+                }
+            }
+        } else {
+            // ワンクリック切替（2件なら1⇔2入替、3件以上なら次順位と入替・末尾なら先頭へ移動）
+            $final_order = $active_sids;
+            $cur_idx = array_search($anchor_sid, $final_order, true);
+            if ($cur_idx !== false) {
+                $cnt = count($final_order);
+                if ($cnt === 2) {
+                    $final_order = [$final_order[1], $final_order[0]];
+                } elseif ($cur_idx < $cnt - 1) {
+                    $tmp = $final_order[$cur_idx];
+                    $final_order[$cur_idx] = $final_order[$cur_idx + 1];
+                    $final_order[$cur_idx + 1] = $tmp;
+                } else {
+                    $last_item = array_pop($final_order);
+                    array_unshift($final_order, $last_item);
+                }
+            }
+        }
+
+        $pdo->beginTransaction();
+        try {
+            $up_stmt = $pdo->prepare("UPDATE t_endoscopy_schedule SET slot_seq = :seq, updated_at = CURRENT_TIMESTAMP WHERE schedule_id = :sid");
+            $seq_map = [];
+            foreach ($final_order as $i => $sid_val) {
+                $seq_num = $i + 1;
+                $up_stmt->execute([':seq' => $seq_num, ':sid' => $sid_val]);
+                $seq_map[$sid_val] = $seq_num;
+            }
+            $pdo->commit();
+        } catch (Exception $ex) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $ex;
+        }
+
+        // ★ 操作履歴（Audit Log）への記録（ワンクリック復元 Undo 対応）
+        $sub_action = trim((string)($_POST['sub_action'] ?? 'reorder'));
+        $is_assign_init = ($sub_action === 'assign_initial');
+
+        $old_order_labels = [];
+        foreach ($active_sids as $idx => $osid) {
+            $opn = $peer_info_map[$osid]['patient_name'] ?? "ID:{$osid}";
+            $oseq = $old_seq_map[$osid] ?? 0;
+            $old_order_labels[] = ($is_assign_init || $oseq <= 0) ? "[未]{$opn}" : "[" . ($idx + 1) . "]{$opn}";
+        }
+        $new_order_labels = [];
+        foreach ($final_order as $idx => $nsid) {
+            $npn = $peer_info_map[$nsid]['patient_name'] ?? "ID:{$nsid}";
+            $new_order_labels[] = "[" . ($idx + 1) . "]{$npn}";
+        }
+
+        $old_summary_str = implode(' → ', $old_order_labels);
+        $new_summary_str = implode(' → ', $new_order_labels);
+        $anchor_info = $peer_info_map[$anchor_sid] ?? ($peer_info_map[$final_order[0]] ?? []);
+
+        $audit_old = [
+            'is_slot_reorder' => true,
+            'sub_action'      => $sub_action,
+            'exam_date'       => $anchor['exam_date'],
+            'scheduled_time'  => $anchor['scheduled_time'],
+            'department_code' => $anchor['department_code'],
+            'patient_id'      => $anchor_info['patient_id'] ?? '',
+            'patient_name'    => $anchor_info['patient_name'] ?? '',
+            'patient_kana'    => $anchor_info['patient_kana'] ?? '',
+            'slot_seq_map'    => $old_seq_map,
+            'order_summary'   => $old_summary_str,
+        ];
+        $audit_new = [
+            'is_slot_reorder' => true,
+            'sub_action'      => $sub_action,
+            'exam_date'       => $anchor['exam_date'],
+            'scheduled_time'  => $anchor['scheduled_time'],
+            'department_code' => $anchor['department_code'],
+            'patient_id'      => $anchor_info['patient_id'] ?? '',
+            'patient_name'    => $anchor_info['patient_name'] ?? '',
+            'patient_kana'    => $anchor_info['patient_kana'] ?? '',
+            'slot_seq_map'    => $seq_map,
+            'order_summary'   => $new_summary_str,
+        ];
+        $diff_str = $is_assign_init
+            ? "枠内採番 ({$anchor['exam_date']} {$anchor['scheduled_time']}): {$new_summary_str}"
+            : "枠内順番入替 ({$anchor['exam_date']} {$anchor['scheduled_time']}): {$old_summary_str} ➔ {$new_summary_str}";
+        $desc_str = $is_assign_init
+            ? "【枠内採番】{$anchor['exam_date']} {$anchor['scheduled_time']}: {$new_summary_str}"
+            : "【枠内順番入替】{$anchor['exam_date']} {$anchor['scheduled_time']}: {$old_summary_str} ➔ {$new_summary_str}";
+
+        $audit_log_id = recordScheduleAuditLog($pdo, 'reorder_slot', (int)$anchor_sid, $audit_old, $audit_new, [
+            'description'     => $desc_str,
+            'diff_summary'    => $diff_str,
+            'department_code' => $anchor['department_code'],
+            'operator_name'   => $_POST['operator_name'] ?? null
+        ]);
+
+        writeLog('SCHEDULE', "枠内順番入替成功 (reorder_slot): " . implode(' -> ', $final_order) . " [audit_log_id={$audit_log_id}]");
+        echo json_encode([
+            'success'      => true,
+            'action'       => 'reorder_slot',
+            'sub_action'   => $sub_action,
+            'exam_date'    => $anchor['exam_date'],
+            'scheduled_time' => $anchor['scheduled_time'],
+            'ordered_ids'  => $final_order,
+            'slot_seq_map' => $seq_map,
+            'audit_log_id' => $audit_log_id
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 

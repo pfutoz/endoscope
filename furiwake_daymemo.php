@@ -1143,8 +1143,11 @@ function updateKpiCounters() {
 <script>
 function initFuriwakeDatePicker() {
     if (window.OnokaiDatePicker) {
-        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を新規メモ日付にバインド
-        OnokaiDatePicker.bindControl('#newDate');
+        // 🌟 マスタメンテ用 小野会日付ピッカー（コンパクト＆ダークモード）を新規メモ日付にバインド
+        OnokaiDatePicker.bindControl('#newDate', {
+            compact: true,
+            dark: true
+        });
     }
 }
 if (document.readyState === 'loading') {

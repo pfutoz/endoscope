@@ -167,6 +167,15 @@ function generateAuditSummary(string $action_type, ?array $old_row, ?array $new_
             $desc = "{$p_display} 様の予約内容を変更 ({$d} {$t}): {$diff}";
             return ['description' => $desc, 'diff' => $diff];
 
+        case 'reorder_slot':
+            $d = $new_row['exam_date'] ?? $old_row['exam_date'] ?? '';
+            $t = $new_row['scheduled_time'] ?? $old_row['scheduled_time'] ?? '';
+            $old_ord = $old_row['order_summary'] ?? '変更前';
+            $new_ord = $new_row['order_summary'] ?? '変更後';
+            $desc = "【時間枠順番変更】{$d} {$t}: {$old_ord} ➔ {$new_ord}";
+            $diff = "枠内順番変更: {$old_ord} ➔ {$new_ord}";
+            return ['description' => $desc, 'diff' => $diff];
+
         case 'undo':
             $desc = "{$p_display} 様の直前の操作を取り消し（元に戻す）";
             $diff = "ワンクリック復元 (Undo)";
@@ -612,11 +621,13 @@ function undoScheduleAuditLog(PDO $pdo, int $log_id, ?string $operator_name = nu
         $old_data    = !empty($log['old_data']) ? json_decode($log['old_data'], true) : null;
         $new_data    = !empty($log['new_data']) ? json_decode($log['new_data'], true) : null;
 
-        // ★ 時間枠オーバーライド操作の判定 (schedule_id === 0 または枠操作ログ)
-        $is_waku_op = ($schedule_id === 0) || 
+        // ★ 時間枠オーバーライド操作の判定 (schedule_id === 0 または枠操作ログ、ただし reorder_slot は除く)
+        $is_waku_op = ($action_type !== 'reorder_slot') && (
+                      ($schedule_id === 0) || 
                       (strpos($log['description'] ?? '', '枠') !== false) || 
                       (strpos($log['diff_summary'] ?? '', '枠') !== false) ||
-                      (strpos($log['diff_summary'] ?? '', 'オーバーライド') !== false);
+                      (strpos($log['diff_summary'] ?? '', 'オーバーライド') !== false)
+        );
 
         if ($schedule_id === 0 || $is_waku_op) {
             return undoWakuOverrideAuditLog($pdo, $log, $old_data, $new_data, $operator_name, $in_transaction);
@@ -763,6 +774,26 @@ function undoScheduleAuditLog(PDO $pdo, int $log_id, ?string $operator_name = nu
                         ->execute([':id' => $schedule_id]);
                 }
                 $res_msg = "復活操作を取り消しました";
+                break;
+
+            case 'reorder_slot':
+                // 同一時間枠内の順番入れ替え・採番の取り消し
+                $seq_map = $old_data['slot_seq_map'] ?? null;
+                if (empty($seq_map) || !is_array($seq_map)) {
+                    if (!$in_transaction) $pdo->rollBack();
+                    return ['success' => false, 'message' => '変更前の順番データが記録されていないため復元できません'];
+                }
+                $upd_seq = $pdo->prepare("UPDATE t_endoscopy_schedule SET slot_seq = :seq, updated_at = CURRENT_TIMESTAMP WHERE schedule_id = :id");
+                foreach ($seq_map as $sid_key => $old_seq_val) {
+                    $upd_seq->execute([
+                        ':seq' => (int)$old_seq_val,
+                        ':id'  => (int)$sid_key
+                    ]);
+                }
+                $d = $old_data['exam_date'] ?? ($log['old_exam_date'] ?? '');
+                $t = $old_data['scheduled_time'] ?? ($log['old_scheduled_time'] ?? '');
+                $old_ord_summary = $old_data['order_summary'] ?? '変更前';
+                $res_msg = "時間枠（{$d} {$t}）の順番操作を取り消し、元の状態（{$old_ord_summary}）へ復元しました";
                 break;
 
             default:
@@ -928,10 +959,12 @@ function getRecentAuditLogs(PDO $pdo, int $limit = 40, ?string $dept = null, ?in
             $time_relative = $created_dt->format('m/d H:i');
         }
 
-        $is_waku = ((int)$r['schedule_id'] === 0) || 
+        $is_waku = ($r['action_type'] !== 'reorder_slot') && (
+                   ((int)$r['schedule_id'] === 0) || 
                    (strpos($r['description'] ?? '', '枠') !== false) || 
                    (strpos($r['diff_summary'] ?? '', '枠') !== false) ||
-                   (strpos($r['diff_summary'] ?? '', 'オーバーライド') !== false);
+                   (strpos($r['diff_summary'] ?? '', 'オーバーライド') !== false)
+        );
 
         $action_label = '';
         $action_badge = '';
@@ -983,6 +1016,11 @@ function getRecentAuditLogs(PDO $pdo, int $limit = 40, ?string $dept = null, ?in
                     $action_label = '枠移動';
                     $action_badge = 'badge-move';
                     $icon = '🚚';
+                    break;
+                case 'reorder_slot':
+                    $action_label = (strpos($r['diff_summary'] ?? '', '初回採番') !== false) ? '枠内採番' : '順番入替';
+                    $action_badge = 'badge-move';
+                    $icon = '🔢';
                     break;
                 case 'delete':
                     $action_label = '予約削除';

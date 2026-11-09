@@ -4,8 +4,16 @@
  * 内視鏡室 当日進捗ステータスモニター (電子ホワイトボード)
  * 
  * 生成日時: 2026-09-09 20:30:00 JST
- * 更新日時: 2026-11-06 16:40:00 JST
+ * 更新日時: 2026-11-08 16:55:00 JST
  * 改修履歴:
+ *   - 2026-11-08 (検査中➔リカバリ移動時の「組織採取・検体確認」専用カスタムモーダル新設):
+ *       1. 従来のブラウザ標準 confirm() ダイアログ（「OK＝検体照合」「キャンセル＝検体なしでリカバリ」で誤操作を招きやすかった仕様）を廃止
+ *       2. 患者情報・検査種別・担当医・鎮静状態・内視鏡シート記入状況を明示した独自モーダル（#postExamConfirmModal）を新設し、「✅ 組織採取なし ➔ リカバリへ進める」「🧪 組織採取あり ➔ 検体照合を入力して進める」「✕ 操作キャンセル」の3択を大型ボタンで直感的に選択可能に改善
+ *       3. 検体照合モーダル（#biopsyModal）にも患者情報ヘッダーと「保存と同時にリカバリ（次ステータス）へ自動進捗」するワンストップ連携および未照合時のインライン確認UIを実装
+ *   - 2026-11-08 (計画⑥ 内視鏡シートDB永続化 ＆ ホワイトボード双方向データ統合・医事課レセプト入力完了チェック対応):
+ *       1. 各患者行・タイルに「📋 シート」ワンタップ起動ボタンを設置（記入済みの場合は「📋 シート✔」ハイライト）
+ *       2. 内視鏡シートで記入された血圧（🩺BP）・排便回数（🚽便）・使用薬剤・手技/生検加算・医師サイン・会計可フラグをホワイトボードへリアルタイム反映
+ *       3. 受付事務・医事課向けに「💴 会計待」「🏥 医事済」サマリー絞り込みピル、「🧾 処置・薬剤サマリ確認モーダル」、および「🏥 医事入力済✔」ワンクリック消込トグルを統合
  *   - 2026-11-06 (下剤バッジ色分け強化：ビジクリア専用パープル ＆ 未定義下剤フォールバック色対応):
  *       1. 前処置セルの下剤バッジにビジクリア専用色（.prep-med-visi: パープル系）および未定義下剤フォールバック色（.prep-med-other: スレート系）を追加
  *       2. 下剤情報ポップオーバー（showMedInfo）にビジクリアの服薬案内を追加
@@ -89,6 +97,12 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- 🖨️ 完全ローカル・オフライン動作 Flatpickr ＆ 小野会共通日付ピッカー -->
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
     <style>
         :root {
             --bg-app: #0f172a;
@@ -229,11 +243,11 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         .date-btn:hover { background: var(--bg-surface-elevated); }
 
         .date-current {
-            padding: 6px 14px;
+            padding: 3px 8px;
             font-weight: 800;
             font-size: 14px;
             color: #38bdf8;
-            background: rgba(56, 189, 248, 0.1);
+            background: rgba(56, 189, 248, 0.08);
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -2505,7 +2519,7 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         <div class="date-stepper">
             <a href="?date=<?= $prev_date ?>&dept=<?= $dept ?>&exam_filter=<?= $exam_filter ?>" class="date-btn" title="前日へ">◀</a>
             <div class="date-current">
-                <span>📅 <?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?> (<?= $dow ?>)</span>
+                <input type="text" id="progressMonitorDate" value="<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>" class="onokai-date-picker" data-dark="true" autocomplete="off">
                 <?php if ($is_today): ?>
                     <span class="badge-today">本日</span>
                 <?php else: ?>
@@ -2588,6 +2602,15 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
     <div class="summary-pill summary-filter-st" data-status="7" onclick="toggleStatusFilter(7)" title="7. 帰宅・完了のみ絞り込み">
         <span class="pill-label">7.完了</span>
         <span class="pill-num text-muted" id="sumSt7">-</span>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-pill summary-filter-st" data-status="accounting" id="cardAccountingWait" onclick="toggleStatusFilter('accounting')" title="💴 会計準備完了（医事未入力）の患者のみ絞り込み">
+        <span class="pill-label">💴会計待</span>
+        <span class="pill-num" style="color:#fde047;" id="sumAccountingWait">0</span>
+    </div>
+    <div class="summary-pill summary-filter-st" data-status="billing_done" id="cardBillingDone" onclick="toggleStatusFilter('billing_done')" title="🏥 医事・レセプト入力完了済みの患者のみ絞り込み">
+        <span class="pill-label">🏥医事済</span>
+        <span class="pill-num text-success" id="sumBillingDone">0</span>
     </div>
     <div class="summary-divider"></div>
     <div class="summary-pill summary-pill-alert summary-filter-st" data-status="biopsy" id="cardBiopsyAlert" onclick="toggleStatusFilter('biopsy')" title="🚨 検体未照合のみ絞り込み">
@@ -2705,18 +2728,71 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 </div>
 
 <!-- ============================================================
-モーダル：組織採取・検体照合モーダル (4➔5連動・安全照合)
+モーダル：検査終了時の組織採取（検体有無）選択確認モーダル (4➔5/6遷移時)
 ============================================================ -->
-<div class="modal-overlay" id="biopsyModal">
-    <div class="modal-card">
-        <div class="modal-title">
-            <span>🧪 組織採取・病理検体 カルテ声出し照合</span>
+<div class="modal-overlay" id="postExamConfirmModal" onclick="if(event.target===this)closeModal('postExamConfirmModal')">
+    <div class="modal-card" style="max-width: 560px; border: 2px solid #38bdf8; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);">
+        <div class="modal-title" style="color: #38bdf8; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">🔬</span>
+                <span>検査終了・組織採取（検体）確認</span>
+            </div>
+            <button type="button" onclick="closeModal('postExamConfirmModal')" style="background:transparent; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:2px 6px;" title="閉じる">✕</button>
         </div>
         <div class="modal-body">
+            <input type="hidden" id="postExamConfirmSchedId" value="">
+            <input type="hidden" id="postExamConfirmNextStatusId" value="5">
+
+            <!-- 患者情報 ＆ 遷移先案内カード -->
+            <div id="postExamConfirmPatientBox" style="background: rgba(15, 23, 42, 0.9); border: 1px solid #334155; border-left: 5px solid #38bdf8; border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 14px;">
+            </div>
+
+            <div style="font-size: 14px; font-weight: 800; color: #f8fafc; margin-bottom: 10px; text-align: center;">
+                この検査で組織採取（生検・ポリペクトミー）はありましたか？
+            </div>
+
+            <!-- 2大選択肢ボタン -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+                <!-- 選択肢1：検体なし -->
+                <button type="button" id="btnPostExamNoBiopsy" onclick="proceedPostExamWithoutBiopsy()" style="background: linear-gradient(145deg, rgba(6, 78, 59, 0.85), rgba(4, 120, 87, 0.95)); border: 2px solid #10b981; border-radius: 10px; padding: 16px 12px; color: #ffffff; cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); transition: all 0.15s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.25)';">
+                    <span style="font-size: 26px; line-height: 1;">✅</span>
+                    <span style="font-size: 15px; font-weight: 900; color: #ecfdf5;">組織採取なし</span>
+                    <span style="font-size: 11.5px; color: #a7f3d0; font-weight: 700; line-height: 1.35;" id="lblPostExamNoBiopsySub">（生検・ポリペクなし）<br>そのまま 5.リカバリ へ進める ▶</span>
+                </button>
+
+                <!-- 選択肢2：検体あり -->
+                <button type="button" id="btnPostExamHasBiopsy" onclick="proceedPostExamToBiopsyModal()" style="background: linear-gradient(145deg, rgba(136, 19, 55, 0.85), rgba(190, 18, 60, 0.95)); border: 2px solid #f43f5e; border-radius: 10px; padding: 16px 12px; color: #ffffff; cursor: pointer; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(244, 63, 94, 0.25); transition: all 0.15s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(244,63,94,0.4)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(244,63,94,0.25)';">
+                    <span style="font-size: 26px; line-height: 1;">🧪</span>
+                    <span style="font-size: 15px; font-weight: 900; color: #fff1f2;">組織採取あり</span>
+                    <span style="font-size: 11.5px; color: #fecdd3; font-weight: 700; line-height: 1.35;">（生検・ポリペクトミー）<br>検体本数・部位の照合へ進む ▶</span>
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
+            <button type="button" class="btn-cancel" style="color: #7dd3fc; border-color: #0284c7; background: rgba(2, 132, 199, 0.12); font-size: 12px; padding: 7px 12px;" onclick="openEndoscopySheet(parseInt(document.getElementById('postExamConfirmSchedId').value, 10))">📋 内視鏡シートを開く</button>
+            <button type="button" class="btn-cancel" style="padding: 8px 18px;" onclick="closeModal('postExamConfirmModal')">✕ キャンセル（検査中のまま閉じる）</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+モーダル：組織採取・検体照合モーダル (4➔5連動・安全照合)
+============================================================ -->
+<div class="modal-overlay" id="biopsyModal" onclick="if(event.target===this)closeModal('biopsyModal')">
+    <div class="modal-card" style="max-width: 550px;">
+        <div class="modal-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>🧪 組織採取・病理検体 カルテ声出し照合</span>
+            <button type="button" onclick="closeModal('biopsyModal')" style="background:transparent; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:2px 6px;">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="modalBiopsySchedId" value="">
+            <input type="hidden" id="modalBiopsyNextStatusId" value="0">
+
+            <div id="modalBiopsyPatientBanner" style="background: rgba(15, 23, 42, 0.85); border: 1px solid #334155; border-left: 4px solid #f43f5e; border-radius: var(--radius-md); padding: 9px 12px; margin-bottom: 12px; font-size: 12.5px; color: #f8fafc;"></div>
+
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
                 部位取違い・採取個数ミスのインシデント防止のため、検体瓶ラベル・カルテオーダーと声出し照合を行ってください。
             </p>
-            <input type="hidden" id="modalBiopsySchedId" value="">
             
             <div class="form-group">
                 <label class="form-label">組織採取（生検・ポリペクトミー）</label>
@@ -2756,15 +2832,29 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 
                 <div class="form-group" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #059669; padding: 10px; border-radius: var(--radius-md);">
                     <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; color: #34d399;">
-                        <input type="checkbox" id="modalBiopsyVerified" value="1">
+                        <input type="checkbox" id="modalBiopsyVerified" value="1" onchange="hideBiopsyUnverifiedWarn()">
                         <span>カルテオーダー・検体瓶ラベル・患者氏名を声出し照合完了</span>
                     </label>
+                </div>
+
+                <!-- 未照合のまま保存しようとした場合のインライン確認ボックス（ブラウザ標準confirm代替） -->
+                <div id="biopsyUnverifiedWarnBox" style="display: none; background: rgba(127, 29, 29, 0.45); border: 1.5px solid #f87171; border-radius: var(--radius-md); padding: 10px 12px; margin-top: 10px;">
+                    <div style="font-size: 12.5px; font-weight: 800; color: #fecaca; margin-bottom: 6px;">
+                        ⚠️ カルテとの声出し照合チェックが入っていません
+                    </div>
+                    <div style="font-size: 11.5px; color: #fca5a5; margin-bottom: 8px; line-height: 1.4;">
+                        今すぐ照合完了にするか、未照合（要確認アラート表示）のまま保存して進めるか選択してください。
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button type="button" class="btn-save" style="background: #059669; font-size: 12px; padding: 6px 12px;" onclick="document.getElementById('modalBiopsyVerified').checked=true; hideBiopsyUnverifiedWarn(); saveBiopsyData(true);">✅ 声出し照合済にして保存</button>
+                        <button type="button" class="btn-danger-action" style="background: #b45309; font-size: 12px; padding: 6px 12px;" onclick="saveBiopsyData(true)">⚠️ 未照合のまま保存して進める</button>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn-cancel" onclick="closeModal('biopsyModal')">キャンセル</button>
-            <button type="button" class="btn-save" onclick="saveBiopsyData()">検体照合を保存</button>
+            <button type="button" class="btn-save" id="btnSaveBiopsyModal" onclick="saveBiopsyData(false)">検体照合を保存</button>
         </div>
     </div>
 </div>
@@ -3206,7 +3296,7 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             tags.push('頭文字「' + activeKanaFilter + '行」');
         }
         if (activeStatusFilter !== null) {
-            var stNames = { 1: '1.受付済', 2: '2.マイトイレ案内', 3: '3.検査待ち', 4: '4.検査中', 5: '5.リカバリ中', 6: '6.結果説明', 7: '7.完了', 'exp': '🔔説明待ち', 'biopsy': '🚨検体未照合' };
+            var stNames = { 1: '1.受付済', 2: '2.マイトイレ案内', 3: '3.検査待ち', 4: '4.検査中', 5: '5.リカバリ中', 6: '6.結果説明', 7: '7.完了', 'exp': '🔔説明待ち', 'biopsy': '🚨検体未照合', 'accounting': '💴会計待(医事未入力)', 'billing_done': '🏥医事入力済' };
             tags.push('ステータス「' + (stNames[activeStatusFilter] || activeStatusFilter) + '」');
         }
         if (isStayOnlyActive) {
@@ -3487,6 +3577,8 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         }
 
         if (document.getElementById('sumSt7')) document.getElementById('sumSt7').textContent = sum.status_counts[7] || 0;
+        if (document.getElementById('sumAccountingWait')) document.getElementById('sumAccountingWait').textContent = sum.ready_accounting_count || 0;
+        if (document.getElementById('sumBillingDone')) document.getElementById('sumBillingDone').textContent = sum.billing_completed_count || 0;
 
         if (document.getElementById('sumExpWait')) document.getElementById('sumExpWait').textContent = expWaitCount;
         if (document.getElementById('sumBiopsyAlert')) document.getElementById('sumBiopsyAlert').textContent = sum.unverified_biopsy_count || 0;
@@ -3670,17 +3762,27 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                 }
             }
 
+            if (p.sheet_summary) {
+                var ssTile = p.sheet_summary;
+                if (ssTile.is_billing_completed) {
+                    alertBadges.push('<span class="tile-alert-chip" style="background:#064e3b; color:#6ee7b7; border:1px solid #10b981;">🏥 医事済✔</span>');
+                } else if (ssTile.is_ready_accounting) {
+                    alertBadges.push('<span class="tile-alert-chip" style="background:#713f12; color:#fde047; border:1px solid #eab308;">💴 会計へ</span>');
+                }
+            }
+
             var alertsHtml = '';
             if (alertBadges.length > 0) {
                 alertsHtml = '<div class="tile-alerts">' + alertBadges.join('') + '</div>';
             }
 
             var kanaDisplay = (p.patient_kana && p.patient_kana.trim() !== '') ? ('<span class="tile-kana">(' + escapeHtml(p.patient_kana) + ')</span>') : '';
+            var sheetBtnTile = '<button type="button" onclick="openEndoscopySheet(' + p.schedule_id + ', event)" title="内視鏡シートを開く" style="background:#0f172a; color:#38bdf8; border:1px solid #0284c7; border-radius:4px; padding:1px 6px; font-size:10px; font-weight:800; cursor:pointer;">📋シート' + (p.sheet_summary && p.sheet_summary.has_sheet ? '✔' : '') + '</button>';
 
             html += '<div class="' + cardClass + '" onclick="focusPatientInTable(' + p.schedule_id + ')" title="👆 クリックで高密度表の該当行へ移動・操作">';
             html += '  <div class="tile-header">';
             html += '    <div class="tile-waku-time">' + escapeHtml(p.scheduled_time || '--:--') + '</div>';
-            html += '    ' + deptBadge + ' ' + examBadge;
+            html += '    ' + deptBadge + ' ' + examBadge + ' ' + sheetBtnTile;
             html += '    <div class="tile-doctor">' + escapeHtml(p.doctor_name || 'Dr未定') + '</div>';
             html += '  </div>';
             html += '  <div class="tile-body">';
@@ -3770,6 +3872,13 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                     if (!p.is_explain_waiting) return;
                 } else if (activeStatusFilter === 'biopsy') {
                     if (!p.is_unverified_biopsy) return;
+                } else if (activeStatusFilter === 'accounting') {
+                    var ssAcc = p.sheet_summary || {};
+                    if (ssAcc.is_billing_completed) return;
+                    if (!ssAcc.is_ready_accounting && stId < 6) return;
+                } else if (activeStatusFilter === 'billing_done') {
+                    var ssBil = p.sheet_summary || {};
+                    if (!ssBil.is_billing_completed) return;
                 } else if (parseInt(activeStatusFilter, 10) === 6) {
                     // ★ 統合された「6.説明」: 説明中(stId===6) または 説明待ち(p.is_explain_waiting)
                     if (stId !== 6 && !p.is_explain_waiting) return;
@@ -3909,6 +4018,15 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                 var prepStatusBtn = '<span class="' + prepBtnCls + '" onclick="cyclePrepMedStatus(' + p.schedule_id + ', \'' + prepStatus + '\')">' + prepBtnTxt + '</span>';
 
                 prepContent = '<div>' + prepRoomHtml + '</div>' + medHtml + '<div>' + prepStatusBtn + '</div>';
+            }
+
+            // 内視鏡シート双方向連動：排便回数・当日血圧バッジ表示
+            var ss = p.sheet_summary || {};
+            if (ss.stool_label) {
+                prepContent += '<div style="margin-top:3px;"><span style="display:inline-block; background:#0f172a; color:#38bdf8; border:1px solid #0284c7; border-radius:4px; padding:1px 5px; font-size:10.5px; font-weight:700;">🚽 便: ' + escapeHtml(ss.stool_label) + '</span></div>';
+            }
+            if (ss.bp_label) {
+                prepContent += '<div style="margin-top:2px;"><span style="display:inline-block; background:#0f172a; color:#a7f3d0; border:1px solid #059669; border-radius:4px; padding:1px 5px; font-size:10.5px; font-weight:700;">🩺 BP ' + escapeHtml(ss.bp_label) + '</span></div>';
             }
 
             // ステータスタイムライン (7段階)
@@ -4059,6 +4177,27 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
                 recHtml += '<button type="button" class="' + expCls + '" onclick="toggleExplainWait(' + p.schedule_id + ', !' + (p.is_explain_waiting ? 'true' : 'false') + ')">' + expTxt + '</button>';
             }
 
+            // 【計画⑥】内視鏡シート連携（会計可・医師サイン・処置サマリ・医事入力完了トグル）
+            var sheetActionChips = [];
+            var hasSheetSummaryItems = (ss.drugs_summary && ss.drugs_summary.length > 0) || (ss.procedures_summary && ss.procedures_summary.length > 0) || (ss.post_summary && ss.post_summary.length > 0) || !!ss.doctor_sign;
+            if (ss.doctor_sign) {
+                sheetActionChips.push('<span style="display:inline-block; background:#1e1b4b; color:#c7d2fe; border:1px solid #6366f1; border-radius:4px; padding:1px 6px; font-size:10.5px; font-weight:700;">✍️ Dr:' + escapeHtml(ss.doctor_sign) + '</span>');
+            }
+            if (ss.is_ready_accounting) {
+                sheetActionChips.push('<span style="display:inline-block; background:#713f12; color:#fde047; border:1px solid #eab308; border-radius:4px; padding:1px 6px; font-size:10.5px; font-weight:800;">💴 会計へ</span>');
+            }
+            if (hasSheetSummaryItems) {
+                sheetActionChips.push('<button type="button" onclick="openSheetBillingModal(' + p.schedule_id + ', event)" title="内視鏡シートの使用薬剤・生検・処置サマリを確認" style="background:#0f172a; color:#7dd3fc; border:1px solid #0284c7; border-radius:4px; padding:2px 6px; font-size:10.5px; font-weight:700; cursor:pointer;">🧾 処置・薬剤サマリ</button>');
+            }
+            if (ss.is_billing_completed) {
+                sheetActionChips.push('<button type="button" onclick="togglePatientBilling(' + p.schedule_id + ', false, event)" title="クリックで医事未入力に戻す" style="background:#064e3b; color:#6ee7b7; border:1px solid #10b981; border-radius:4px; padding:2px 7px; font-size:10.5px; font-weight:800; cursor:pointer;">🏥 医事入力済✔' + (ss.billing_completed_at ? ' (' + escapeHtml(ss.billing_completed_at) + ')' : '') + '</button>');
+            } else if (ss.is_ready_accounting || stId >= 6 || currentRole === 'clerk') {
+                sheetActionChips.push('<button type="button" onclick="togglePatientBilling(' + p.schedule_id + ', true, event)" title="カルテ・レセプト入力完了としてチェックする" style="background:#1e293b; color:#fde047; border:1px dashed #eab308; border-radius:4px; padding:2px 7px; font-size:10.5px; font-weight:700; cursor:pointer;">🏥 医事未入力 (完了にする)</button>');
+            }
+            if (sheetActionChips.length > 0) {
+                recHtml += '<div style="margin-top:4px; display:flex; flex-wrap:wrap; gap:3px; align-items:center;">' + sheetActionChips.join('') + '</div>';
+            }
+
             // 患者所在バッジ
             var locationBadge = '';
             if (stId === 1) {
@@ -4132,11 +4271,15 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             html += '</td>';
 
             html += '<td class="cell-patient">';
-            html += '  <div class="patient-name-row"><span>' + escapeHtml(p.patient_name) + '</span> ' + ageBadge + '</div>';
+            var sheetOpenBtn = '<button type="button" onclick="openEndoscopySheet(' + p.schedule_id + ', event)" title="この患者の内視鏡シート（電子記録票）を別タブで開く" style="margin-left:auto; background:' + (ss.has_sheet ? '#0369a1' : '#1e293b') + '; color:' + (ss.has_sheet ? '#ffffff' : '#38bdf8') + '; border:1px solid #0284c7; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">📋 シート' + (ss.has_sheet ? '✔' : '') + '</button>';
+            html += '  <div class="patient-name-row" style="display:flex; align-items:center; gap:6px;"><span>' + escapeHtml(p.patient_name) + '</span> ' + ageBadge + sheetOpenBtn + '</div>';
             var arrivalSub = (currentRole === 'doctor' && p.arrival_time) ? ' <span style="font-size:10.5px;color:#34d399;font-weight:700;">(来院 ' + escapeHtml(p.arrival_time) + ')</span>' : '';
             html += '  <div class="patient-id-sub"><span>ID:' + escapeHtml(p.patient_id) + '</span> ' + examBadge + ' ' + sedationBadge + arrivalSub + ' <small>' + escapeHtml(p.doctor_name || '') + '</small></div>';
             if (currentRole === 'clerk') {
                 html += '  ' + locationBadge;
+                if (sheetActionChips.length > 0) {
+                    html += '  <div style="margin-top:4px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">' + sheetActionChips.join('') + '</div>';
+                }
             }
             html += '  ' + remarksHtml;
             html += '  ' + alertBadgesHtml;
@@ -4241,24 +4384,104 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
     }
 
     function forwardStatus(schedId, toStatusId) {
-        // 4 (検査中) ➔ 5 (リカバリ中) の場合、組織採取の確認を促す
-        if (toStatusId === 5) {
-            var p = findPatient(schedId);
-            if (p && !p.has_biopsy && !p.biopsy_verified) {
-                if (confirm('【組織採取・検体確認】\nこの検査で組織採取（生検・ポリペクトミー）はありましたか？\n\n「OK」➔ 検体照合ダイアログを開きます\n「キャンセル」➔ 検体なしでリカバリへ進めます')) {
-                    openBiopsyModal(schedId);
-                    return;
-                }
+        var p = findPatient(schedId);
+        var curSt = p ? parseInt(p.current_status_id, 10) : 0;
+
+        // 4 (検査中) ➔ 5 (リカバリ中) または 6 (説明) の場合、検体未照合なら独自の選択モーダルを表示
+        if (curSt === 4 && (toStatusId === 5 || toStatusId === 6)) {
+            if (p && !p.biopsy_verified) {
+                openPostExamConfirmModal(schedId, toStatusId);
+                return;
             }
         }
 
+        executeStatusTransition(schedId, toStatusId);
+    }
+
+    function executeStatusTransition(schedId, toStatusId, onDone) {
         postAction({
             action: 'update_status',
             schedule_id: schedId,
             to_status_id: toStatusId,
             operator_name: 'スタッフ',
             operator_role: currentRole
+        }, onDone);
+    }
+
+    // 検査終了時（4➔5/6）の独自確認モーダルを開く
+    function openPostExamConfirmModal(schedId, toStatusId) {
+        var p = findPatient(schedId);
+        if (!p) {
+            executeStatusTransition(schedId, toStatusId);
+            return;
+        }
+
+        document.getElementById('postExamConfirmSchedId').value = schedId;
+        document.getElementById('postExamConfirmNextStatusId').value = toStatusId;
+
+        var deptLabel = (p.department_code === 'PROCT') ? '肛門科' : '胃腸科';
+        var sedLabel = p.has_sedation
+            ? ('💉 鎮静あり (' + (p.sedation_type === 'PROPOFOL' ? 'プロポフォール' : (p.sedation_type === 'DIAZEPAM' ? 'ジアゼパム' : '鎮静薬')) + ')')
+            : '🚫 鎮静なし (覚醒下)';
+        var nextStLabel = (toStatusId === 5)
+            ? '5. リカバリ中（安静タイマー開始 ＆ 🧼洗浄指示発行）'
+            : '6. 説明待ち（リカバリ不要 ＆ 🧼洗浄指示発行）';
+
+        var boxHtml = '';
+        boxHtml += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;">';
+        boxHtml += '  <div style="font-size:15px; font-weight:900; color:#ffffff;">👤 ' + escapeHtml(p.patient_name) + ' 様 <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(ID: ' + escapeHtml(p.patient_id) + ')</span></div>';
+        boxHtml += '  <div style="font-size:12px; font-weight:700; color:#7dd3fc;">' + escapeHtml(p.scheduled_time || '') + ' / ' + deptLabel + ' / ' + escapeHtml(p.exam_type || '') + ' / 担当: ' + escapeHtml(p.doctor_name || '未定') + '</div>';
+        boxHtml += '</div>';
+        boxHtml += '<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:12px; color:#cbd5e1; padding-top:6px; border-top:1px dashed #334155;">';
+        boxHtml += '  <span>' + sedLabel + '</span>';
+        boxHtml += '  <span style="color:#fde047; font-weight:800;">移動先: ➔ ' + nextStLabel + '</span>';
+        boxHtml += '</div>';
+
+        // 内視鏡シートまたは既に生検入力がある場合の参考表示
+        var ss = p.sheet_summary || {};
+        if (p.has_biopsy || (ss.procedures_summary && ss.procedures_summary.length > 0)) {
+            var sheetNotes = [];
+            if (p.has_biopsy) {
+                sheetNotes.push('検体登録中: ' + (p.biopsy_count || 1) + '個' + (p.biopsy_sites ? ' (' + p.biopsy_sites + ')' : ''));
+            }
+            if (ss.procedures_summary && ss.procedures_summary.length > 0) {
+                sheetNotes.push('シート記録: ' + ss.procedures_summary.join(' / '));
+            }
+            boxHtml += '<div style="margin-top:8px; background:rgba(244, 63, 94, 0.16); border:1px solid #f43f5e; border-radius:6px; padding:6px 10px; font-size:12px; color:#fecdd3; font-weight:700;">';
+            boxHtml += '  📋 ' + escapeHtml(sheetNotes.join(' ｜ '));
+            boxHtml += '</div>';
+        }
+
+        document.getElementById('postExamConfirmPatientBox').innerHTML = boxHtml;
+
+        var subLabel = document.getElementById('lblPostExamNoBiopsySub');
+        if (subLabel) {
+            subLabel.innerHTML = '（生検・ポリペクなし）<br>そのまま ' + (toStatusId === 5 ? '5.リカバリ中' : '6.説明待ち') + ' へ進める ▶';
+        }
+
+        document.getElementById('postExamConfirmModal').style.display = 'flex';
+    }
+
+    // 選択肢1：「組織採取なし」でそのままリカバリ（または説明）へ進める
+    function proceedPostExamWithoutBiopsy() {
+        var schedId = parseInt(document.getElementById('postExamConfirmSchedId').value, 10);
+        var nextStId = parseInt(document.getElementById('postExamConfirmNextStatusId').value, 10) || 5;
+        closeModal('postExamConfirmModal');
+        if (!schedId) return;
+
+        executeStatusTransition(schedId, nextStId, function() {
+            showSavedToast('✅ 検体なしで ' + (nextStId === 5 ? 'リカバリ中' : '説明待ち') + ' へ進めました');
         });
+    }
+
+    // 選択肢2：「組織採取あり」で検体照合モーダルを開く（保存時に次ステータスへ連動進捗）
+    function proceedPostExamToBiopsyModal() {
+        var schedId = parseInt(document.getElementById('postExamConfirmSchedId').value, 10);
+        var nextStId = parseInt(document.getElementById('postExamConfirmNextStatusId').value, 10) || 5;
+        closeModal('postExamConfirmModal');
+        if (!schedId) return;
+
+        openBiopsyModal(schedId, nextStId, true);
     }
 
     function directChangeStatus(schedId, toStatusId, currentStatusId) {
@@ -4755,12 +4978,43 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
     // 組織採取・病理検体モーダル
     // ================================================================
 
-    function openBiopsyModal(schedId) {
+    function hideBiopsyUnverifiedWarn() {
+        var warnBox = document.getElementById('biopsyUnverifiedWarnBox');
+        if (warnBox) warnBox.style.display = 'none';
+    }
+
+    function openBiopsyModal(schedId, pendingNextStatusId, forceBiopsyYes) {
         document.getElementById('modalBiopsySchedId').value = schedId;
+        var nextSt = pendingNextStatusId ? parseInt(pendingNextStatusId, 10) : 0;
+        document.getElementById('modalBiopsyNextStatusId').value = nextSt;
+        hideBiopsyUnverifiedWarn();
+
         var p = findPatient(schedId);
+        var bannerEl = document.getElementById('modalBiopsyPatientBanner');
+        if (bannerEl) {
+            if (p) {
+                var deptLbl = (p.department_code === 'PROCT') ? '肛門科' : '胃腸科';
+                bannerEl.innerHTML = '👤 <strong>' + escapeHtml(p.patient_name) + '</strong> 様 <span style="color:#94a3b8;">(ID: ' + escapeHtml(p.patient_id) + ' / ' + deptLbl + ' / ' + escapeHtml(p.exam_type || '') + ' / 担当: ' + escapeHtml(p.doctor_name || '未定') + ')</span>';
+                bannerEl.style.display = 'block';
+            } else {
+                bannerEl.style.display = 'none';
+            }
+        }
+
+        var saveBtn = document.getElementById('btnSaveBiopsyModal');
+        if (saveBtn) {
+            if (nextSt === 5) {
+                saveBtn.textContent = '🧪 検体照合を保存してリカバリへ進める ▶';
+            } else if (nextSt === 6) {
+                saveBtn.textContent = '🧪 検体照合を保存して説明待ちへ進める ▶';
+            } else {
+                saveBtn.textContent = '検体照合を保存';
+            }
+        }
 
         if (p) {
-            var hasB = p.has_biopsy ? '1' : '0';
+            var useBiopsy = (forceBiopsyYes === true) ? true : !!p.has_biopsy;
+            var hasB = useBiopsy ? '1' : '0';
             var radios = document.getElementsByName('modalHasBiopsy');
             for (var i = 0; i < radios.length; i++) {
                 radios[i].checked = (radios[i].value === hasB);
@@ -4768,7 +5022,7 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             document.getElementById('modalBiopsyCount').value = p.biopsy_count || 1;
             document.getElementById('modalBiopsySites').value = p.biopsy_sites || '';
             document.getElementById('modalBiopsyVerified').checked = !!p.biopsy_verified;
-            toggleBiopsyFields(p.has_biopsy);
+            toggleBiopsyFields(useBiopsy);
         } else {
             toggleBiopsyFields(true);
         }
@@ -4779,6 +5033,7 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
     function toggleBiopsyFields(show) {
         var box = document.getElementById('biopsyDetailFields');
         box.style.display = show ? 'block' : 'none';
+        hideBiopsyUnverifiedWarn();
     }
 
     function addBiopsySite(siteName) {
@@ -4791,8 +5046,9 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         }
     }
 
-    function saveBiopsyData() {
+    function saveBiopsyData(skipUnverifiedConfirm) {
         var schedId = parseInt(document.getElementById('modalBiopsySchedId').value, 10);
+        var nextStId = parseInt(document.getElementById('modalBiopsyNextStatusId').value, 10) || 0;
         var radios = document.getElementsByName('modalHasBiopsy');
         var hasBiopsy = false;
         for (var i = 0; i < radios.length; i++) {
@@ -4806,11 +5062,15 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
         var sites = document.getElementById('modalBiopsySites').value.trim();
         var verified = document.getElementById('modalBiopsyVerified').checked;
 
-        if (hasBiopsy && !verified) {
-            if (!confirm('⚠️ カルテとの声出し照合チェックが入っていません。\n未照合のまま保存しますか？（後で照合を完了してください）')) {
+        if (hasBiopsy && !verified && !skipUnverifiedConfirm) {
+            var warnBox = document.getElementById('biopsyUnverifiedWarnBox');
+            if (warnBox) {
+                warnBox.style.display = 'block';
                 return;
             }
         }
+
+        hideBiopsyUnverifiedWarn();
 
         postAction({
             action: 'update_biopsy',
@@ -4822,6 +5082,14 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             operator_name: '看護師'
         }, function() {
             closeModal('biopsyModal');
+            document.getElementById('modalBiopsyNextStatusId').value = '0';
+            if (nextStId > 0) {
+                executeStatusTransition(schedId, nextStId, function() {
+                    showSavedToast('🧪 検体情報を保存し、' + (nextStId === 5 ? 'リカバリ中' : '説明待ち') + ' へ進めました');
+                });
+            } else {
+                showSavedToast('🧪 検体照合データを保存しました');
+            }
         });
     }
 
@@ -5113,7 +5381,147 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
             fetchProgressData(false);
         }
     });
+
+    // ================================================================
+    // 【計画⑥】内視鏡シート起動 ＆ 医事・処置サマリ確認・レセプト消込
+    // ================================================================
+    function openEndoscopySheet(schedId, event) {
+        if (event) event.stopPropagation();
+        var win = window.open('endoscopy_sheet.php?schedule_id=' + encodeURIComponent(schedId), 'endoscopy_sheet_' + schedId);
+        if (win) win.focus();
+    }
+
+    function togglePatientBilling(schedId, isCompleted, event) {
+        if (event) event.stopPropagation();
+        postAction({
+            action: 'toggle_billing_completed',
+            schedule_id: schedId,
+            is_billing_completed: isCompleted ? 1 : 0,
+            operator_name: '医事スタッフ',
+            operator_role: currentRole
+        }, function(resp) {
+            showSavedToast(resp.is_billing_completed ? '🏥 医事・レセプト入力完了に更新しました' : '医事未入力に戻しました');
+            if (document.getElementById('sheetBillingModal') && document.getElementById('sheetBillingModal').style.display === 'flex') {
+                closeModal('sheetBillingModal');
+            }
+        });
+    }
+
+    function openSheetBillingModal(schedId, event) {
+        if (event) event.stopPropagation();
+        var p = findPatient(schedId);
+        if (!p) return;
+        var ss = p.sheet_summary || {};
+
+        document.getElementById('modalSheetBillSchedId').value = schedId;
+        document.getElementById('modalSheetBillPatientTitle').innerHTML =
+            '👤 <strong>' + escapeHtml(p.patient_name) + '</strong> 様 ' +
+            '<span style="font-size:12px; color:#94a3b8;">(ID: ' + escapeHtml(p.patient_id) + ' / ' + escapeHtml(p.exam_type || '') + ' / 担当: ' + escapeHtml(p.doctor_name || '未定') + ')</span>';
+
+        var bodyHtml = '';
+        // 1. バイタル・時刻・医師サイン
+        bodyHtml += '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; background:#0f172a; padding:8px 12px; border-radius:6px; border:1px solid #334155; font-size:12px;">';
+        if (ss.bp_label) {
+            bodyHtml += '<span>🩺 <strong>血圧:</strong> ' + escapeHtml(ss.bp_label) + '</span>';
+        }
+        if (ss.stool_label) {
+            bodyHtml += '<span>🚽 <strong>排便:</strong> ' + escapeHtml(ss.stool_label) + '</span>';
+        }
+        if (ss.exam_start_time || ss.exam_end_time) {
+            bodyHtml += '<span>⏱️ <strong>検査時刻:</strong> ' + escapeHtml(ss.exam_start_time || '--:--') + ' 〜 ' + escapeHtml(ss.exam_end_time || '--:--') + '</span>';
+        }
+        if (ss.doctor_sign) {
+            bodyHtml += '<span style="color:#a5b4fc;">✍️ <strong>医師サイン:</strong> ' + escapeHtml(ss.doctor_sign) + '</span>';
+        }
+        if (ss.is_ready_accounting) {
+            bodyHtml += '<span style="color:#fde047; font-weight:800;">💴 会計へチェック済</span>';
+        }
+        bodyHtml += '</div>';
+
+        // 2. 使用薬剤・前処置薬
+        bodyHtml += '<div style="margin-bottom:10px;">';
+        bodyHtml += '<div style="font-size:12px; font-weight:800; color:#38bdf8; margin-bottom:4px;">💉 使用薬剤・前処置薬・資材</div>';
+        if (ss.drugs_summary && ss.drugs_summary.length > 0) {
+            bodyHtml += '<div style="display:flex; flex-wrap:wrap; gap:5px;">';
+            ss.drugs_summary.forEach(function(item) {
+                bodyHtml += '<span style="background:#1e293b; color:#f8fafc; border:1px solid #0284c7; border-radius:4px; padding:3px 8px; font-size:12px; font-weight:700;">' + escapeHtml(item) + '</span>';
+            });
+            bodyHtml += '</div>';
+        } else {
+            bodyHtml += '<div style="font-size:12px; color:#64748b;">（薬剤チェックなし）</div>';
+        }
+        bodyHtml += '</div>';
+
+        // 3. 手技・加算・生検・処置
+        bodyHtml += '<div style="margin-bottom:10px;">';
+        bodyHtml += '<div style="font-size:12px; font-weight:800; color:#34d399; margin-bottom:4px;">🔬 内視鏡手技・加算・生検・処置</div>';
+        if (ss.procedures_summary && ss.procedures_summary.length > 0) {
+            bodyHtml += '<div style="display:flex; flex-wrap:wrap; gap:5px;">';
+            ss.procedures_summary.forEach(function(item) {
+                bodyHtml += '<span style="background:#064e3b; color:#ecfdf5; border:1px solid #10b981; border-radius:4px; padding:3px 8px; font-size:12px; font-weight:700;">' + escapeHtml(item) + '</span>';
+            });
+            bodyHtml += '</div>';
+        } else {
+            bodyHtml += '<div style="font-size:12px; color:#64748b;">（特殊手技・加算・生検チェックなし）</div>';
+        }
+        bodyHtml += '</div>';
+
+        // 4. 検査後説明・手紙・その他
+        if (ss.post_summary && ss.post_summary.length > 0) {
+            bodyHtml += '<div style="margin-bottom:8px;">';
+            bodyHtml += '<div style="font-size:12px; font-weight:800; color:#c084fc; margin-bottom:4px;">📋 説明・手紙・その他</div>';
+            bodyHtml += '<div style="display:flex; flex-wrap:wrap; gap:5px;">';
+            ss.post_summary.forEach(function(item) {
+                bodyHtml += '<span style="background:#2e1065; color:#f3e8ff; border:1px solid #a855f7; border-radius:4px; padding:3px 8px; font-size:12px; font-weight:700;">' + escapeHtml(item) + '</span>';
+            });
+            bodyHtml += '</div></div>';
+        }
+
+        document.getElementById('modalSheetBillBody').innerHTML = bodyHtml;
+
+        var billBtn = document.getElementById('btnModalSheetBillingToggle');
+        if (billBtn) {
+            if (ss.is_billing_completed) {
+                billBtn.textContent = '↩️ 医事未入力に戻す';
+                billBtn.style.background = '#475569';
+                billBtn.onclick = function() { togglePatientBilling(schedId, false); };
+            } else {
+                billBtn.textContent = '🏥 医事・レセプト入力完了にする ✔';
+                billBtn.style.background = '#059669';
+                billBtn.onclick = function() { togglePatientBilling(schedId, true); };
+            }
+        }
+
+        var openBtn = document.getElementById('btnModalOpenFullSheet');
+        if (openBtn) {
+            openBtn.onclick = function() { openEndoscopySheet(schedId); };
+        }
+
+        document.getElementById('sheetBillingModal').style.display = 'flex';
+    }
 </script>
+
+<!-- 【計画⑥】内視鏡シート 処置・薬剤サマリ ＆ 医事入力確認モーダル -->
+<div class="modal-overlay" id="sheetBillingModal" onclick="if(event.target===this)closeModal('sheetBillingModal')">
+    <div class="modal-card" style="max-width: 560px;">
+        <div class="modal-title" style="color: #38bdf8; display:flex; justify-content:space-between; align-items:center;">
+            <span>🧾 内視鏡シート 処置・使用薬剤サマリ（医事・レセプト確認）</span>
+            <button type="button" onclick="closeModal('sheetBillingModal')" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="modalSheetBillSchedId" value="">
+            <div id="modalSheetBillPatientTitle" style="font-size:14px; margin-bottom:12px; color:#f8fafc;"></div>
+            <div id="modalSheetBillBody"></div>
+        </div>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <button type="button" id="btnModalOpenFullSheet" class="btn-save" style="background:#0284c7;">📋 内視鏡シート全画面を開く</button>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn-cancel" onclick="closeModal('sheetBillingModal')">閉じる</button>
+                <button type="button" id="btnModalSheetBillingToggle" class="btn-save" style="background:#059669;">🏥 医事・レセプト入力完了にする ✔</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- 医師選択モーダル -->
 <div id="doctorPickerModal" class="doctor-picker-modal" onclick="if(event.target===this)closeDoctorPickerModal()">
@@ -5173,5 +5581,19 @@ $dow = $week_ja[(int)date('w', strtotime($date_str))];
 <?php include __DIR__ . '/medical_alert_modal_inc.php'; ?>
 <?php include __DIR__ . '/urgent_slot_modal_inc.php'; ?>
 
+<script>
+if (window.OnokaiDatePicker) {
+    OnokaiDatePicker.bindControl('#progressMonitorDate', {
+        dark: true,
+        darkControl: true,
+        onChange: function(selectedDates, dateStr) {
+            if (!dateStr || dateStr === '<?= htmlspecialchars($date_str, ENT_QUOTES, 'UTF-8') ?>') return;
+            window.location.href = '?date=' + encodeURIComponent(dateStr) +
+                '&dept=<?= urlencode($dept) ?>' +
+                '&exam_filter=<?= urlencode($exam_filter) ?>';
+        }
+    });
+}
+</script>
 </body>
 </html>

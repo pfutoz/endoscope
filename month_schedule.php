@@ -5,8 +5,13 @@
  * 
  * 内視鏡予約 ダッシュボード (month_schedule.php) - Modern Web 最適化版
  * 生成日時: 2026-09-27
- * 更新日時: 2026-11-06 16:36
+ * 更新日時: 2026-11-08
  * 修正履歴:
+ *   - 2026-11-08: 【当日予約詳細一覧の「患者名」列幅拡大（医師3名並列対応）＆「備考」列幅調整】
+ *       1. 空き枠に予約可能医師チップが最大3名並んでも1行で余裕をもって収まるよう、当画面の「患者名」列幅を 190px → 390px（min-width:370px）へ拡大し、その分「備考」列の最小幅を縮小調整
+ *   - 2026-11-08: 【基本時間枠カラー（waku_color）対応】
+ *       1. 当日予約詳細一覧テーブルの「時間枠」セル（cell-waku-time）に基本時間枠の背景色（waku_color）を反映
+ *       2. 枠なし（休止）行およびマスタ不整合行では背景色を適用せず警告色（ピンク）を優先維持、非同期トグル（toggle_no_waku.js）とも完全連動
  *   - 2026-11-06: 【下剤表示（ビジクリア等）の先頭3文字略称化 ＆ 専用カラー・フォールバック色対応】
  *       1. 下剤（bowel_prep）に「ビジクリア」等の4文字以上の名称が設定された場合、先頭3文字（例: 「ビジク」）で略称表示する特殊処理を実装（ツールチップで正式名称を表示）
  *       2. ビジクリア専用色（prep-visi: パープル #7c3aed）および未定義下剤フォールバック色（prep-other: スレート #64748b）を追加し、白地に白文字で透明化していた不具合を解消
@@ -2039,7 +2044,7 @@ foreach ($list_data as $r_item) {
                         <th style="width:28px; text-align:center;" title="編集・削除">✏️</th>
                         <th style="width:110px;">時間枠</th>
                         <th style="width:85px; text-align:center;">患者No</th>
-                        <th style="width:190px;">患者名</th>
+                        <th style="width:390px; min-width:370px;">患者名</th>
                         <th style="width:88px; text-align:center;">種別</th>
                         <th style="width:65px; text-align:center;">部屋</th>
                         <th style="width:52px; text-align:center;">下剤</th>
@@ -2210,10 +2215,34 @@ foreach ($list_data as $r_item) {
                     } elseif ($is_empty && !$is_mismatch && !$is_row_cap_full) {
                         $tr_bg_style = 'style="background-color:#faf5ff;"';
                     }
+                    $waku_color = sanitizeWakuColor((string)($row['waku_color'] ?? ''));
+                    $waku_td_style = 'white-space:nowrap;';
+                    if ($waku_color !== '' && !$is_no_waku && !$is_mismatch) {
+                        $waku_td_style .= ' background-color:' . htmlspecialchars($waku_color, ENT_QUOTES, 'UTF-8') . ';';
+                    }
+                    $slot_seq_index = (int)($row['slot_seq_index'] ?? 0);
+                    $slot_seq_total = (int)($row['slot_seq_total'] ?? 0);
+                    $slot_peer_sids = is_array($row['slot_peer_sids'] ?? null) ? $row['slot_peer_sids'] : [];
+                    $slot_group_key = (string)($row['slot_group_key'] ?? '');
+                    $is_slot_numbered = isset($row['is_slot_numbered']) ? (bool)$row['is_slot_numbered'] : true;
+                    $is_multi_slot_row = (!$is_empty && !$is_no_waku && $schedule_id > 0 && $slot_seq_total >= 2);
+                    $row_drag_attrs = '';
+                    if ($is_multi_slot_row) {
+                        $row_drag_attrs = ' draggable="true"'
+                            . ' ondragstart="onSlotRowDragStart(this, event)"'
+                            . ' ondragover="onSlotRowDragOver(this, event)"'
+                            . ' ondragleave="onSlotRowDragLeave(this, event)"'
+                            . ' ondrop="onSlotRowDrop(this, event)"'
+                            . ' ondragend="onSlotRowDragEnd(this, event)"';
+                        $row_class = trim($row_class . ' slot-multi-row');
+                    }
                 ?>
                     <tr data-group="<?= htmlspecialchars($filter_category, ENT_QUOTES, 'UTF-8') ?>" 
                         data-reserved="<?= ($is_empty || $is_no_waku) ? 'false' : 'true' ?>"
-                        class="<?= $row_class ?>"
+                        data-waku-color="<?= htmlspecialchars($waku_color, ENT_QUOTES, 'UTF-8') ?>"
+                        data-schedule-id="<?= $schedule_id ?>"
+                        data-slot-group="<?= htmlspecialchars($slot_group_key, ENT_QUOTES, 'UTF-8') ?>"
+                        class="<?= $row_class ?>"<?= $row_drag_attrs ?>
                         <?= $tr_bg_style ?>>
                         
                         <!-- 1列目: ➕新規追加（枠なし状態以外で常時表示） -->
@@ -2279,7 +2308,7 @@ foreach ($list_data as $r_item) {
                         </td>
                         
                         <!-- 時間枠名（枠なしの場合は赤字・打消し）＋ 右横に枠名称変更ギア ⚙️ -->
-                        <td style="white-space:nowrap;">
+                        <td class="cell-waku-time" style="<?= $waku_td_style ?>">
                             <div style="display:inline-flex; align-items:center; gap:5px;">
                                 <?php if ($is_no_waku): ?>
                                     <span class="waku-name-label" style="color:#dc2626; text-decoration:line-through; font-weight:bold;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></span>
@@ -2294,6 +2323,9 @@ foreach ($list_data as $r_item) {
                                         style="background:none; border:none; cursor:pointer; font-size:12px; color:#0284c7; padding:0 2px; line-height:1; vertical-align:middle; transition:transform 0.15s ease;"
                                         onmouseover="this.style.transform='scale(1.25) rotate(45deg)';"
                                         onmouseout="this.style.transform='scale(1) rotate(0deg)';">⚙️</button>
+                                <?php if ($is_multi_slot_row && !$is_slot_numbered): ?>
+                                    <?= renderSlotAssignBtnHTML($slot_group_key, $slot_peer_sids, 'table') ?>
+                                <?php endif; ?>
                             </div>
                         </td>
                         
@@ -2311,7 +2343,7 @@ foreach ($list_data as $r_item) {
                             <?php endif; ?>
                         </td>
                         
-                        <td class="cell-patient-name">
+                        <td class="cell-patient-name" style="min-width:370px;">
                             <?php if ($is_empty): ?>
                                 <?php if ($is_row_cap_full): ?>
                                     <div class="empty-slot-cell-wrap">
@@ -2322,7 +2354,7 @@ foreach ($list_data as $r_item) {
                                     </div>
                                 <?php else: ?>
                                     <div class="empty-slot-cell-wrap">
-                                        <span style="color:#8b5cf6; font-size:11px; font-weight:600;">［空き枠］</span>
+                                        <span style="color:#8b5cf6; font-size:11px; font-weight:600; white-space:nowrap;">［空き枠］</span>
                                         <?php if ($is_target_cap_group && !empty($grp_cap['avail_doctors'])): ?>
                                             <span class="empty-avail-doc-guide">
                                                 <span class="avail-guide-label">👨‍⚕️<?= $grp_short_label ?>可能:</span>
@@ -2350,7 +2382,7 @@ foreach ($list_data as $r_item) {
                             <?php else: ?>
                                 <div style="line-height: 1.25;" title="<?= htmlspecialchars($schedule_tooltip, ENT_QUOTES, 'UTF-8') ?>">
                                     <div style="display:flex; align-items:center; flex-wrap:wrap; gap:3px;">
-                                        <?php if (!empty($row['is_vip'])): ?><span class="vip-badge-icon" style="display:inline-block; background:#fde047; color:#6b21a8; border:1.5px solid #000000; font-weight:900; font-size:10px; padding:0 3px; border-radius:2px; line-height:1.15; vertical-align:middle; margin-right:2px;" title="注目検査">V</span><?php endif; ?><strong style="cursor:help;"><?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                        <?= renderSlotSeqBadgeHTML($slot_seq_index, $slot_seq_total, $schedule_id, $slot_peer_sids, 'table', $is_slot_numbered) ?><?php if (!empty($row['is_vip'])): ?><span class="vip-badge-icon" style="display:inline-block; background:#fde047; color:#6b21a8; border:1.5px solid #000000; font-weight:900; font-size:10px; padding:0 3px; border-radius:2px; line-height:1.15; vertical-align:middle; margin-right:2px;" title="注目検査">V</span><?php endif; ?><strong style="cursor:help;"><?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?></strong>
                                         <?php if ($age_int !== null): ?>
                                             <span class="age-box <?= $age_cls ?>"><?= $age_int ?>歳</span>
                                         <?php endif; ?>
@@ -2403,7 +2435,7 @@ foreach ($list_data as $r_item) {
                             <?php endif; ?>
                         </td>
 
-                        <td class="cell-remarks" style="min-width:180px;">
+                        <td class="cell-remarks" style="min-width:110px;">
                             <?php
                             if ($is_no_waku) {
                                 $ov_reason = $row['override_reason'] ?? ($row['reason'] ?? null);

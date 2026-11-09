@@ -9,6 +9,7 @@ header('Content-Type: application/json; charset=UTF-8');
 
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
+require_once __DIR__ . '/lib/progress_db.php';
 require_once __DIR__ . '/logger.php';
 
 $pdo = getDbConnection();
@@ -132,6 +133,9 @@ if ($action === 'toggle_verified') {
         ON CONFLICT (schedule_id) DO UPDATE SET antithrombotic_verified = :v2, updated_at = CURRENT_TIMESTAMP
     ");
     $stmt->execute([':id' => $sid, ':v' => $verified ? 'TRUE' : 'FALSE', ':v2' => $verified ? 'TRUE' : 'FALSE']);
+
+    // 内視鏡シート（t_endoscopy_sheet）側へも休薬確認状態を双方向同期 [計画⑥]
+    syncProgressToSheet($pdo, $sid, ['antithrombotic_verified' => $verified]);
 
     echo json_encode([
         'success'  => true,

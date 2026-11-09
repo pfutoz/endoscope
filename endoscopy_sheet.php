@@ -18,6 +18,11 @@
  *       2. 患者基本情報テーブルのスリム化：「性別」「年齢」の見出しセルおよび男女の中点（・）を削除、「生年月日」を「生年/月日」2行改行化
  *       3. 2カラムグリッドを minmax(0, Xfr) 構成に統一し、「問診・医療安全確認事項」「採血・消毒 ／ 時間記録」の右端印刷見切れを解消（全枠ツライチ化）
  *       4. 問診リストを上詰め（flex: 0 0 auto）にし、下部の「予約時備考・申し送り事項」欄の印刷行数を最大化（flex: 1 1 auto ＋ 自動高さ拡張 autoFitRemarks）
+ *   - 2026-11-08: 【計画⑥ 内視鏡シート（t_endoscopy_sheet）DB永続化 ＆ 当日進捗モニター双方向データ統合】
+ *       1. シート入力状態のPostgreSQL永続化（t_endoscopy_sheet）＆ キー単位差分マージ自動保存（action_endoscopy_sheet.php）を実装
+ *       2. 複数端末（受付・前処置室タブレット・検査室PC・医事課PC）間のリアルタイム自動同期（ポーリング＆フォーカス時最新取得）を実装
+ *       3. 当日進捗モニター（progress_monitor.php）との双方向同期（来院時刻・休薬確認・鎮静剤・検査開始/終了/起床/説明時刻・生検部位・備考・ステータス自動進捗）を実装
+ *       4. ツールバーにDB同期インジケータ、ホワイトボード現在ステータス表示、および「🏥 医事入力済」ワンクリックトグルを新設
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -30,11 +35,14 @@ require_once __DIR__ . '/lib/printer_helper.php';
 require_once __DIR__ . '/lib/patient_helper.php';
 require_once __DIR__ . '/lib/medical_alert_helper.php';
 require_once __DIR__ . '/lib/slot_helper.php';
+require_once __DIR__ . '/lib/progress_db.php';
 
 $pdo = getDbConnection();
 if (!$pdo) {
     die("データベース接続に失敗しました。");
 }
+
+initProgressTables($pdo);
 
 // サーバー印刷時の画面入力状態（state_job）の取得
 $server_print_state = null;
@@ -86,6 +94,86 @@ try {
 } catch (Exception $e) {
     // テーブル未作成時等は無視
 }
+
+// 2.5 内視鏡シート永続化データ（t_endoscopy_sheet）の取得 [計画⑥]
+$db_sheet_row = null;
+$db_sheet_state = null;
+$has_db_sheet_record = false;
+$is_billing_completed = false;
+$billing_completed_at_disp = '';
+$db_updated_at_raw = '';
+$db_updated_time_disp = '';
+try {
+    $stmt_sh = $pdo->prepare("SELECT * FROM t_endoscopy_sheet WHERE schedule_id = :id");
+    $stmt_sh->execute([':id' => $schedule_id]);
+    $db_sheet_row = $stmt_sh->fetch(PDO::FETCH_ASSOC);
+    if ($db_sheet_row) {
+        $has_db_sheet_record = true;
+        $is_billing_completed = !empty($db_sheet_row['is_billing_completed']);
+        if (!empty($db_sheet_row['billing_completed_at'])) {
+            $billing_completed_at_disp = date('H:i', strtotime((string)$db_sheet_row['billing_completed_at']));
+        }
+        $db_updated_at_raw = (string)($db_sheet_row['updated_at'] ?? '');
+        if ($db_updated_at_raw !== '') {
+            $db_updated_time_disp = date('H:i:s', strtotime($db_updated_at_raw));
+        }
+        $decoded_db = json_decode((string)($db_sheet_row['sheet_state_json'] ?? '{}'), true);
+        if (is_array($decoded_db)) {
+            $db_sheet_state = [
+                'checks'  => isset($decoded_db['checks']) && is_array($decoded_db['checks']) ? $decoded_db['checks'] : [],
+                'circles' => isset($decoded_db['circles']) && is_array($decoded_db['circles']) ? $decoded_db['circles'] : [],
+                'inputs'  => isset($decoded_db['inputs']) && is_array($decoded_db['inputs']) ? $decoded_db['inputs'] : [],
+            ];
+        }
+    }
+} catch (Exception $e) {}
+
+if (!is_array($db_sheet_state)) {
+    $db_sheet_state = ['checks' => [], 'circles' => [], 'inputs' => []];
+}
+
+// 進捗モニター側の開始・終了・起床・説明時刻が記録済みでシート入力が空欄の場合は初期状態へ補完
+if ($progress) {
+    if (!empty($progress['exam_start_time']) && preg_match('/^(\d{1,2}):(\d{2})$/', (string)$progress['exam_start_time'], $m)) {
+        if (empty($db_sheet_state['inputs']['t_start_h']) && empty($db_sheet_state['inputs']['t_start_m'])) {
+            $db_sheet_state['inputs']['t_start_h'] = sprintf('%02d', (int)$m[1]);
+            $db_sheet_state['inputs']['t_start_m'] = sprintf('%02d', (int)$m[2]);
+        }
+    }
+    if (!empty($progress['exam_end_time']) && preg_match('/^(\d{1,2}):(\d{2})$/', (string)$progress['exam_end_time'], $m)) {
+        if (empty($db_sheet_state['inputs']['t_end_h']) && empty($db_sheet_state['inputs']['t_end_m'])) {
+            $db_sheet_state['inputs']['t_end_h'] = sprintf('%02d', (int)$m[1]);
+            $db_sheet_state['inputs']['t_end_m'] = sprintf('%02d', (int)$m[2]);
+        }
+    }
+    if (!empty($progress['recovery_end_time'])) {
+        $wake_hm = date('H:i', strtotime((string)$progress['recovery_end_time']));
+        if (preg_match('/^(\d{1,2}):(\d{2})$/', $wake_hm, $m)) {
+            if (empty($db_sheet_state['inputs']['t_wake_h']) && empty($db_sheet_state['inputs']['t_wake_m'])) {
+                $db_sheet_state['inputs']['t_wake_h'] = sprintf('%02d', (int)$m[1]);
+                $db_sheet_state['inputs']['t_wake_m'] = sprintf('%02d', (int)$m[2]);
+            }
+        }
+    }
+    if (!empty($progress['explain_start_time']) && preg_match('/^(\d{1,2}):(\d{2})$/', (string)$progress['explain_start_time'], $m)) {
+        if (empty($db_sheet_state['inputs']['t_exp_h']) && empty($db_sheet_state['inputs']['t_exp_m'])) {
+            $db_sheet_state['inputs']['t_exp_h'] = sprintf('%02d', (int)$m[1]);
+            $db_sheet_state['inputs']['t_exp_m'] = sprintf('%02d', (int)$m[2]);
+        }
+    }
+}
+
+$current_wb_status_id = (int)($progress['current_status_id'] ?? 1);
+$wb_status_names = [
+    1 => '1.受付済',
+    2 => '2.マイトイレ',
+    3 => '3.検査待ち',
+    4 => '4.検査中',
+    5 => '5.リカバリ',
+    6 => '6.説明',
+    7 => '7.完了',
+];
+$current_wb_status_label = $wb_status_names[$current_wb_status_id] ?? '1.受付済';
 
 // 3. 医療安全アラート（t_patient_medical_alert）の取得
 $alert = [
@@ -943,9 +1031,24 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
         <div class="toolbar-title">
             📋 内視鏡シート
         </div>
-        <span class="toolbar-hint">💡 画面上の「□」や選択肢（部位・無/有・OK等）をタップするとチェック・丸囲みできます</span>
+        <span id="dbSyncStatusPill" style="display:inline-flex; align-items:center; gap:4px; background:#0f172a; color:#38bdf8; border:1px solid #0284c7; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700;">
+            <?php if ($has_db_sheet_record): ?>
+                ☁️ DB同期済 (<?= htmlspecialchars($db_updated_time_disp, ENT_QUOTES, 'UTF-8') ?>)
+            <?php else: ?>
+                ☁️ DB自動保存待機
+            <?php endif; ?>
+        </span>
+        <a href="progress_monitor.php?date=<?= urlencode($exam_date) ?>" target="_blank" id="wbStatusBadgeLink" title="当日進捗モニター（ホワイトボード）を開く" style="display:inline-flex; align-items:center; gap:4px; background:#334155; color:#f8fafc; border:1px solid #475569; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; text-decoration:none;">
+            <span>📊 WB:</span>
+            <span id="wbStatusBadgeText" style="color:#fde047;"><?= htmlspecialchars($current_wb_status_label, ENT_QUOTES, 'UTF-8') ?></span>
+        </a>
+        <span class="toolbar-hint">💡 チェック・丸囲み・時刻打刻は自動でDB保存され、ホワイトボードとリアルタイム同期します</span>
     </div>
     <div class="toolbar-actions">
+        <button type="button" id="btnToggleBilling" class="btn-tool" onclick="toggleBillingCompleted()" title="医事課用：カルテオーダー・レセプト入力完了フラグを切り替えます"
+                style="<?= $is_billing_completed ? 'background:#059669; border-color:#10b981; color:#fff;' : 'background:#334155; border-color:#64748b; color:#e2e8f0;' ?>">
+            <span id="btnToggleBillingText"><?= $is_billing_completed ? '🏥 医事入力済 ✔' . ($billing_completed_at_disp !== '' ? " ({$billing_completed_at_disp})" : '') : '🏥 医事未入力' ?></span>
+        </button>
         <button type="button" class="btn-tool" onclick="toggleDoctorPrefill()">👨‍⚕️ 医師名印字</button>
         <button type="button" class="btn-tool" onclick="resetSheetInputs()">🔄 リセット</button>
 
@@ -991,10 +1094,8 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
             <div class="exam-meta-right">
                 <span style="font-size:9.5pt; margin-right:4px;"><strong>検査日：</strong><?= htmlspecialchars($exam_date_disp, ENT_QUOTES, 'UTF-8') ?></span>
                 <span class="meta-pill meta-pill-wide">枠: <?= htmlspecialchars($scheduled_time !== '' ? $scheduled_time : '　　　', ENT_QUOTES, 'UTF-8') ?></span>
-                <span class="meta-pill">来院: <?= htmlspecialchars($arrival_time !== '' ? $arrival_time : '　 : 　', ENT_QUOTES, 'UTF-8') ?></span>
-                <?php if ($room_number !== ''): ?>
-                    <span class="meta-pill hl-yellow">部屋: <?= htmlspecialchars($room_number, ENT_QUOTES, 'UTF-8') ?></span>
-                <?php endif; ?>
+                <span class="meta-pill" id="metaArrivalPill" onclick="promptOrStampArrival()" title="クリックで来院時刻を打刻・修正（ホワイトボードと連動）" style="cursor:pointer;">来院: <span id="metaArrivalText"><?= htmlspecialchars($arrival_time !== '' ? $arrival_time : '　 : 　', ENT_QUOTES, 'UTF-8') ?></span></span>
+                <span class="meta-pill hl-yellow" id="metaRoomPill" style="<?= $room_number !== '' ? '' : 'display:none;' ?>">部屋: <span id="metaRoomText"><?= htmlspecialchars($room_number, ENT_QUOTES, 'UTF-8') ?></span></span>
             </div>
         </div>
 
@@ -1199,8 +1300,13 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
                         <span class="cb-item" data-key="anti_no"><span class="cb-box">✓</span><span class="cb-label">無</span></span>
                         <span class="cb-item <?= !empty($alert['has_antithrombotic']) ? 'is-checked' : '' ?>" data-key="anti_yes"><span class="cb-box">✓</span><span class="cb-label">有</span></span>
                         <span>（<span class="cb-item" data-key="anti_stop_no"><span class="cb-box">✓</span><span class="cb-label">休薬なし</span></span>
-                        <span class="cb-item" data-key="anti_stop_yes"><span class="cb-box">✓</span><span class="cb-label">休薬あり</span></span>
+                        <span class="cb-item <?= !empty($alert['antithrombotic_verified']) ? 'is-checked' : '' ?>" data-key="anti_stop_yes"><span class="cb-box">✓</span><span class="cb-label">休薬あり</span></span>
                         <input type="text" class="inline-input" style="width:18px;" data-input="anti_m">/<input type="text" class="inline-input" style="width:18px;" data-input="anti_d">～<input type="text" class="inline-input" style="width:46px;" data-input="anti_drug">）</span>
+                        <?php if (!empty($alert['has_antithrombotic'])): ?>
+                            <span id="antiVerifiedBadge" class="alert-tag-mini" style="<?= !empty($alert['antithrombotic_verified']) ? 'background:#d1fae5; border-color:#059669; color:#065f46;' : 'background:#fef3c7; border-color:#d97706; color:#92400e;' ?>">
+                                <?= !empty($alert['antithrombotic_verified']) ? '✔休薬確認済' : '⚠️要休薬確認' ?>
+                            </span>
+                        <?php endif; ?>
                     </div>
 
                     <div class="monshin-row <?= !empty($alert['has_diabetes']) ? 'hl-alert-row' : '' ?>">
@@ -1659,6 +1765,50 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
     const scheduleId = root ? root.getAttribute('data-schedule-id') : '0';
     const STORAGE_KEY = 'endoscopy_sheet_v1_' + scheduleId;
     const SERVER_PRINT_STATE = <?= json_encode($server_print_state, JSON_UNESCAPED_UNICODE) ?>;
+    const DB_INITIAL_STATE   = <?= json_encode($db_sheet_state, JSON_UNESCAPED_UNICODE) ?>;
+    let hasDbRecord          = <?= json_encode($has_db_sheet_record) ?>;
+    let isBillingCompleted   = <?= json_encode($is_billing_completed) ?>;
+    let lastKnownUpdatedAt   = <?= json_encode($db_updated_at_raw) ?>;
+    let currentArrivalTime   = <?= json_encode($arrival_time) ?>;
+
+    const WB_STATUS_NAMES = {
+        1: '1.受付済',
+        2: '2.マイトイレ',
+        3: '3.検査待ち',
+        4: '4.検査中',
+        5: '5.リカバリ',
+        6: '6.説明',
+        7: '7.完了'
+    };
+
+    // 排他グループ定義（クライアント側即時UI連動用）
+    const EXCLUSIVE_CHECK_GROUPS = [
+        ['dept_proct', 'dept_gastro'],
+        ['anti_no', 'anti_yes'],
+        ['anti_stop_no', 'anti_stop_yes'],
+        ['dm_no', 'dm_yes'],
+        ['dm_stop_no', 'dm_stop_yes'],
+        ['ins_no', 'ins_yes'],
+        ['ins_stop_no', 'ins_stop_yes'],
+        ['shunt_no', 'shunt_yes']
+    ];
+
+    const EXCLUSIVE_CIRCLE_GROUPS = [
+        ['sex_m', 'sex_f'],
+        ['attendant_no', 'attendant_yes'],
+        ['bag_no', 'bag_yes'],
+        ['med_no', 'med_yes'],
+        ['constip_no', 'constip_yes'],
+        ['deaf_no', 'deaf_yes'],
+        ['bp_med_done', 'bp_med_yet'],
+        ['pethi_norm', 'pethi_weak'],
+        ['blood_draw_yes', 'blood_draw_no'],
+        ['stamp_ok', 'stamp_recovery', 'stamp_waiting']
+    ];
+
+    let pendingDelta = { checks: {}, circles: {}, inputs: {} };
+    let saveTimer = null;
+    let isSaving = false;
 
     function collectCurrentState() {
         const state = { checks: {}, circles: {}, inputs: {} };
@@ -1674,34 +1824,177 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
         return state;
     }
 
-    function applyStateObj(state) {
+    function applyStateObj(state, skipActiveInput) {
         if (!state || typeof state !== 'object') return;
         if (state.checks) {
             Object.keys(state.checks).forEach(k => {
+                if (skipActiveInput && Object.prototype.hasOwnProperty.call(pendingDelta.checks, k)) return;
                 const el = document.querySelector(`.cb-item[data-key="${k}"]`);
                 if (el) el.classList.toggle('is-checked', !!state.checks[k]);
             });
         }
         if (state.circles) {
             Object.keys(state.circles).forEach(k => {
+                if (skipActiveInput && Object.prototype.hasOwnProperty.call(pendingDelta.circles, k)) return;
                 const el = document.querySelector(`[data-key="${k}"]`);
                 if (el) el.classList.toggle('is-circled', !!state.circles[k]);
             });
         }
         if (state.inputs) {
             Object.keys(state.inputs).forEach(k => {
+                if (skipActiveInput && Object.prototype.hasOwnProperty.call(pendingDelta.inputs, k)) return;
                 const el = document.querySelector(`[data-input="${k}"]`);
-                if (el && state.inputs[k] !== undefined) el.value = state.inputs[k];
+                if (el && state.inputs[k] !== undefined) {
+                    if (skipActiveInput && document.activeElement === el) return;
+                    el.value = state.inputs[k];
+                }
             });
+        }
+        updateAntiVerifiedBadgeLocal();
+    }
+
+    function updateSyncStatusPill(statusType, timeStr) {
+        const pill = document.getElementById('dbSyncStatusPill');
+        if (!pill) return;
+        if (statusType === 'saving') {
+            pill.style.borderColor = '#f59e0b';
+            pill.style.color = '#fde047';
+            pill.textContent = '⏳ DB保存中...';
+        } else if (statusType === 'saved') {
+            pill.style.borderColor = '#10b981';
+            pill.style.color = '#6ee7b7';
+            pill.textContent = '☁️ DB同期済' + (timeStr ? ' (' + timeStr + ')' : '');
+        } else if (statusType === 'error') {
+            pill.style.borderColor = '#ef4444';
+            pill.style.color = '#fca5a5';
+            pill.textContent = '⚠️ 端末一時保存 (再送待機)';
         }
     }
 
-    // 状態保存・復元（タブレット・ブラウザでの入力保持用）
-    function saveState() {
-        const state = collectCurrentState();
+    function updateWbStatusBadge(stId) {
+        const el = document.getElementById('wbStatusBadgeText');
+        if (!el || !stId) return;
+        el.textContent = WB_STATUS_NAMES[stId] || ('Step ' + stId);
+    }
+
+    function updateBillingButtonUI(completed, timeStr) {
+        isBillingCompleted = !!completed;
+        const btn = document.getElementById('btnToggleBilling');
+        const txt = document.getElementById('btnToggleBillingText');
+        if (!btn || !txt) return;
+        if (isBillingCompleted) {
+            btn.style.background = '#059669';
+            btn.style.borderColor = '#10b981';
+            btn.style.color = '#ffffff';
+            txt.textContent = '🏥 医事入力済 ✔' + (timeStr ? ' (' + timeStr + ')' : '');
+        } else {
+            btn.style.background = '#334155';
+            btn.style.borderColor = '#64748b';
+            btn.style.color = '#e2e8f0';
+            txt.textContent = '🏥 医事未入力';
+        }
+    }
+
+    function updateAntiVerifiedBadgeLocal() {
+        const badge = document.getElementById('antiVerifiedBadge');
+        if (!badge) return;
+        const stopYes = document.querySelector('.cb-item[data-key="anti_stop_yes"]');
+        const stopNo  = document.querySelector('.cb-item[data-key="anti_stop_no"]');
+        const antiNo  = document.querySelector('.cb-item[data-key="anti_no"]');
+        const isVer = (stopYes && stopYes.classList.contains('is-checked'))
+                   || (stopNo && stopNo.classList.contains('is-checked'))
+                   || (antiNo && antiNo.classList.contains('is-checked'));
+        if (isVer) {
+            badge.style.background = '#d1fae5';
+            badge.style.borderColor = '#059669';
+            badge.style.color = '#065f46';
+            badge.textContent = '✔休薬確認済';
+        } else {
+            badge.style.background = '#fef3c7';
+            badge.style.borderColor = '#d97706';
+            badge.style.color = '#92400e';
+            badge.textContent = '⚠️要休薬確認';
+        }
+    }
+
+    function hasPendingDelta() {
+        return Object.keys(pendingDelta.checks).length > 0
+            || Object.keys(pendingDelta.circles).length > 0
+            || Object.keys(pendingDelta.inputs).length > 0;
+    }
+
+    // ローカルストレージへのバックアップ保持 ＋ デバウンスDB非同期保存
+    function saveState(immediate, extraPayload) {
+        const fullState = collectCurrentState();
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState));
         } catch (e) {}
+
+        if (SERVER_PRINT_STATE) return;
+
+        if (saveTimer) {
+            clearTimeout(saveTimer);
+            saveTimer = null;
+        }
+
+        if (immediate) {
+            flushSaveToDb(extraPayload);
+        } else {
+            updateSyncStatusPill('saving');
+            saveTimer = setTimeout(() => {
+                flushSaveToDb(extraPayload);
+            }, 300);
+        }
+    }
+
+    function flushSaveToDb(extraPayload) {
+        if (SERVER_PRINT_STATE) return;
+
+        const deltaToSend = {
+            checks: Object.assign({}, pendingDelta.checks),
+            circles: Object.assign({}, pendingDelta.circles),
+            inputs: Object.assign({}, pendingDelta.inputs)
+        };
+        pendingDelta = { checks: {}, circles: {}, inputs: {} };
+
+        const payload = Object.assign({
+            action: 'save_state',
+            schedule_id: parseInt(scheduleId, 10),
+            delta_checks: deltaToSend.checks,
+            delta_circles: deltaToSend.circles,
+            delta_inputs: deltaToSend.inputs,
+            full_state: !hasDbRecord ? collectCurrentState() : undefined
+        }, extraPayload || {});
+
+        isSaving = true;
+        updateSyncStatusPill('saving');
+
+        fetch('action_endoscopy_sheet.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            isSaving = false;
+            if (data && data.success) {
+                hasDbRecord = true;
+                updateSyncStatusPill('saved', data.updated_time_str || '');
+                if (data.current_status_id) {
+                    updateWbStatusBadge(data.current_status_id);
+                }
+                if (data.state) {
+                    applyStateObj(data.state, true);
+                    autoFitRemarks();
+                }
+            } else {
+                updateSyncStatusPill('error');
+            }
+        })
+        .catch(() => {
+            isSaving = false;
+            updateSyncStatusPill('error');
+        });
     }
 
     function autoFitRemarks() {
@@ -1715,54 +2008,185 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
 
     function loadState() {
         if (SERVER_PRINT_STATE) {
-            applyStateObj(SERVER_PRINT_STATE);
+            applyStateObj(SERVER_PRINT_STATE, false);
             autoFitRemarks();
             return;
         }
+
+        if (hasDbRecord && DB_INITIAL_STATE) {
+            applyStateObj(DB_INITIAL_STATE, false);
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(collectCurrentState()));
+            } catch (e) {}
+            autoFitRemarks();
+            return;
+        }
+
+        // DB未保存かつlocalStorageに既存入力がある場合は自動復元＆DBへ初回マイグレーション保存
+        let migratedFromLocal = false;
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) {
-                autoFitRemarks();
-                return;
+            if (raw) {
+                const localState = JSON.parse(raw);
+                applyStateObj(localState, false);
+                migratedFromLocal = true;
             }
-            const state = JSON.parse(raw);
-            applyStateObj(state);
         } catch (e) {}
+
+        if (DB_INITIAL_STATE) {
+            applyStateObj(DB_INITIAL_STATE, false);
+        }
         autoFitRemarks();
+
+        if (migratedFromLocal) {
+            const cur = collectCurrentState();
+            pendingDelta.checks = Object.assign({}, cur.checks);
+            pendingDelta.circles = Object.assign({}, cur.circles);
+            pendingDelta.inputs = Object.assign({}, cur.inputs);
+            saveState(true);
+        }
+    }
+
+    // 排他チェックボックスのクライアント側即時連動
+    function applyExclusiveCheckInDom(key, isChecked) {
+        if (!isChecked) return;
+        EXCLUSIVE_CHECK_GROUPS.forEach(grp => {
+            if (grp.indexOf(key) !== -1) {
+                grp.forEach(otherKey => {
+                    if (otherKey !== key) {
+                        const otherEl = document.querySelector(`.cb-item[data-key="${otherKey}"]`);
+                        if (otherEl && otherEl.classList.contains('is-checked')) {
+                            otherEl.classList.remove('is-checked');
+                            pendingDelta.checks[otherKey] = false;
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // 排他丸囲み・楕円スタンプのクライアント側即時連動
+    function applyExclusiveCircleInDom(key, isCircled) {
+        if (!isCircled) return;
+        EXCLUSIVE_CIRCLE_GROUPS.forEach(grp => {
+            if (grp.indexOf(key) !== -1) {
+                grp.forEach(otherKey => {
+                    if (otherKey !== key) {
+                        const otherEl = document.querySelector(`[data-key="${otherKey}"]`);
+                        if (otherEl && otherEl.classList.contains('is-circled')) {
+                            otherEl.classList.remove('is-circled');
+                            pendingDelta.circles[otherKey] = false;
+                        }
+                    }
+                });
+            }
+        });
+
+        // 部位丸囲みON時に親の処置チェックボックスも自動ON
+        let parentCheckKey = null;
+        if (key.indexOf('cf_biopsy_') === 0) parentCheckKey = 'cf_biopsy';
+        else if (key.indexOf('cf_poly_u2_') === 0) parentCheckKey = 'cf_poly_u2';
+        else if (key.indexOf('cf_poly_o2_') === 0) parentCheckKey = 'cf_poly_o2';
+        else if (key.indexOf('gif_biopsy_') === 0) parentCheckKey = 'gif_biopsy';
+
+        if (parentCheckKey) {
+            const pEl = document.querySelector(`.cb-item[data-key="${parentCheckKey}"]`);
+            if (pEl && !pEl.classList.contains('is-checked')) {
+                pEl.classList.add('is-checked');
+                pendingDelta.checks[parentCheckKey] = true;
+            }
+        }
     }
 
     // イベントバインド：□チェックボックス
-    document.querySelectorAll('.cb-item').forEach(el => {
+    document.querySelectorAll('.cb-item[data-key]').forEach(el => {
         el.addEventListener('click', function() {
+            const key = this.getAttribute('data-key');
             this.classList.toggle('is-checked');
-            saveState();
+            const isChecked = this.classList.contains('is-checked');
+            pendingDelta.checks[key] = isChecked;
+            applyExclusiveCheckInDom(key, isChecked);
+            updateAntiVerifiedBadgeLocal();
+            saveState(false);
         });
     });
 
     // イベントバインド：◯丸囲み選択肢＆楕円スタンプ
-    document.querySelectorAll('.circle-choice, .oval-stamp').forEach(el => {
+    document.querySelectorAll('.circle-choice[data-key], .oval-stamp[data-key]').forEach(el => {
         el.addEventListener('click', function() {
+            const key = this.getAttribute('data-key');
             this.classList.toggle('is-circled');
-            saveState();
+            const isCircled = this.classList.contains('is-circled');
+            pendingDelta.circles[key] = isCircled;
+            applyExclusiveCircleInDom(key, isCircled);
+            const isStamp = (key === 'stamp_ok' || key === 'stamp_recovery' || key === 'stamp_waiting');
+            saveState(isStamp);
         });
     });
 
     // イベントバインド：テキスト・数値入力
     document.querySelectorAll('[data-input]').forEach(el => {
         el.addEventListener('input', function() {
+            const key = this.getAttribute('data-input');
+            const val = this.value;
+            pendingDelta.inputs[key] = val;
+
+            // 薬剤量・錠数入力時に対応する薬剤チェックボックスを自動ON
+            const autoCheckMap = {
+                'drug_propofol_mg': 'drug_propofol',
+                'drug_diazepam_ml': 'drug_diazepam',
+                'drug_pethi_ml': 'drug_pethilorfan',
+                'prep_visi_tabs': 'prep_visi'
+            };
+            if (autoCheckMap[key] && val.trim() !== '') {
+                const cKey = autoCheckMap[key];
+                const cEl = document.querySelector(`.cb-item[data-key="${cKey}"]`);
+                if (cEl && !cEl.classList.contains('is-checked')) {
+                    cEl.classList.add('is-checked');
+                    pendingDelta.checks[cKey] = true;
+                }
+            }
+
             if (this.id === 'sheetRemarksArea') autoFitRemarks();
-            saveState();
+            saveState(false);
         });
     });
 
-    // 現在時刻打刻ヘルパー
+    // 現在時刻打刻ヘルパー（ホワイトボードのステータスも自動進捗）
     window.stampNow = function(hId, mId) {
         const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
         const hEl = document.getElementById(hId);
         const mEl = document.getElementById(mId);
-        if (hEl) hEl.value = String(now.getHours()).padStart(2, '0');
-        if (mEl) mEl.value = String(now.getMinutes()).padStart(2, '0');
-        saveState();
+        if (hEl) {
+            hEl.value = hh;
+            const hk = hEl.getAttribute('data-input');
+            if (hk) pendingDelta.inputs[hk] = hh;
+        }
+        if (mEl) {
+            mEl.value = mm;
+            const mk = mEl.getAttribute('data-input');
+            if (mk) pendingDelta.inputs[mk] = mm;
+        }
+        saveState(true);
+    };
+
+    // 来院時刻の打刻・編集（シート右上「来院:」ピル）
+    window.promptOrStampArrival = function() {
+        const now = new Date();
+        const defaultHm = currentArrivalTime || (String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'));
+        const newHm = prompt('来院受付時刻を入力・打刻してください (HH:MM形式):', defaultHm);
+        if (newHm === null) return;
+        const cleanHm = newHm.trim();
+        if (!/^\d{1,2}:\d{2}$/.test(cleanHm)) {
+            alert('HH:MM 形式（例: 09:15）で入力してください。');
+            return;
+        }
+        currentArrivalTime = cleanHm;
+        const disp = document.getElementById('metaArrivalText');
+        if (disp) disp.textContent = cleanHm;
+        saveState(true, { arrival_time: cleanHm });
     };
 
     // 医師署名欄への担当医名印字トグル
@@ -1775,17 +2199,96 @@ $prep_is_visi = (mb_strpos($bowel_prep, 'ビジ') !== false || mb_strpos($clean_
         } else {
             signInput.value = '';
         }
-        saveState();
+        pendingDelta.inputs['doctor_sign'] = signInput.value;
+        saveState(true);
+    };
+
+    // 医事課レセプト入力完了トグル
+    window.toggleBillingCompleted = function() {
+        const nextVal = !isBillingCompleted;
+        fetch('action_endoscopy_sheet.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'toggle_billing',
+                schedule_id: parseInt(scheduleId, 10),
+                is_billing_completed: nextVal ? 1 : 0
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.success) {
+                updateBillingButtonUI(data.is_billing_completed, data.billing_completed_at || '');
+                showServerPrintToast(true, data.is_billing_completed ? '🏥 医事・レセプト入力完了に更新しました' : '医事未入力に戻しました');
+            }
+        })
+        .catch(err => {
+            showServerPrintToast(false, '通信エラー: ' + err.message);
+        });
     };
 
     // リセット
     window.resetSheetInputs = function() {
-        if (!confirm('画面上で入力・チェックした内容を初期状態に戻しますか？')) return;
+        if (!confirm('画面上で入力・チェックした内容を初期状態に戻しますか？\n（DBに保存された内視鏡シート記録もリセットされます）')) return;
         try {
             localStorage.removeItem(STORAGE_KEY);
         } catch (e) {}
-        location.reload();
+        fetch('action_endoscopy_sheet.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'reset_sheet',
+                schedule_id: parseInt(scheduleId, 10)
+            })
+        })
+        .finally(() => {
+            location.reload();
+        });
     };
+
+    // マルチ端末リアルタイム同期（他端末やホワイトボードでの更新を自動反映）
+    function pollRemoteSheetState() {
+        if (SERVER_PRINT_STATE || isSaving || hasPendingDelta()) return;
+        fetch('action_endoscopy_sheet.php?action=get_state&schedule_id=' + encodeURIComponent(scheduleId))
+            .then(r => r.json())
+            .then(data => {
+                if (!data || !data.success || isSaving || hasPendingDelta()) return;
+                if (data.meta) {
+                    if (data.meta.current_status_id) {
+                        updateWbStatusBadge(data.meta.current_status_id);
+                    }
+                    if (data.meta.arrival_time !== undefined) {
+                        currentArrivalTime = data.meta.arrival_time || '';
+                        const arrEl = document.getElementById('metaArrivalText');
+                        if (arrEl) arrEl.textContent = currentArrivalTime !== '' ? currentArrivalTime : '　 : 　';
+                    }
+                    if (data.meta.room_number !== undefined) {
+                        const roomPill = document.getElementById('metaRoomPill');
+                        const roomTxt  = document.getElementById('metaRoomText');
+                        if (roomPill && roomTxt) {
+                            roomTxt.textContent = data.meta.room_number || '';
+                            roomPill.style.display = data.meta.room_number ? '' : 'none';
+                        }
+                    }
+                    updateBillingButtonUI(data.meta.is_billing_completed, data.meta.billing_completed_at || '');
+                    if (data.meta.updated_at && data.meta.updated_at !== lastKnownUpdatedAt) {
+                        lastKnownUpdatedAt = data.meta.updated_at;
+                        hasDbRecord = !!data.has_db_record;
+                        updateSyncStatusPill('saved', data.meta.updated_time_str || '');
+                    }
+                }
+                if (data.state) {
+                    applyStateObj(data.state, true);
+                    autoFitRemarks();
+                }
+            })
+            .catch(() => {});
+    }
+
+    if (!SERVER_PRINT_STATE) {
+        setInterval(pollRemoteSheetState, 6000);
+        window.addEventListener('focus', pollRemoteSheetState);
+    }
 
     // サーバー側でMALL3性別が未取得だった場合の非同期フォールバック補完
     const patientNo = <?= json_encode($patient_id) ?>;

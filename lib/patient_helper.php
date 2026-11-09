@@ -86,6 +86,50 @@ function getExamBadgeHTML($exam_type) {
     return "<span class='exam-badge' style='{$style}'>" . htmlspecialchars($display_label, ENT_QUOTES, 'UTF-8') . "</span>";
 }
 
+/**
+ * 同一時間枠に複数（2件以上）の予約が入っている場合の四角囲み順番バッジ（[1] [2]...）を描画
+ * 名前の前に表示し、クリックで即時順番入れ替え・ドラッグ＆ドロップにも対応
+ * ※未採番状態（$is_numbered === false）のときは display:none で出力し、[🔢採番] ボタン押下時に即時表示する
+ */
+if (!function_exists('renderSlotSeqBadgeHTML')) {
+    function renderSlotSeqBadgeHTML(int $seq, int $total, int $schedule_id, array $peer_sids = [], string $context = 'table', bool $is_numbered = true): string {
+        if ($total < 2 || $seq < 1 || $schedule_id <= 0) {
+            return '';
+        }
+        $peers_str = htmlspecialchars(implode(',', array_map('intval', $peer_sids)), ENT_QUOTES, 'UTF-8');
+        $title = "同一枠内順番 [{$seq}/{$total}]（クリックで順番入替 ／ ドラッグでも入替可）";
+        $disp = $is_numbered ? 'inline-flex' : 'none';
+
+        if ($context === 'matrix') {
+            $style = "display:{$disp}; align-items:center; justify-content:center; width:14px; height:14px; min-width:14px; border:1.5px solid #1e3a8a; background:#ffffff; color:#1e3a8a; font-size:9.5px; font-weight:900; border-radius:2px; line-height:1; margin-right:3px; vertical-align:middle; cursor:pointer; user-select:none; box-shadow:0 1px 1px rgba(0,0,0,0.12);";
+        } else {
+            $style = "display:{$disp}; align-items:center; justify-content:center; width:16px; height:16px; min-width:16px; border:1.5px solid #1e3a8a; background:#ffffff; color:#1e3a8a; font-size:10.5px; font-weight:900; border-radius:3px; line-height:1; margin-right:4px; vertical-align:middle; cursor:pointer; user-select:none; box-shadow:0 1px 2px rgba(0,0,0,0.12);";
+        }
+
+        return "<span class='slot-seq-badge' style='{$style}' data-schedule-id='{$schedule_id}' data-seq='{$seq}' data-total='{$total}' data-peer-sids='{$peers_str}' title='" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "' onclick='if(typeof window.cycleSlotOrder===\"function\"){window.cycleSlotOrder(this, event);}else{event.stopPropagation();}'><span class='slot-seq-num'>{$seq}</span></span>";
+    }
+}
+
+/**
+ * 同一時間枠に複数予約があり、まだ番号が付いていない（未採番）場合に時間枠セル横へ表示する [🔢採番] ミニボタン
+ */
+if (!function_exists('renderSlotAssignBtnHTML')) {
+    function renderSlotAssignBtnHTML(string $slot_group_key, array $peer_sids = [], string $context = 'table'): string {
+        if (count($peer_sids) < 2) {
+            return '';
+        }
+        $group_esc = htmlspecialchars($slot_group_key, ENT_QUOTES, 'UTF-8');
+        $peers_esc = htmlspecialchars(implode(',', array_map('intval', $peer_sids)), ENT_QUOTES, 'UTF-8');
+        $title = "同一枠内の複数予約に現在の並び順で [1] [2]... を採番して保存します";
+        if ($context === 'matrix') {
+            $style = "display:inline-flex; align-items:center; justify-content:center; gap:2px; background:#eff6ff; color:#1d4ed8; border:1px solid #60a5fa; border-radius:3px; padding:1px 4px; font-size:9px; font-weight:800; line-height:1.1; cursor:pointer; margin-bottom:2px; width:100%; box-shadow:0 1px 2px rgba(37,99,235,0.15);";
+        } else {
+            $style = "display:inline-flex; align-items:center; gap:2px; background:#eff6ff; color:#1d4ed8; border:1px solid #60a5fa; border-radius:4px; padding:1px 5px; font-size:10px; font-weight:800; line-height:1.2; cursor:pointer; white-space:nowrap; box-shadow:0 1px 2px rgba(37,99,235,0.12);";
+        }
+        return "<button type='button' class='slot-assign-seq-btn' data-slot-group='{$group_esc}' data-peer-sids='{$peers_esc}' onclick='if(typeof window.assignSlotNumbers===\"function\"){window.assignSlotNumbers(this, event);}else{event.stopPropagation();}' title='" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "' style='{$style}'>🔢採番</button>";
+    }
+}
+
 function renderPatientBox($data, $date_str, $prefix = "", $simple_mode = false) {
     $is_canceled = isset($data['is_canceled']) && ($data['is_canceled'] === true || $data['is_canceled'] === 1 || $data['is_canceled'] === 't');
     $pname_raw = (string)($data['patient_name'] ?? '');
@@ -200,11 +244,19 @@ function renderPatientBox($data, $date_str, $prefix = "", $simple_mode = false) 
             $canvas_icon_html = '<a href="' . htmlspecialchars($c_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer" class="canvas-tile-btn" onclick="event.stopPropagation();" title="患者No.' . htmlspecialchars($pid_val, ENT_QUOTES, 'UTF-8') . ' の検査実績タイムラインを開く (モダリティ: ' . htmlspecialchars($c_modality, ENT_QUOTES, 'UTF-8') . ')" style="text-decoration:none; font-size:10px; margin-left:3px; vertical-align:middle; display:inline-block; line-height:1; cursor:pointer;">🗺️</a>';
         }
 
+        $seq_idx = (int)($data['slot_seq_index'] ?? 0);
+        $seq_tot = (int)($data['slot_seq_total'] ?? 0);
+        $peer_sids = is_array($data['slot_peer_sids'] ?? null) ? $data['slot_peer_sids'] : [];
+        $is_slot_numbered = isset($data['is_slot_numbered']) ? (bool)$data['is_slot_numbered'] : true;
+        $seq_badge_html = (!$is_canceled && !$is_waku_nashi)
+            ? renderSlotSeqBadgeHTML($seq_idx, $seq_tot, $sid, $peer_sids, 'matrix', $is_slot_numbered)
+            : '';
+
         if ($simple_mode) {
             echo "<div class='pid-row' style='display:flex; justify-content:space-between; align-items:center;'>";
             echo "  <span style='font-weight:800; color:#1e293b; font-size:9px;'>ID:" . htmlspecialchars((string)($data['patient_id'] ?? ''), ENT_QUOTES, 'UTF-8') . $canvas_icon_html . "</span>";
             echo "  <span class='pname' style='font-weight:bold; font-size:10px; cursor:pointer; flex:1; margin:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;' onclick='openEditModalWithCtrlCheck(this, event)'>";
-            echo "    <span class='real-pname'>" . htmlspecialchars($pname_raw, ENT_QUOTES, 'UTF-8') . "</span>" . $alert_icons_html;
+            echo "    " . $seq_badge_html . "<span class='real-pname'>" . htmlspecialchars($pname_raw, ENT_QUOTES, 'UTF-8') . "</span>" . $alert_icons_html;
             echo "    <span class='masked-pname' style='display:none; color:#777; font-style:italic;'>●●●●</span>";
             echo "  </span>";
             echo "  " . $exam_badge;
@@ -217,8 +269,7 @@ function renderPatientBox($data, $date_str, $prefix = "", $simple_mode = false) 
             </div>
         
         <div class='pname-row' style='font-weight:bold; font-size:10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;' onclick='openEditModalWithCtrlCheck(this, event)'>
-            <?= $prefix ?>
-            <span class='real-pname'><?= htmlspecialchars($pname_raw, ENT_QUOTES, 'UTF-8') ?></span><?= $alert_icons_html ?>
+            <?= $prefix ?><?= $seq_badge_html ?><span class='real-pname'><?= htmlspecialchars($pname_raw, ENT_QUOTES, 'UTF-8') ?></span><?= $alert_icons_html ?>
             <span class='masked-pname' style='display:none; color:#777; font-style:italic;'>●●●●</span>
         </div>
         

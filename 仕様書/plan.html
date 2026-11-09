@@ -719,9 +719,9 @@
                 <div class="plan-header">
                     <div class="plan-title-group">
                         <span class="plan-title">📋 内視鏡シート マルチ端末DB共有 ＆ 電子ホワイトボード双方向同期（Two-Way Sync）</span>
-                        <span class="plan-tag">endoscopy_sheet.php / progress_monitor.php / t_endoscopy_sheet</span>
+                        <span class="plan-tag">endoscopy_sheet.php / progress_monitor.php / action_endoscopy_sheet.php / t_endoscopy_sheet</span>
                     </div>
-                    <span class="badge badge-primary">Phase 1完了 / Phase 2-3 計画策定済</span>
+                    <span class="badge badge-success" style="background:#059669; color:#fff;">実装完了 (2026-11-08)</span>
                 </div>
                 <div class="plan-body">
                     <p class="plan-lead">
@@ -1206,11 +1206,11 @@
                                 <td><strong>内視鏡シート刷新 ＆<br>DB永続化・ホワイトボード<br>双方向データ統合</strong></td>
                                 <td>
                                     ・<strong>[完了]</strong> A4縦1枚ハイブリッド内視鏡シート（<code>endoscopy_sheet.php</code>）＆ サーバー直接印刷（2026-11-06）<br>
-                                    ・<strong>[次期]</strong> <code>t_endoscopy_sheet</code> テーブル新設 ＆ マルチ端末リアルタイム自動保存・共有<br>
-                                    ・<strong>[次期]</strong> 当日進捗モニター（<code>progress_monitor.php</code>）との双方向データ同期（来院・下剤・鎮静・検査時刻・生検部位照合・会計連動）<br>
-                                    ・<strong>[次期]</strong> 医事課オーダー・レセプト入力完了チェック機能
+                                    ・<strong>[完了]</strong> <code>t_endoscopy_sheet</code> テーブル新設 ＆ マルチ端末リアルタイム自動保存・共有（キー単位JSONB差分マージ・6秒ポーリング同期）（2026-11-08）<br>
+                                    ・<strong>[完了]</strong> 当日進捗モニター（<code>progress_monitor.php</code>）との双方向データ同期（来院・下剤・鎮静・検査時刻・生検部位照合・ステータス4/5/6自動進捗・会計連動）（2026-11-08）<br>
+                                    ・<strong>[完了]</strong> 医事課オーダー・レセプト入力完了チェック機能 ＆ 処置・使用薬剤サマリモーダル（2026-11-08）
                                 </td>
-                                <td><span class="badge badge-primary">最優先 (High)</span><br>看護師・医師・医事課</td>
+                                <td><span class="badge badge-success" style="background:#059669; color:#fff;">実装完了 (2026-11-08)</span><br>看護師・医師・医事課</td>
                             </tr>
                             <tr>
                                 <td><strong>Phase 1.5<br>(時間枠世代管理)</strong></td>

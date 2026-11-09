@@ -1388,4 +1388,27 @@ tr.row-undecided-highlight:hover td {
     box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
 }
 
+/* ── 同一時間枠内の複数予約 順番バッジ（[1] [2] ...）＆ドラッグ入替 ── */
+.slot-seq-badge:hover {
+    background: #eff6ff !important;
+    border-color: #2563eb !important;
+    color: #1d4ed8 !important;
+    transform: scale(1.08);
+}
+tr.slot-multi-row {
+    cursor: grab;
+}
+tr.slot-multi-row:active {
+    cursor: grabbing;
+}
+tr.slot-row-dragging {
+    opacity: 0.55;
+    background-color: #f1f5f9 !important;
+}
+tr.slot-row-dragover > td {
+    box-shadow: inset 0 2px 0 #2563eb, inset 0 -2px 0 #2563eb;
+    background-color: #eff6ff !important;
+}
+
+
 

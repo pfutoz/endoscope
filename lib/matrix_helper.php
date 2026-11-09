@@ -182,7 +182,33 @@ function renderMonthMatrixFast($pdo, $year, $month, $dept, $waku_list, $month_ma
                     echo "<div class='suspended-slot-badge' style='background:#fee2e2; color:#b91c1c; border:1px dashed #ef4444; border-radius:3px; padding:1px 3px; font-size:10px; margin-bottom:3px; text-align:center; font-weight:bold;'>🚫 休止 [{$reason_disp}]</div>";
                 }
                 if ($has_cell_reservations) {
-                    foreach ($month_matrix[$date_str][$waku_name] as $data) {
+                    $cell_items = $month_matrix[$date_str][$waku_name];
+                    $active_indices = [];
+                    $peer_sids = [];
+                    $raw_seqs = [];
+                    foreach ($cell_items as $c_idx => $c_data) {
+                        $c_canceled = isset($c_data['is_canceled']) && ($c_data['is_canceled'] === true || $c_data['is_canceled'] === 1 || $c_data['is_canceled'] === 't');
+                        $c_pname = (string)($c_data['patient_name'] ?? '');
+                        $c_waku_nashi = (strpos($c_pname, '枠なし') !== false);
+                        $c_sid = (int)($c_data['schedule_id'] ?? 0);
+                        if (!$c_canceled && !$c_waku_nashi && $c_sid > 0) {
+                            $active_indices[] = $c_idx;
+                            $peer_sids[] = $c_sid;
+                            $raw_seqs[] = (int)($c_data['slot_seq'] ?? 0);
+                        }
+                    }
+                    $active_total = count($active_indices);
+                    $is_numbered = ($active_total >= 2) && (min($raw_seqs) >= 1) && (count(array_unique($raw_seqs)) === $active_total);
+                    if ($active_total >= 2 && !$is_numbered && function_exists('renderSlotAssignBtnHTML')) {
+                        echo renderSlotAssignBtnHTML("{$dept}|{$waku_name}", $peer_sids, 'matrix');
+                    }
+                    foreach ($active_indices as $seq_pos => $c_idx) {
+                        $cell_items[$c_idx]['slot_seq_index']   = $seq_pos + 1;
+                        $cell_items[$c_idx]['slot_seq_total']   = $active_total;
+                        $cell_items[$c_idx]['slot_peer_sids']   = $peer_sids;
+                        $cell_items[$c_idx]['is_slot_numbered'] = $is_numbered;
+                    }
+                    foreach ($cell_items as $data) {
                         renderPatientBox($data, $date_str, '', $simple_mode);
                     }
                 } elseif (!$is_slot_suspended && !$is_past && $group_code === 'TCF') {

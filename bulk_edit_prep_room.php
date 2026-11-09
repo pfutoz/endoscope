@@ -3,8 +3,10 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\bulk_edit_prep_room.php
  * ファイル名: bulk_edit_prep_room.php
  * 概要: 当日予約の「マイトイレ部屋番号」「下剤」一括編集・保存画面 (m_input_master連携版)
- * 更新日時: 2026-11-06 16:40
+ * 更新日時: 2026-11-08
  * 修正履歴:
+ *   - 2026-11-08: 【基本時間枠カラー（waku_color）対応】
+ *       1. 予約一覧テーブルの「時間枠」セルに基本時間枠の背景色（waku_color）を反映（単発枠名称変更時も基本枠カラーを引き継ぎ、枠なし行は警告色を優先）
  *   - 2026-11-06: 【ビジクリア専用カラー（パープル #7c3aed）＆ 未定義下剤フォールバック色（スレート #64748b）対応】
  *       1. 下剤プルダウン選択肢および選択後スタイルにて、ビジクリア（^ビジ）に専用パープル色（#7c3aed）、その他の未定義下剤にフォールバック色（#64748b）を適用
  *   - 2026-10-27: 【部屋重複リアルタイム検知 ＆ 使用中部屋の氏名表示 ＆ GIF/エコー注意】
@@ -24,6 +26,7 @@ error_reporting(E_ALL);
 
 session_start();
 require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/slot_helper.php';
 
 $pdo = getDbConnection();
 if (!is_null($pdo) && $pdo === false) { die("データベース接続失敗"); }
@@ -189,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['items'])) {
 // 予約一覧取得
 $sql = "
     SELECT schedule_id, department_code, scheduled_time, patient_id, patient_name, birthday, exam_type, doctor_name, 
+           COALESCE(remarks, '') AS remarks,
            COALESCE(room_number, '') AS room_number, 
            COALESCE(bowel_prep, '') AS bowel_prep
     FROM t_endoscopy_schedule
@@ -202,6 +206,12 @@ if ($dept !== 'ALL') {
 }
 $stmt->execute($params);
 $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// 対象日の有効時間枠マップ（基本枠カラー waku_color 解決用）
+$effective_waku_by_dept = [
+    'PROCT'  => getEffectiveWakuList($pdo, 'PROCT', $date),
+    'GASTRO' => getEffectiveWakuList($pdo, 'GASTRO', $date),
+];
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -476,15 +486,25 @@ $list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                     $exam_name = trim((string)$row['exam_type']);
                     if ($exam_name === '') { $exam_name = '-'; }
+
+                    $p_name_str = trim((string)($row['patient_name'] ?? ''));
+                    $remarks_str = (string)($row['remarks'] ?? '');
+                    $is_real_patient = ($p_name_str !== '' && $p_name_str !== '※枠なし' && mb_strpos($p_name_str, '［') !== 0);
+                    $is_no_waku = (!$is_real_patient && (trim($remarks_str) === '＊＊＊🚫枠なし🚫＊＊＊' || $p_name_str === '※枠なし' || mb_strpos($remarks_str, '枠なし') !== false));
+                    $waku_color = resolveEffectiveWakuColorForRow($row, $effective_waku_by_dept);
+                    $tr_bg_style = $is_no_waku ? ' style="background-color:#fff1f2;"' : '';
+                    $waku_td_style = ($waku_color !== '' && !$is_no_waku)
+                        ? ' style="background-color:' . htmlspecialchars($waku_color, ENT_QUOTES, 'UTF-8') . ';"'
+                        : '';
                 ?>
                     <tr class="reservation-row" 
                         data-sid="<?= $sid ?>" 
                         data-patient-name="<?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?>"
                         data-age="<?= $age_int !== null ? $age_int : '' ?>"
-                        data-exam-type="<?= htmlspecialchars($exam_name, ENT_QUOTES, 'UTF-8') ?>">
+                        data-exam-type="<?= htmlspecialchars($exam_name, ENT_QUOTES, 'UTF-8') ?>"<?= $tr_bg_style ?>>
                         <input type="hidden" name="items[<?= $sid ?>][department_code]" value="<?= htmlspecialchars($row_dept, ENT_QUOTES, 'UTF-8') ?>">
                         
-                        <td>
+                        <td<?= $waku_td_style ?>>
                             <div style="display:flex; align-items:center; white-space:nowrap; overflow:hidden;">
                                 <?php if ($dept === 'ALL'): ?>
                                     <span class="dept-icon-badge <?= $dept_badge_cls ?>"><?= $dept_char ?></span>

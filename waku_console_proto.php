@@ -719,6 +719,7 @@ $dept_theme = ($dept === 'PROCT') ? '#10b981' : '#0284c7';
     <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
     <link rel="stylesheet" href="assets/css/theme.css">
     <script src="assets/js/env_detector.js"></script>
 <body class="<?= getBodyEnvClass() ?>">

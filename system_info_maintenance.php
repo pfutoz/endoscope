@@ -371,6 +371,11 @@ $all_infos = getSystemInformations($pdo, true);
             line-height: 1.4;
         }
     </style>
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
+    <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
 </head>
 <body <?= getBodyEnvClass() ?>>
 <?= renderLocalEnvBanner() ?>
@@ -441,7 +446,7 @@ $all_infos = getSystemInformations($pdo, true);
             <div class="form-grid">
                 <div class="form-group">
                     <label>日付 (YYYY-MM-DD)<span class="req">*</span></label>
-                    <input type="date" name="info_date" class="input-text" required value="<?= htmlspecialchars($edit_row['info_date'] ?? date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="text" id="info_date" name="info_date" class="onokai-date-picker" data-compact="true" data-dark="true" required autocomplete="off" value="<?= htmlspecialchars($edit_row['info_date'] ?? date('Y-m-d'), ENT_QUOTES, 'UTF-8') ?>">
                 </div>
 
                 <div class="form-group">
@@ -611,5 +616,13 @@ $all_infos = getSystemInformations($pdo, true);
 
 </div>
 
+<script>
+if (window.OnokaiDatePicker) {
+    OnokaiDatePicker.bindControl('#info_date', {
+        compact: true,
+        dark: true
+    });
+}
+</script>
 </body>
 </html>

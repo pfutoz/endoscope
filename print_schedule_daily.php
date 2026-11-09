@@ -4,8 +4,11 @@
  * ファイル名: print_schedule_daily.php
  * 概要: 日別内視鏡予約一覧 印刷専用モジュール (A4縦向き印刷対応)
  * 生成日時: 2026-10-20 22:35
- * 更新日時: 2026-11-06 23:48
+ * 更新日時: 2026-11-08
  * 修正履歴:
+ *   - 2026-11-08: 【基本時間枠カラー（waku_color）対応】
+ *       1. 予約一覧表および他科VIP共有表の「時間枠」セル（col-time）に基本時間枠の背景色（waku_color）を反映（A4印刷時 print-color-adjust: exact 対応）
+ *       2. 枠なし（休止）行およびマスタ不整合行では背景色を適用せず警告色（ピンク）を優先維持
  *   - 2026-11-06: 【時間枠世代管理対応】対象日（:date BETWEEN valid_from AND valid_to）の世代の時間枠マスタ（m2_waku）を参照して印刷一覧を生成するよう改修。
  *   - 2026-11-06: 【下剤表示（ビジクリア等）の先頭3文字略称化 ＆ 専用カラー・フォールバック色対応】
  *       1. 下剤（bowel_prep）に「ビジクリア」等の4文字以上の名称が設定された場合、先頭3文字（例: 「ビジク」）で略称表示する特殊処理を実装（通常一覧・他科VIP共有テーブル両対応）
@@ -71,6 +74,7 @@ require_once __DIR__ . '/lib/date_helper.php';
 require_once __DIR__ . '/lib/printer_helper.php';
 require_once __DIR__ . '/lib/patient_helper.php';
 require_once __DIR__ . '/lib/calendar_helper.php';
+require_once __DIR__ . '/lib/slot_helper.php';
 
 $pdo = getDbConnection();
 if (!$pdo) {
@@ -234,7 +238,7 @@ if ($show_empty) {
     $sql = "
     WITH 
     all_slots AS (
-        SELECT department_code, waku_name, display_order, group_code
+        SELECT department_code, waku_name, display_order, group_code, COALESCE(waku_color, '') AS waku_color
         FROM m2_waku
         WHERE {$dept_condition_waku}
           AND is_active = TRUE
@@ -248,6 +252,7 @@ if ($show_empty) {
             s.remarks, s.room_number, s.bowel_prep, s.is_vip, s.is_canceled,
             s.department_code,
             w.display_order AS waku_display_order, w.group_code,
+            COALESCE(w.waku_color, '') AS waku_color,
             CASE WHEN w.waku_name IS NULL THEN TRUE ELSE FALSE END AS is_mismatch,
             FALSE AS is_empty
         FROM t_endoscopy_schedule s
@@ -264,6 +269,7 @@ if ($show_empty) {
         COALESCE(r.scheduled_time, 'MISMATCH') AS scheduled_time,
         -1 AS waku_no,
         COALESCE(r.group_code, 'MISMATCH') AS group_code,
+        COALESCE(r.waku_color, '') AS waku_color,
         r.department_code,
         COALESCE(r.patient_id, '') AS patient_id,
         COALESCE(r.patient_name, '') AS patient_name,
@@ -287,6 +293,7 @@ if ($show_empty) {
         a.waku_name AS scheduled_time,
         a.display_order AS waku_no,
         a.group_code,
+        COALESCE(a.waku_color, '') AS waku_color,
         a.department_code,
         COALESCE(r.patient_id, '') AS patient_id,
         COALESCE(r.patient_name, '') AS patient_name,
@@ -313,6 +320,7 @@ if ($show_empty) {
         s.*,
         w.display_order AS waku_display_order,
         COALESCE(w.group_code, 'MISMATCH') AS group_code,
+        COALESCE(w.waku_color, '') AS waku_color,
         CASE WHEN w.waku_name IS NULL THEN TRUE ELSE FALSE END AS is_mismatch,
         FALSE AS is_empty
     FROM t_endoscopy_schedule s
@@ -341,7 +349,8 @@ if ($dept === "PROCT" || $dept === "GASTRO") {
     $vip_sql = "
         SELECT 
             s.*,
-            COALESCE(w.display_order, 9999) AS waku_display_order
+            COALESCE(w.display_order, 9999) AS waku_display_order,
+            COALESCE(w.waku_color, '') AS waku_color
         FROM t_endoscopy_schedule s
         LEFT JOIN m2_waku w 
             ON s.department_code = w.department_code 
@@ -359,6 +368,16 @@ if ($dept === "PROCT" || $dept === "GASTRO") {
     $other_dept_vips = $vip_stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// 対象日の有効時間枠マップ（単発名称変更された枠でも基本枠カラーを解決できるように保持）
+$effective_waku_by_dept = [
+    'PROCT'  => getEffectiveWakuList($pdo, 'PROCT', $date_str),
+    'GASTRO' => getEffectiveWakuList($pdo, 'GASTRO', $date_str),
+];
+foreach ($other_dept_vips as &$vip_row) {
+    $vip_row['waku_color'] = resolveEffectiveWakuColorForRow($vip_row, $effective_waku_by_dept);
+}
+unset($vip_row);
+
 // データ仕分け：全件連続（$rows_all）、エコー+GIF（1ページ目）と CF・大腸内視鏡（2ページ目）
 $rows_all      = [];
 $rows_echo_gif = [];
@@ -366,6 +385,7 @@ $rows_cf       = [];
 $room_counts   = []; // 当日内の部屋重複カウント集計
 
 foreach ($raw_data as $row) {
+    $row['waku_color'] = resolveEffectiveWakuColorForRow($row, $effective_waku_by_dept);
     $is_empty    = isset($row['is_empty']) && $row['is_empty'] === true;
     $is_mismatch = isset($row['is_mismatch']) && $row['is_mismatch'] === true;
     $exam        = (string)($row['exam_type'] ?? '');
@@ -518,15 +538,34 @@ function renderScheduleTable(array $rows, string $date_str, array $room_counts):
                     echo '<tr class="spacer-row"><td colspan="9"></td></tr>';
                 }
                 $prev_dept = $row_dept;
+
+                $remarks_raw = (string)($row['remarks'] ?? '');
+                $p_name_raw  = trim((string)($row['patient_name'] ?? ''));
+                $is_real_patient = ($p_name_raw !== '' && $p_name_raw !== '※枠なし' && mb_strpos($p_name_raw, '［') !== 0);
+                $is_no_waku = (!$is_empty && !$is_real_patient && (trim($remarks_raw) === '＊＊＊🚫枠なし🚫＊＊＊' || $p_name_raw === '※枠なし' || mb_strpos($remarks_raw, '枠なし') !== false || !empty($row['is_suspended'])));
+
+                $waku_color = sanitizeWakuColor((string)($row['waku_color'] ?? ''));
+                $waku_td_style = '';
+                if ($waku_color !== '' && !$is_no_waku && !$is_mismatch) {
+                    $waku_td_style = ' style="background-color:' . htmlspecialchars($waku_color, ENT_QUOTES, 'UTF-8') . ' !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;"';
+                }
+                $tr_row_style = '';
+                if ($is_mismatch) {
+                    $tr_row_style = 'style="background-color:#fee2e2 !important;"';
+                } elseif ($is_no_waku) {
+                    $tr_row_style = 'style="background-color:#fff1f2 !important;"';
+                } elseif ($is_empty) {
+                    $tr_row_style = 'style="color:#64748b;"';
+                }
             ?>
                 <tr class="schedule-row <?= ($idx % 2 === 1) ? 'row-even' : '' ?>"
                     data-standard-idx="<?= $idx ?>"
                     data-dept="<?= htmlspecialchars($row_dept, ENT_QUOTES, 'UTF-8') ?>"
                     data-room="<?= htmlspecialchars($clean_room, ENT_QUOTES, 'UTF-8') ?>"
                     data-room-first="<?= htmlspecialchars($room_first_char, ENT_QUOTES, 'UTF-8') ?>"
-                    <?= $is_mismatch ? 'style="background-color:#fee2e2 !important;"' : ($is_empty ? 'style="color:#64748b;"' : '') ?>>
+                    <?= $tr_row_style ?>>
                     <!-- 時間枠 -->
-                    <td class="col-time">
+                    <td class="col-time"<?= $waku_td_style ?>>
                         <span class="dept-icon-badge <?= $dept_badge_cls ?>"><?= $dept_char ?></span>
                         <strong><?= htmlspecialchars($time_disp, ENT_QUOTES, 'UTF-8') ?></strong>
                     </td>
@@ -667,9 +706,11 @@ function renderOtherDeptVipTable(array $vips, string $other_dept_label, string $
                     elseif (mb_strpos($prep_val, 'ニフ') === 0) $prep_cls = 'prep-nif';
                     elseif (mb_strpos($prep_val, 'ビジ') === 0) $prep_cls = 'prep-visi';
                     $prep_disp = (mb_strlen($prep_val, 'UTF-8') > 3) ? mb_substr($prep_val, 0, 3, 'UTF-8') : $prep_val;
+                    $vip_waku_color = sanitizeWakuColor((string)($row['waku_color'] ?? ''));
+                    $vip_waku_td_style = ($vip_waku_color !== '') ? ' style="background-color:' . htmlspecialchars($vip_waku_color, ENT_QUOTES, 'UTF-8') . ' !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;"' : '';
                 ?>
                     <tr class="schedule-row <?= ($idx % 2 === 1) ? 'row-even' : '' ?>">
-                        <td class="col-time">
+                        <td class="col-time"<?= $vip_waku_td_style ?>>
                             <span class="dept-icon-badge <?= $dept_badge_cls ?>"><?= $dept_char ?></span>
                             <strong><?= htmlspecialchars($time_disp, ENT_QUOTES, 'UTF-8') ?></strong>
                         </td>

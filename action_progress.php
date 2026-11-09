@@ -6,6 +6,9 @@
  * 生成日時: 2026-09-09 20:30:00 JST
  * 修正履歴:
  *   - 2026-09-28: リカバリ目標時間の個別自由調整機能 (update_recovery_target) を追加
+ *   - 2026-11-08: 【計画⑥ 内視鏡シート（t_endoscopy_sheet）双方向同期対応】
+ *       1. ステータス進捗・鎮静切替・検体照合更新時に syncProgressToSheet() で t_endoscopy_sheet へ時刻・鎮静・生検部位を自動同期
+ *       2. ホワイトボードからの医事入力完了トグル（toggle_billing_completed）および会計準備トグル（toggle_ready_accounting）を追加
  */
 
 header('Content-Type: application/json; charset=UTF-8');
@@ -168,6 +171,28 @@ try {
 
             $sql_up = "UPDATE t_today_progress SET " . implode(', ', $update_fields) . " WHERE schedule_id = :schedule_id";
             $pdo->prepare($sql_up)->execute($params);
+
+            // 【計画⑥ 双方向同期】ホワイトボードのステータス更新を内視鏡シート（t_endoscopy_sheet）へ自動反映
+            $sheet_sync = [];
+            if ($to_status_id === 4) {
+                $sheet_sync['exam_start_time'] = !empty($current['exam_start_time']) ? $current['exam_start_time'] : $now_time_hm;
+            } elseif ($to_status_id === 5) {
+                $sheet_sync['exam_end_time'] = $now_time_hm;
+                $sheet_sync['post_destination'] = 'RECOVERY';
+            } elseif ($to_status_id === 6) {
+                if ($current_status_id === 4) {
+                    $sheet_sync['exam_end_time'] = !empty($current['exam_end_time']) ? $current['exam_end_time'] : $now_time_hm;
+                    $sheet_sync['post_destination'] = 'WAITING';
+                } elseif ($current_status_id === 5) {
+                    $sheet_sync['wake_time'] = $now_time_hm;
+                }
+                $sheet_sync['explain_time'] = $now_time_hm;
+            } elseif ($to_status_id === 7) {
+                $sheet_sync['is_ready_accounting'] = true;
+            }
+            if (!empty($sheet_sync)) {
+                syncProgressToSheet($pdo, $schedule_id, $sheet_sync);
+            }
 
             // 履歴ログ記録
             $pdo->prepare("
@@ -396,6 +421,10 @@ try {
                 'biopsy_sites' => $biopsy_sites,
                 'biopsy_verified' => $biopsy_verified
             ]);
+            syncProgressToSheet($pdo, $schedule_id, [
+                'has_biopsy'   => $has_biopsy,
+                'biopsy_sites' => $biopsy_sites,
+            ]);
             break;
 
         // =================================================================
@@ -445,6 +474,10 @@ try {
                 'has_sedation' => $has_sedation,
                 'sedation_type' => $sedation_type,
                 'recovery_target_minutes' => $target_minutes
+            ]);
+            syncProgressToSheet($pdo, $schedule_id, [
+                'has_sedation'  => $has_sedation,
+                'sedation_type' => $sedation_type,
             ]);
             break;
 
@@ -537,6 +570,66 @@ try {
                 'success' => true,
                 'schedule_id' => $schedule_id,
                 'is_exam_ready' => (bool)$is_ready
+            ]);
+            break;
+
+        // =================================================================
+        // 【計画⑥】医事・レセプト入力完了トグル (ホワイトボードからワンクリック消込)
+        // =================================================================
+        case 'toggle_billing_completed':
+            $is_completed = !empty($input['is_billing_completed']);
+            $client_ip    = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $sched_info_stmt = $pdo->prepare("SELECT patient_id, exam_date FROM t_endoscopy_schedule WHERE schedule_id = :id");
+            $sched_info_stmt->execute([':id' => $schedule_id]);
+            $sched_info = $sched_info_stmt->fetch(PDO::FETCH_ASSOC);
+
+            $pdo->prepare("
+                INSERT INTO t_endoscopy_sheet (
+                    schedule_id, patient_id, exam_date,
+                    is_billing_completed, billing_completed_at, billing_completed_by,
+                    sheet_state_json, updated_at, updated_by_ip
+                ) VALUES (
+                    :id, :pid, :date,
+                    :comp, :comp_at, :comp_by,
+                    '{}'::jsonb, CURRENT_TIMESTAMP, :ip
+                )
+                ON CONFLICT (schedule_id) DO UPDATE SET
+                    is_billing_completed = EXCLUDED.is_billing_completed,
+                    billing_completed_at = EXCLUDED.billing_completed_at,
+                    billing_completed_by = EXCLUDED.billing_completed_by,
+                    updated_at           = CURRENT_TIMESTAMP,
+                    updated_by_ip        = EXCLUDED.updated_by_ip
+            ")->execute([
+                ':id'      => $schedule_id,
+                ':pid'     => $sched_info['patient_id'] ?? '',
+                ':date'    => $sched_info['exam_date'] ?? $exam_date,
+                ':comp'    => $is_completed ? 1 : 0,
+                ':comp_at' => $is_completed ? $now_timestamp : null,
+                ':comp_by' => $is_completed ? $operator_name : null,
+                ':ip'      => $client_ip,
+            ]);
+
+            echo json_encode([
+                'success'              => true,
+                'schedule_id'          => $schedule_id,
+                'is_billing_completed' => $is_completed,
+                'billing_completed_at' => $is_completed ? $now_time_hm : '',
+            ]);
+            break;
+
+        // =================================================================
+        // 【計画⑥】会計準備完了（□会計へ）トグル
+        // =================================================================
+        case 'toggle_ready_accounting':
+            $is_ready_acc = !empty($input['is_ready_accounting']);
+            syncProgressToSheet($pdo, $schedule_id, [
+                'is_ready_accounting' => $is_ready_acc,
+            ]);
+
+            echo json_encode([
+                'success'             => true,
+                'schedule_id'         => $schedule_id,
+                'is_ready_accounting' => $is_ready_acc,
             ]);
             break;
 

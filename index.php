@@ -7,6 +7,7 @@
  * 医療法人小野会 内視鏡予約・運用プロトタイプ統合ポータル
  * 
  * 修正履歴:
+ *   - 2026-11-08: 【v1108 リリース】内視鏡シートDB永続化（t_endoscopy_sheet）＆当日進捗モニター双方向データ統合、基本時間枠カラー設定、時間枠マスタ期間（世代）管理対応に伴いバージョン表記・カード説明・リリース情報を v1108 へ更新
  *   - 2026-11-01: v1101 本番稼働リリース、修正インフォメーション配信バナー新設、進捗モニターUI統合、デイリーノート日付バーピッカー一本化、空き枠検索強化
  *   - 2026-10-25: ver1025 リリース、RS-Baseキャンバス連携、時間枠統合管理コンソール新設、help.php実機完全同期
 *   - 2026-10-04: ver1004 アップデート、総合操作マニュアル help.php へのリンク正規化
@@ -76,6 +77,8 @@ if ($db_connected) {
 
 $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
 $today_dow = $week_ja[(int)date('w')];
+$sys_infos_for_header = getSystemInformations($pdo);
+$current_portal_ver = !empty($sys_infos_for_header[0]['ver']) ? (string)$sys_infos_for_header[0]['ver'] : 'v1108';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -607,7 +610,7 @@ $today_dow = $week_ja[(int)date('w')];
         <div class="header-badges">
             <a href="./仕様書/specdoc.html" class="help-btn" target="_blank" rel="noopener noreferrer" title="操作マニュアルを表示（別ウィンドウ）" aria-label="操作マニュアルを表示">📖</a>
             <a href="help.php" class="help-btn" target="_blank" rel="noopener noreferrer" title="システム仕様書を表示（別ウィンドウ）" aria-label="仕様書を表示">❓</a>
-            <span class="ver-pill" title="システムバージョン">v1101</span>
+            <span class="ver-pill" title="システムバージョン"><?= htmlspecialchars($current_portal_ver, ENT_QUOTES, 'UTF-8') ?></span>
             <span class="ip-pill" title="クライアントIPアドレス"><?= htmlspecialchars($client_ip, ENT_QUOTES, 'UTF-8') ?></span>
         </div>
     </header>
@@ -724,7 +727,7 @@ $today_dow = $week_ja[(int)date('w')];
                         </div>
                     </div>
                     <div class="menu-card-desc">
-                        7段階動線（受付〜処置〜検査〜リカバリ〜説明〜完了）の電子ホワイトボード。
+                        7段階動線（受付〜処置〜検査〜リカバリ〜説明〜完了）の電子ホワイトボード。内視鏡シート双方向連動・医事課チェック対応。
                     </div>
                     <div class="menu-card-footer" style="color: #2563eb;">
                         <span>開く</span>

@@ -477,17 +477,36 @@
     window.openPrintSchedule = openPrintSchedule;
 
     /* ============================================================
-       5. Modern Toast Notification 制御 (Popover API)
+       5. Modern Toast Notification 制御 (Popover API) & モーダル通知ウインドウ
        ============================================================ */
     let toastTimer = null;
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.getElementById('toastMessage');
+    function ensureToastElements() {
+        let container = document.getElementById('toastContainer');
+        let toast = document.getElementById('toastMessage');
         if (!container || !toast) {
-            alert(message);
-            return;
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.setAttribute('popover', 'manual');
+            container.className = 'modern-toast-container';
+            container.style.cssText = 'position:fixed; top:24px; right:24px; margin:0; padding:0; border:none; background:transparent; z-index:100050;';
+            toast = document.createElement('div');
+            toast.id = 'toastMessage';
+            toast.className = 'modern-toast info';
+            container.appendChild(toast);
+            document.body.appendChild(container);
         }
+        return { container, toast };
+    }
+
+    function showToast(message, type = 'info') {
+        const { container, toast } = ensureToastElements();
         toast.className = `modern-toast ${type}`;
+        const bgMap = {
+            success: 'background:#ecfdf5; color:#065f46; border:1.5px solid #a7f3d0;',
+            error:   'background:#fef2f2; color:#991b1b; border:1.5px solid #fecaca;',
+            info:    'background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe;'
+        };
+        toast.style.cssText = 'display:inline-flex; align-items:center; gap:10px; padding:12px 20px; border-radius:10px; font-size:13.5px; font-weight:700; box-shadow:0 10px 25px -5px rgba(0,0,0,0.18), 0 8px 10px -6px rgba(0,0,0,0.1); ' + (bgMap[type] || bgMap.info);
         const icon = type === 'success' ? '✅' : (type === 'error' ? '❌' : 'ℹ️');
         toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
         
@@ -507,6 +526,125 @@
         }, 3200);
     }
     window.showToast = showToast;
+
+    let slotOrderModalTimer = null;
+    function closeSlotOrderModal() {
+        clearTimeout(slotOrderModalTimer);
+        const modal = document.getElementById('slotOrderNotifyModal');
+        if (!modal) return;
+        if (typeof modal.close === 'function' && modal.open) {
+            try { modal.close(); } catch (e) { modal.removeAttribute('open'); }
+        } else {
+            modal.removeAttribute('open');
+            modal.style.display = 'none';
+        }
+    }
+    window.closeSlotOrderModal = closeSlotOrderModal;
+
+    function showSlotOrderModal(message, orderedNames = [], type = 'success') {
+        let modal = document.getElementById('slotOrderNotifyModal');
+        if (!modal) {
+            modal = document.createElement('dialog');
+            modal.id = 'slotOrderNotifyModal';
+            modal.setAttribute('closedby', 'any');
+            modal.style.cssText = 'border:none; border-radius:12px; padding:0; box-shadow:0 20px 45px rgba(15,23,42,0.35), 0 0 0 1px rgba(15,23,42,0.1); max-width:380px; width:90vw; background:#ffffff; color:#0f172a; overflow:hidden; z-index:100100; margin:auto; font-family:-apple-system,BlinkMacSystemFont,"BIZ UDPGothic","Meiryo",sans-serif;';
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeSlotOrderModal();
+            });
+            document.body.appendChild(modal);
+
+            if (!document.getElementById('slotOrderNotifyModalStyle')) {
+                const st = document.createElement('style');
+                st.id = 'slotOrderNotifyModalStyle';
+                st.textContent = `
+                    #slotOrderNotifyModal::backdrop {
+                        background: rgba(15, 23, 42, 0.32);
+                        backdrop-filter: blur(2px);
+                    }
+                    #slotOrderNotifyModal[open] {
+                        animation: slotModalPopIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+                    }
+                    @keyframes slotModalPopIn {
+                        from { opacity: 0; transform: scale(0.94) translateY(-6px); }
+                        to   { opacity: 1; transform: scale(1) translateY(0); }
+                    }
+                    @keyframes slotModalBarShrink {
+                        from { width: 100%; }
+                        to   { width: 0%; }
+                    }
+                `;
+                document.head.appendChild(st);
+            }
+        }
+
+        const isError = (type === 'error');
+        const headerBg = isError
+            ? 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)'
+            : 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)';
+        const headerTitle = isError
+            ? '⚠️ 順番の保存エラー'
+            : (String(message).includes('採番') ? '🔢 枠内番号の採番完了' : '🔢 枠内順番の入れ替え');
+        const btnBg = isError ? '#dc2626' : '#2563eb';
+
+        let listHtml = '';
+        if (Array.isArray(orderedNames) && orderedNames.length > 0) {
+            listHtml = '<div style="margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:5px;">';
+            orderedNames.forEach((name, i) => {
+                const seq = i + 1;
+                listHtml += `
+                    <div style="display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:#1e293b;">
+                        <span style="display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 3px; border:1.5px solid #2563eb; border-radius:3px; background:#eff6ff; color:#1d4ed8; font-size:11px; font-weight:900; line-height:1;">${seq}</span>
+                        <span>${escapeHtml(name)}</span>
+                    </div>
+                `;
+            });
+            listHtml += '</div>';
+        }
+
+        const autoCloseMs = isError ? 0 : 1500;
+        const progressHtml = autoCloseMs > 0
+            ? `<div style="height:3px; width:100%; background:#e2e8f0; overflow:hidden;"><div style="height:100%; background:#3b82f6; animation:slotModalBarShrink ${autoCloseMs}ms linear forwards;"></div></div>`
+            : '';
+
+        modal.innerHTML = `
+            <div style="background:${headerBg}; color:#ffffff; padding:9px 14px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:800; font-size:13.5px; display:flex; align-items:center; gap:6px;">${headerTitle}</span>
+                <button type="button" onclick="closeSlotOrderModal()" style="background:none; border:none; color:#ffffff; font-size:18px; cursor:pointer; line-height:1; padding:0 4px; opacity:0.9;">&times;</button>
+            </div>
+            ${progressHtml}
+            <div style="padding:14px 16px 12px 16px;">
+                <div style="font-size:13.5px; font-weight:700; color:${isError ? '#b91c1c' : '#0f172a'}; display:flex; align-items:center; gap:6px;">
+                    <span>${escapeHtml(message)}</span>
+                </div>
+                ${listHtml}
+                <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+                    <button type="button" id="slotOrderModalOkBtn" onclick="closeSlotOrderModal()" style="background:${btnBg}; color:#ffffff; border:none; border-radius:6px; padding:6px 18px; font-size:12.5px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.2);">OK</button>
+                </div>
+            </div>
+        `;
+
+        clearTimeout(slotOrderModalTimer);
+        if (typeof modal.showModal === 'function') {
+            if (!modal.open) {
+                try { modal.showModal(); } catch (e) { modal.setAttribute('open', ''); modal.style.display = 'block'; }
+            }
+        } else {
+            modal.setAttribute('open', '');
+            modal.style.display = 'block';
+        }
+
+        const okBtn = document.getElementById('slotOrderModalOkBtn');
+        if (okBtn) {
+            try { okBtn.focus(); } catch (e) {}
+        }
+
+        if (autoCloseMs > 0) {
+            slotOrderModalTimer = setTimeout(() => {
+                closeSlotOrderModal();
+            }, autoCloseMs);
+        }
+    }
+    window.showSlotOrderModal = showSlotOrderModal;
 
     /* ============================================================
        6. 日別カレンダーメモ編集モーダル (Native Dialog)
@@ -853,5 +991,227 @@
             }
         });
     });
+
+    /* ============================================================
+       9. 同一時間枠内の複数予約 順番入れ替え (クリック & 行ドラッグ&ドロップ)
+       ============================================================ */
+    let draggedSlotRow = null;
+
+    function getPeerSlotRows(tr) {
+        if (!tr) return [];
+        const groupKey = tr.getAttribute('data-slot-group') || '';
+        const tbody = tr.parentNode;
+        if (!groupKey || !tbody) return [];
+        return Array.from(tbody.querySelectorAll('tr[data-slot-group]')).filter(row => {
+            if ((row.getAttribute('data-slot-group') || '') !== groupKey) return false;
+            const sid = parseInt(row.getAttribute('data-schedule-id') || '0', 10);
+            return sid > 0;
+        });
+    }
+
+    function applySlotRowOrderAndSave(orderedRows, subAction = 'reorder') {
+        if (!orderedRows || orderedRows.length < 2) return;
+        const parent = orderedRows[0].parentNode;
+        if (!parent) return;
+
+        // テーブル内の最も先頭にある対象行の位置にマーカーを置き、新しい順序で再配置
+        const allChildren = Array.from(parent.children);
+        let firstDomRow = orderedRows[0];
+        let minDomIdx = allChildren.indexOf(firstDomRow);
+        orderedRows.forEach(r => {
+            const idx = allChildren.indexOf(r);
+            if (idx !== -1 && (minDomIdx === -1 || idx < minDomIdx)) {
+                minDomIdx = idx;
+                firstDomRow = r;
+            }
+        });
+
+        const marker = document.createComment('slot-order-marker');
+        parent.insertBefore(marker, firstDomRow);
+        orderedRows.forEach(r => {
+            parent.insertBefore(r, marker);
+        });
+        parent.removeChild(marker);
+
+        const orderedIds = orderedRows
+            .map(r => parseInt(r.getAttribute('data-schedule-id') || '0', 10))
+            .filter(id => id > 0);
+        const total = orderedRows.length;
+
+        orderedRows.forEach((r, idx) => {
+            // 未採番ミニボタンがあれば消去
+            r.querySelectorAll('.slot-assign-seq-btn').forEach(btn => btn.remove());
+            const seq = idx + 1;
+            const badge = r.querySelector('.slot-seq-badge');
+            if (badge) {
+                badge.style.display = 'inline-flex';
+                badge.setAttribute('data-slot-seq', String(seq));
+                badge.setAttribute('data-slot-total', String(total));
+                badge.setAttribute('data-slot-peers', orderedIds.join(','));
+                const numEl = badge.querySelector('.slot-seq-num');
+                if (numEl) numEl.textContent = String(seq);
+            }
+        });
+
+        const orderedNames = orderedRows.map(r => {
+            const st = r.querySelector('.cell-patient-name strong, .col-pname strong');
+            return st ? st.textContent.trim() : '';
+        }).filter(Boolean);
+
+        const fd = new FormData();
+        fd.append('action_type', 'reorder_slot');
+        fd.append('sub_action', subAction);
+        fd.append('ordered_ids', orderedIds.join(','));
+        if (orderedIds.length > 0) {
+            fd.append('schedule_id', String(orderedIds[0]));
+        }
+
+        const modalMsg = (subAction === 'assign_initial')
+            ? '🔢 枠内の予約に番号を採番しました'
+            : '🔢 枠内の順番を入れ替えました';
+
+        fetch('action_schedule.php', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data || !data.success) {
+                showSlotOrderModal('順番の保存に失敗しました: ' + ((data && data.message) || 'エラー'), [], 'error');
+            } else {
+                showSlotOrderModal(modalMsg, orderedNames, 'success');
+            }
+        })
+        .catch(err => {
+            console.error('reorder_slot error:', err);
+            showSlotOrderModal('順番保存中に通信エラーが発生しました', [], 'error');
+        });
+    }
+
+    function assignSlotNumbers(btnEl, event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        if (!btnEl) return;
+
+        // 1. マトリックス画面 (.waku-cell 内)
+        const cell = btnEl.closest('.waku-cell');
+        if (cell && typeof window.getActiveCellBoxes === 'function' && typeof window.applyCellBoxOrderAndSave === 'function') {
+            const boxes = window.getActiveCellBoxes(cell);
+            if (boxes.length >= 2) {
+                window.applyCellBoxOrderAndSave(cell, boxes, 'assign_initial');
+            }
+            return;
+        }
+
+        // 2. カレンダー画面・ノート画面 (tr[data-slot-group] 内)
+        const tr = btnEl.closest('tr[data-slot-group]');
+        if (tr) {
+            const rows = getPeerSlotRows(tr);
+            if (rows.length >= 2) {
+                applySlotRowOrderAndSave(rows, 'assign_initial');
+            }
+        }
+    }
+    window.assignSlotNumbers = assignSlotNumbers;
+
+    function cycleSlotOrder(badgeEl, event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        if (!badgeEl) return;
+        // マトリックス画面（.patient-box 内）の場合はマトリックス用ハンドラへ委譲
+        if (badgeEl.closest('.patient-box') && typeof window.cycleMatrixSlotOrder === 'function') {
+            window.cycleMatrixSlotOrder(badgeEl, event);
+            return;
+        }
+        const tr = badgeEl.closest('tr[data-slot-group]');
+        if (!tr) return;
+        const rows = getPeerSlotRows(tr);
+        if (rows.length < 2) return;
+
+        let orderedRows;
+        if (rows.length === 2) {
+            orderedRows = [rows[1], rows[0]];
+        } else {
+            const idx = rows.indexOf(tr);
+            if (idx === -1) return;
+            const nextIdx = (idx + 1) % rows.length;
+            orderedRows = rows.slice();
+            const [moved] = orderedRows.splice(idx, 1);
+            orderedRows.splice(nextIdx, 0, moved);
+        }
+        applySlotRowOrderAndSave(orderedRows);
+    }
+    window.cycleSlotOrder = cycleSlotOrder;
+
+    function onSlotRowDragStart(tr, event) {
+        if (!tr || !event) return;
+        const target = event.target;
+        if (target && target.closest && target.closest('a, button, input, select, textarea')) {
+            event.preventDefault();
+            return;
+        }
+        draggedSlotRow = tr;
+        tr.classList.add('slot-row-dragging');
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            try {
+                event.dataTransfer.setData('text/plain', tr.getAttribute('data-schedule-id') || '');
+            } catch (e) {}
+        }
+    }
+    window.onSlotRowDragStart = onSlotRowDragStart;
+
+    function onSlotRowDragOver(tr, event) {
+        if (!draggedSlotRow || !tr || draggedSlotRow === tr) return;
+        const srcGroup = draggedSlotRow.getAttribute('data-slot-group') || '';
+        const dstGroup = tr.getAttribute('data-slot-group') || '';
+        if (!srcGroup || srcGroup !== dstGroup) return;
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'move';
+        }
+        tr.classList.add('slot-row-dragover');
+    }
+    window.onSlotRowDragOver = onSlotRowDragOver;
+
+    function onSlotRowDragLeave(tr, event) {
+        if (!tr) return;
+        tr.classList.remove('slot-row-dragover');
+    }
+    window.onSlotRowDragLeave = onSlotRowDragLeave;
+
+    function onSlotRowDrop(targetTr, event) {
+        if (targetTr) targetTr.classList.remove('slot-row-dragover');
+        if (!draggedSlotRow || !targetTr || draggedSlotRow === targetTr) return;
+        const srcGroup = draggedSlotRow.getAttribute('data-slot-group') || '';
+        const dstGroup = targetTr.getAttribute('data-slot-group') || '';
+        if (!srcGroup || srcGroup !== dstGroup) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const rows = getPeerSlotRows(targetTr);
+        const fromIdx = rows.indexOf(draggedSlotRow);
+        const toIdx = rows.indexOf(targetTr);
+        if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+
+        const orderedRows = rows.slice();
+        orderedRows.splice(fromIdx, 1);
+        orderedRows.splice(toIdx, 0, draggedSlotRow);
+        applySlotRowOrderAndSave(orderedRows);
+    }
+    window.onSlotRowDrop = onSlotRowDrop;
+
+    function onSlotRowDragEnd(tr, event) {
+        if (tr) tr.classList.remove('slot-row-dragging');
+        document.querySelectorAll('tr.slot-row-dragover').forEach(el => el.classList.remove('slot-row-dragover'));
+        draggedSlotRow = null;
+    }
+    window.onSlotRowDragEnd = onSlotRowDragEnd;
 
 })(window, document);

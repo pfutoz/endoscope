@@ -214,9 +214,14 @@ foreach ($effective_waku_period_map as $d_slots) {
     }
 }
 
+if (function_exists('ensureSlotSeqColumn')) {
+    ensureSlotSeqColumn($pdo);
+}
+
 // 1. 予約詳細データ
 $data_sql = "SELECT 
                 s.schedule_id, s.exam_date::text AS exam_date, s.scheduled_time, s.department_code, 
+                COALESCE(s.slot_seq, 1) AS slot_seq,
                 s.patient_id, s.patient_name, s.patient_kana, s.birthday::text AS birthday,
                 s.doctor_name, s.exam_type, s.arrival_time, s.exam_location, 
                 s.remarks, s.is_canceled, s.booking_status,
@@ -227,6 +232,7 @@ $data_sql = "SELECT
                AND s.exam_date BETWEEN :start AND :end";
 
 if (!$show_canceled) { $data_sql .= " AND s.is_canceled = FALSE"; }
+$data_sql .= " ORDER BY s.exam_date ASC, COALESCE(s.slot_seq, 1) ASC, s.schedule_id ASC";
 
 $data_stmt = $pdo->prepare($data_sql);
 $data_stmt->execute([':dept' => $dept, ':start' => $start_date, ':end' => $end_date]);
@@ -1044,6 +1050,10 @@ $week_ja = ['日', '月', '火', '水', '木', '金', '土'];
         .patient-box.duplicate { background-color: #fef2f2 !important; border: 2px solid #dc2626 !important; border-left: 3px solid #dc2626 !important; }
         .patient-box.out-of-slot { background-color: #ffedd5 !important; border: 2px solid #f59e0b !important; border-left: 3px solid #f59e0b !important; }
 
+        .patient-box.slot-reorder-over { outline: 2px dashed #1e40af !important; outline-offset: -1px; transform: scale(1.01); }
+        .slot-seq-badge { transition: transform 0.12s ease, background-color 0.12s ease, color 0.12s ease; }
+        .slot-seq-badge:hover { background-color: #1e40af !important; color: #ffffff !important; transform: scale(1.1); }
+
         .invalid-cell { background-color: #fff5f5 !important; }
 
         body.mask-active .real-pname { display: none; }
@@ -1483,7 +1493,7 @@ function openEditModalWithCtrlCheck(el, event) {
 }
 
 // ============================================================
-// ★★★ ドラッグ＆ドロップ移動機能 ★★★
+// ★★★ ドラッグ＆ドロップ移動 ＆ 同一枠内順番入れ替え機能 ★★★
 // ============================================================
 let draggedBox = null;
 
@@ -1492,15 +1502,162 @@ function dragStart(box, e) {
     e.dataTransfer.setData('text/plain', String(box.dataset.scheduleId));
 }
 
-function allowDrop(e) { e.preventDefault(); }
+function allowDrop(e) {
+    e.preventDefault();
+    if (!draggedBox) return;
+    const srcCell = draggedBox.closest('.waku-cell');
+    const targetBox = e.target.closest ? e.target.closest('.patient-box') : null;
+    document.querySelectorAll('.patient-box.slot-reorder-over').forEach(el => el.classList.remove('slot-reorder-over'));
+    if (targetBox && targetBox !== draggedBox && targetBox.closest('.waku-cell') === srcCell) {
+        targetBox.classList.add('slot-reorder-over');
+    }
+}
 function dragEnter(cell) { cell.classList.add('dragover'); }
 function dragLeave(cell) { cell.classList.remove('dragover'); }
+
+function getActiveCellBoxes(cell) {
+    if (!cell) return [];
+    return Array.from(cell.querySelectorAll('.patient-box')).filter(b => {
+        if (b.classList.contains('is-canceled-box') || b.classList.contains('is-waku-nashi-box')) return false;
+        const sid = parseInt(b.dataset.scheduleId || '0', 10);
+        return sid > 0;
+    });
+}
+window.getActiveCellBoxes = getActiveCellBoxes;
+
+function applyCellBoxOrderAndSave(cell, orderedBoxes, subAction = 'reorder') {
+    if (!cell || orderedBoxes.length < 2) return;
+    const total = orderedBoxes.length;
+    const orderedIds = orderedBoxes.map(b => parseInt(b.dataset.scheduleId, 10));
+
+    // 未採番ミニボタンがあれば消去
+    cell.querySelectorAll('.slot-assign-seq-btn').forEach(btn => btn.remove());
+
+    // DOM順を即時入れ替え ＆ バッジ番号 [1] [2]... を即時表示・更新
+    orderedBoxes.forEach((box, idx) => {
+        cell.appendChild(box);
+        const seqNum = idx + 1;
+        box.querySelectorAll('.slot-seq-badge').forEach(badge => {
+            badge.style.display = 'inline-flex';
+            badge.dataset.seq = String(seqNum);
+            badge.dataset.total = String(total);
+            badge.dataset.peerSids = orderedIds.join(',');
+            badge.title = `同一枠内順番 [${seqNum}/${total}]（クリックで順番入替 ／ ドラッグでも入替可）`;
+            const numSpan = badge.querySelector('.slot-seq-num');
+            if (numSpan) numSpan.textContent = String(seqNum);
+            else badge.textContent = String(seqNum);
+        });
+    });
+
+    // 非要素（未割当バッジ等）があれば末尾へ維持
+    cell.querySelectorAll('.unassigned-badge').forEach(ub => cell.appendChild(ub));
+
+    const orderedNames = orderedBoxes.map(b => {
+        const pn = b.querySelector('.real-pname');
+        return pn ? pn.textContent.trim() : '';
+    }).filter(Boolean);
+
+    const fd = new FormData();
+    fd.append('action_type', 'reorder_slot');
+    fd.append('sub_action', subAction);
+    fd.append('schedule_id', String(orderedIds[0]));
+    fd.append('ordered_ids', orderedIds.join(','));
+
+    const modalMsg = (subAction === 'assign_initial')
+        ? '🔢 枠内の予約に番号を採番しました'
+        : '🔢 枠内の順番を入れ替えました';
+
+    fetch('action_schedule.php', { method: 'POST', body: fd })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                if (typeof showSlotOrderModal === 'function') {
+                    showSlotOrderModal('順番の保存に失敗しました: ' + (data.message || '不明なエラー'), [], 'error');
+                }
+                setTimeout(() => window.location.reload(), 1600);
+            } else if (typeof showSlotOrderModal === 'function') {
+                showSlotOrderModal(modalMsg, orderedNames, 'success');
+            }
+        })
+        .catch(() => {
+            if (typeof showSlotOrderModal === 'function') {
+                showSlotOrderModal('順番保存中に通信エラーが発生しました', [], 'error');
+            }
+        });
+}
+window.applyCellBoxOrderAndSave = applyCellBoxOrderAndSave;
+
+window.cycleMatrixSlotOrder = window.cycleSlotOrder = function(badgeEl, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const box = badgeEl.closest('.patient-box');
+    const cell = box ? box.closest('.waku-cell') : null;
+    if (!box || !cell) return;
+
+    const boxes = getActiveCellBoxes(cell);
+    if (boxes.length < 2) return;
+
+    const curIdx = boxes.indexOf(box);
+    if (curIdx === -1) return;
+
+    const newBoxes = boxes.slice();
+    if (newBoxes.length === 2) {
+        newBoxes.reverse();
+    } else if (curIdx < newBoxes.length - 1) {
+        const tmp = newBoxes[curIdx];
+        newBoxes[curIdx] = newBoxes[curIdx + 1];
+        newBoxes[curIdx + 1] = tmp;
+    } else {
+        const last = newBoxes.pop();
+        newBoxes.unshift(last);
+    }
+    applyCellBoxOrderAndSave(cell, newBoxes);
+};
 
 function dropWaku(cell, e) {
     e.preventDefault();
     cell.classList.remove('dragover');
+    document.querySelectorAll('.patient-box.slot-reorder-over').forEach(el => el.classList.remove('slot-reorder-over'));
     const sid = e.dataTransfer.getData('text/plain');
     if (!sid || sid === 'undefined' || !draggedBox) return;
+
+    const srcCell = draggedBox.closest('.waku-cell');
+
+    // ★ 同一セル（同一日付・同一時間枠）内でのドロップ ＝ 枠内順番の入れ替え
+    if (srcCell && srcCell === cell) {
+        const boxes = getActiveCellBoxes(cell);
+        if (boxes.length >= 2) {
+            const fromIdx = boxes.indexOf(draggedBox);
+            const targetBox = e.target.closest ? e.target.closest('.patient-box') : null;
+            if (fromIdx !== -1) {
+                const newBoxes = boxes.slice();
+                if (targetBox && targetBox !== draggedBox && boxes.includes(targetBox)) {
+                    const toIdx = newBoxes.indexOf(targetBox);
+                    newBoxes.splice(fromIdx, 1);
+                    newBoxes.splice(toIdx, 0, draggedBox);
+                } else if (newBoxes.length === 2) {
+                    newBoxes.reverse();
+                } else {
+                    // マウスY座標から挿入位置を判定
+                    newBoxes.splice(fromIdx, 1);
+                    let insertIdx = newBoxes.length;
+                    for (let i = 0; i < newBoxes.length; i++) {
+                        const rect = newBoxes[i].getBoundingClientRect();
+                        if (e.clientY < rect.top + rect.height / 2) {
+                            insertIdx = i;
+                            break;
+                        }
+                    }
+                    newBoxes.splice(insertIdx, 0, draggedBox);
+                }
+                applyCellBoxOrderAndSave(cell, newBoxes);
+            }
+        }
+        draggedBox = null;
+        return;
+    }
     
     const date = cell.dataset.date;
     const waku = cell.dataset.waku;

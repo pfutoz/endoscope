@@ -714,7 +714,7 @@ function loadAuditLogs(isRefresh) {
 
 function updateAuditCounts() {
     const all = auditLogsCache.length;
-    const move = auditLogsCache.filter(l => l.action_type === 'move').length;
+    const move = auditLogsCache.filter(l => l.action_type === 'move' || l.action_type === 'reorder_slot').length;
     const del  = auditLogsCache.filter(l => l.action_type === 'delete').length;
     const upd  = auditLogsCache.filter(l => l.action_type === 'update').length;
     const ins  = auditLogsCache.filter(l => l.action_type === 'insert').length;
@@ -746,8 +746,12 @@ function renderAuditLogsList() {
         }
 
         // 操作種別フィルタ
-        if (currentAuditFilter !== 'all' && item.action_type !== currentAuditFilter) {
-            return false;
+        if (currentAuditFilter !== 'all') {
+            if (currentAuditFilter === 'move') {
+                if (item.action_type !== 'move' && item.action_type !== 'reorder_slot') return false;
+            } else if (item.action_type !== currentAuditFilter) {
+                return false;
+            }
         }
 
         // 検索キーワード
@@ -875,7 +879,7 @@ function showAuditToast(msg, type = 'success') {
 }
 
 function executeAuditUndo(logId, patientName, actionType, summary) {
-    const isWaku = (summary && (summary.includes('枠') || summary.includes('オーバーライド'))) || (patientName && patientName.includes('枠'));
+    const isWaku = (actionType !== 'reorder_slot') && ((summary && (summary.includes('枠') || summary.includes('オーバーライド'))) || (patientName && patientName.includes('枠')));
     let actionDesc = '直前の状態';
     if (isWaku) {
         if (actionType === 'delete') actionDesc = '解除前のオーバーライド設定（解除取り消し・再登録）';
@@ -883,12 +887,13 @@ function executeAuditUndo(logId, patientName, actionType, summary) {
         else if (actionType === 'update') actionDesc = '変更前の時間枠状態';
     } else {
         if (actionType === 'move') actionDesc = '移動前の日時・時間枠';
+        else if (actionType === 'reorder_slot') actionDesc = '変更前の枠内順番状態';
         else if (actionType === 'delete') actionDesc = '削除前の予約データ（削除取り消し）';
         else if (actionType === 'update') actionDesc = '変更前の内容';
         else if (actionType === 'insert') actionDesc = '新規登録前の状態（登録取り消し）';
     }
 
-    const targetDesc = isWaku ? (patientName || '時間枠設定') : (patientName ? `${patientName} 様` : '患者様');
+    const targetDesc = isWaku ? (patientName || '時間枠設定') : (actionType === 'reorder_slot' ? (patientName || '枠内予約') : (patientName ? `${patientName} 様` : '患者様'));
     const msg = `【ワンクリック復元】\n\n対象: ${targetDesc}\n操作: ${summary}\n\nこの操作を取り消して、${actionDesc} へ完全復元しますか？`;
 
     if (!confirm(msg)) return;

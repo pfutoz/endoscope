@@ -3,8 +3,11 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\schedule_note.php
  * ファイル名: schedule_note.php
  * 概要: 内視鏡予約 デイリーノート表示モード (Ultra Fast Daily Note View)
- * 更新日時: 2026-11-06 16:39
+ * 更新日時: 2026-11-08
  * 修正履歴:
+ *   - 2026-11-08: 【基本時間枠カラー（waku_color）対応】
+ *     - 予約一覧テーブル（通常モード・縦圧縮モード・印刷時）の「時間枠」セル（col-waku）に基本時間枠の背景色（waku_color）を反映
+ *     - 枠なし（休止）行およびマスタ不整合行では背景色を適用せず警告色（ピンク）を優先維持
  *   - 2026-11-06: 【下剤表示（ビジクリア等）の先頭3文字略称化 ＆ 専用カラー・フォールバック色対応】
  *     - 下剤（bowel_prep）に「ビジクリア」等の4文字以上の名称が設定された場合、先頭3文字（例: 「ビジク」）で略称表示する特殊処理を実装（ツールチップで正式名称を表示）
  *     - ビジクリア専用色（prep-visi: パープル #7c3aed）および未定義下剤フォールバック色（prep-other: スレート #64748b）に対応
@@ -345,121 +348,7 @@ if (!function_exists('renderRemarksRtfHtml')) {
 
 if (!function_exists('getDailyReservationsWithMismatch')) {
     function getDailyReservationsWithMismatch(PDO $pdo, string $dept, string $date_str, string $filter_doctor = 'all', string $filter_exam = 'all', bool $show_empty = true): array {
-        if ($show_empty) {
-            $sql = "
-            WITH 
-            all_slots AS (
-                SELECT waku_name, display_order, group_code
-                FROM m2_waku
-                WHERE department_code = :dept
-                  AND is_active = TRUE
-                  AND :date BETWEEN valid_from AND valid_to
-            ),
-            reserved_data AS (
-                SELECT 
-                    s.schedule_id, s.exam_date, s.scheduled_time, s.waku_no,
-                    s.patient_id, s.patient_name, s.patient_kana, s.birthday,
-                    s.doctor_name, s.exam_type, s.arrival_time, s.exam_location,
-                    s.remarks, s.room_number, s.bowel_prep, s.is_canceled,
-                    s.booking_status, s.department_code, s.created_at, s.updated_at,
-                    w.display_order AS waku_display_order, w.group_code,
-                    CASE WHEN w.waku_name IS NULL THEN TRUE ELSE FALSE END AS is_mismatch,
-                    FALSE AS is_empty
-                FROM t_endoscopy_schedule s
-                LEFT JOIN m2_waku w 
-                    ON s.department_code = w.department_code 
-                    AND s.scheduled_time = w.waku_name
-                    AND w.is_active = TRUE
-                    AND s.exam_date BETWEEN w.valid_from AND w.valid_to
-                WHERE s.department_code = :dept 
-                  AND s.exam_date = :date 
-                  AND s.is_canceled = FALSE
-            ";
-            if ($filter_doctor !== 'all') { $sql .= " AND s.doctor_name = :doctor"; }
-            if ($filter_exam !== 'all') { $sql .= " AND s.exam_type = :exam"; }
-            $sql .= "
-            )
-            SELECT 
-                COALESCE(r.scheduled_time, 'MISMATCH') AS scheduled_time,
-                -1 AS waku_no,
-                COALESCE(r.group_code, 'MISMATCH') AS group_code,
-                COALESCE(r.patient_id, '') AS patient_id,
-                COALESCE(r.patient_name, '') AS patient_name,
-                COALESCE(r.patient_kana, '') AS patient_kana,
-                COALESCE(r.birthday::text, '') AS birthday,
-                COALESCE(r.doctor_name, '') AS doctor_name,
-                COALESCE(r.exam_type, '') AS exam_type,
-                COALESCE(r.arrival_time, '') AS arrival_time,
-                COALESCE(r.exam_location, '') AS exam_location,
-                COALESCE(r.remarks, '') AS remarks,
-                COALESCE(r.room_number, '') AS room_number,
-                COALESCE(r.bowel_prep, '') AS bowel_prep,
-                COALESCE(r.schedule_id, 0) AS schedule_id,
-                FALSE AS is_empty,
-                TRUE AS is_mismatch,
-                COALESCE(r.department_code, :dept) AS department_code,
-                COALESCE(r.created_at::text, '') AS created_at,
-                COALESCE(r.updated_at::text, '') AS updated_at
-            FROM reserved_data r
-            WHERE r.is_mismatch = TRUE
-
-            UNION ALL
-
-            SELECT 
-                a.waku_name AS scheduled_time,
-                a.display_order AS waku_no,
-                a.group_code,
-                COALESCE(r.patient_id, '') AS patient_id,
-                COALESCE(r.patient_name, '') AS patient_name,
-                COALESCE(r.patient_kana, '') AS patient_kana,
-                COALESCE(r.birthday::text, '') AS birthday,
-                COALESCE(r.doctor_name, '') AS doctor_name,
-                COALESCE(r.exam_type, '') AS exam_type,
-                COALESCE(r.arrival_time, '') AS arrival_time,
-                COALESCE(r.exam_location, '') AS exam_location,
-                COALESCE(r.remarks, '') AS remarks,
-                COALESCE(r.room_number, '') AS room_number,
-                COALESCE(r.bowel_prep, '') AS bowel_prep,
-                COALESCE(r.schedule_id, 0) AS schedule_id,
-                CASE WHEN r.schedule_id IS NULL THEN TRUE ELSE FALSE END AS is_empty,
-                FALSE AS is_mismatch,
-                COALESCE(r.department_code, :dept) AS department_code,
-                COALESCE(r.created_at::text, '') AS created_at,
-                COALESCE(r.updated_at::text, '') AS updated_at
-            FROM all_slots a
-            LEFT JOIN reserved_data r ON a.waku_name = r.scheduled_time
-            ORDER BY is_mismatch DESC, waku_no ASC, schedule_id ASC;
-            ";
-        } else {
-            $sql = "
-            SELECT 
-                s.*,
-                w.display_order AS waku_display_order,
-                COALESCE(w.group_code, 'MISMATCH') AS group_code,
-                CASE WHEN w.waku_name IS NULL THEN TRUE ELSE FALSE END AS is_mismatch,
-                FALSE AS is_empty
-            FROM t_endoscopy_schedule s
-            LEFT JOIN m2_waku w 
-                ON s.department_code = w.department_code 
-                AND s.scheduled_time = w.waku_name
-                AND w.is_active = TRUE
-                AND s.exam_date BETWEEN w.valid_from AND w.valid_to
-            WHERE s.department_code = :dept 
-              AND s.exam_date = :date 
-              AND s.is_canceled = FALSE
-            ";
-            if ($filter_doctor !== 'all') { $sql .= " AND s.doctor_name = :doctor"; }
-            if ($filter_exam !== 'all') { $sql .= " AND s.exam_type = :exam"; }
-            $sql .= " ORDER BY is_mismatch DESC, COALESCE(w.display_order, 9999) ASC, s.schedule_id ASC";
-        }
-
-        $stmt = $pdo->prepare($sql);
-        $params = [':dept' => $dept, ':date' => $date_str];
-        if ($filter_doctor !== 'all') { $params[':doctor'] = $filter_doctor; }
-        if ($filter_exam !== 'all') { $params[':exam'] = $filter_exam; }
-        $stmt->execute($params);
-        $res = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        return is_array($res) ? $res : [];
+        return getDailyReservationsWithEffectiveSlots($pdo, $dept, $date_str, $filter_doctor, $filter_exam, $show_empty);
     }
 }
 
@@ -469,6 +358,7 @@ if (!is_array($doctors_list)) { $doctors_list = []; }
 
 // ── 当日のデータ取得 ──
 $list_data = getDailyReservationsWithMismatch($pdo, $dept, $selected_date, $filter_doctor, $filter_exam, $show_empty);
+$effective_waku_by_dept = [$dept => getEffectiveWakuList($pdo, $dept, $selected_date)];
 
 // ── 医師別予約件数・部屋重複の集計 ──
 $doctor_counts = [];
@@ -568,10 +458,12 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
     <title>📖 ノート表示: <?= htmlspecialchars($selected_date, ENT_QUOTES, 'UTF-8') ?> (<?= $day_str ?>) | 医療法人小野会</title>
     <link rel="stylesheet" href="assets/css/theme.css">
     <link rel="stylesheet" href="assets/css/month_schedule.css?v=<?= time() ?>">
-    <!-- 🖨️ 完全ローカル・オフライン動作 Flatpickr -->
+    <!-- 🖨️ 完全ローカル・オフライン動作 Flatpickr ＆ 小野会共通日付ピッカー -->
     <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css">
+    <link rel="stylesheet" href="assets/css/onokai_flatpickr.css?v=<?= filemtime(__DIR__ . '/assets/css/onokai_flatpickr.css') ?>">
     <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/flatpickr/ja.js"></script>
+    <script src="assets/js/onokai_flatpickr.js?v=<?= filemtime(__DIR__ . '/assets/js/onokai_flatpickr.js') ?>"></script>
     <style>
         /* ── 🗜️ 縦圧縮モード（Compact Mode）スタイリング ── */
         .compact-header-bar {
@@ -1789,8 +1681,10 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                 $schedule_id = (int)($row['schedule_id'] ?? 0);
                 $waku = (string)($row['scheduled_time'] ?? '');
                 $remarks_str = (string)($row['remarks'] ?? '');
+                $p_name_str = trim((string)($row['patient_name'] ?? ''));
+                $is_real_patient = ($p_name_str !== '' && $p_name_str !== '※枠なし' && mb_strpos($p_name_str, '［') !== 0);
                 
-                $is_no_waku = (!$is_empty && trim($remarks_str) === '＊＊＊🚫枠なし🚫＊＊＊');
+                $is_no_waku = (!$is_empty && !$is_real_patient && (trim($remarks_str) === '＊＊＊🚫枠なし🚫＊＊＊' || $p_name_str === '※枠なし' || mb_strpos($remarks_str, '枠なし') !== false || !empty($row['is_suspended'])));
                 $filter_category = $row_exam_category !== 'OTHER' ? $row_exam_category : $group_code;
                 $can_sheet = ($exam !== 'エコー' && $exam !== 'ECHO' && !$is_empty && !$is_no_waku);
                 
@@ -1868,10 +1762,37 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                 $created_at_val = $row['created_at'] ?? '';
                 $updated_at_val = $row['updated_at'] ?? '';
                 $schedule_tooltip = "スケジュールID: {$schedule_id}\n作成日時: {$created_at_val}\n更新日時: {$updated_at_val}";
+
+                $waku_color = resolveEffectiveWakuColorForRow($row, $effective_waku_by_dept);
+                $tr_bg_style = $is_no_waku ? 'style="background-color:#fff1f2;"' : '';
+                $waku_td_style = '';
+                if ($waku_color !== '' && !$is_no_waku && !$is_mismatch) {
+                    $waku_td_style = 'style="background-color:' . htmlspecialchars($waku_color, ENT_QUOTES, 'UTF-8') . '; -webkit-print-color-adjust:exact; print-color-adjust:exact;"';
+                }
+                $slot_seq_index = (int)($row['slot_seq_index'] ?? 0);
+                $slot_seq_total = (int)($row['slot_seq_total'] ?? 0);
+                $slot_peer_sids = is_array($row['slot_peer_sids'] ?? null) ? $row['slot_peer_sids'] : [];
+                $slot_group_key = (string)($row['slot_group_key'] ?? '');
+                $is_slot_numbered = isset($row['is_slot_numbered']) ? (bool)$row['is_slot_numbered'] : true;
+                $is_multi_slot_row = (!$is_empty && !$is_no_waku && $schedule_id > 0 && $slot_seq_total >= 2);
+                $row_drag_attrs = '';
+                if ($is_multi_slot_row) {
+                    $row_drag_attrs = ' draggable="true"'
+                        . ' ondragstart="onSlotRowDragStart(this, event)"'
+                        . ' ondragover="onSlotRowDragOver(this, event)"'
+                        . ' ondragleave="onSlotRowDragLeave(this, event)"'
+                        . ' ondrop="onSlotRowDrop(this, event)"'
+                        . ' ondragend="onSlotRowDragEnd(this, event)"';
+                    $row_class = trim($row_class . ' slot-multi-row');
+                }
             ?>
                 <tr data-group="<?= htmlspecialchars($filter_category, ENT_QUOTES, 'UTF-8') ?>" 
                     data-reserved="<?= ($is_empty || $is_no_waku) ? 'false' : 'true' ?>"
-                    class="<?= $row_class ?>">
+                    data-waku-color="<?= htmlspecialchars($waku_color, ENT_QUOTES, 'UTF-8') ?>"
+                    data-schedule-id="<?= $schedule_id ?>"
+                    data-slot-group="<?= htmlspecialchars($slot_group_key, ENT_QUOTES, 'UTF-8') ?>"
+                    class="<?= $row_class ?>"<?= $row_drag_attrs ?>
+                    <?= $tr_bg_style ?>>
                     
                     <!-- 1列目: ➕新規追加 -->
                     <td class="col-act-add" style="text-align:center; white-space:nowrap;">
@@ -1904,12 +1825,17 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                     </td>
                     
                     <!-- 4列目: 時間枠名 -->
-                    <td class="col-waku">
-                        <?php if ($is_no_waku): ?>
-                            <span style="color:#dc2626; text-decoration:line-through; font-weight:bold;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></span>
-                        <?php else: ?>
-                            <strong style="font-size:13px; color:#1e293b;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></strong>
-                        <?php endif; ?>
+                    <td class="col-waku" <?= $waku_td_style ?>>
+                        <div style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                            <?php if ($is_no_waku): ?>
+                                <span style="color:#dc2626; text-decoration:line-through; font-weight:bold;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php else: ?>
+                                <strong style="font-size:13px; color:#1e293b;"><?= htmlspecialchars($time_display, ENT_QUOTES, 'UTF-8') ?></strong>
+                            <?php endif; ?>
+                            <?php if ($is_multi_slot_row && !$is_slot_numbered): ?>
+                                <?= renderSlotAssignBtnHTML($slot_group_key, $slot_peer_sids, 'table') ?>
+                            <?php endif; ?>
+                        </div>
                     </td>
                     
                     <!-- 5列目: 患者No -->
@@ -1936,7 +1862,7 @@ $onokai_holidays_json = json_encode($holidays_map, JSON_UNESCAPED_UNICODE);
                         <?php else: ?>
                             <div style="line-height: 1.3;" title="<?= htmlspecialchars($schedule_tooltip, ENT_QUOTES, 'UTF-8') ?>">
                                 <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-                                    <strong style="font-size:13px; cursor:help;"><?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                    <?= renderSlotSeqBadgeHTML($slot_seq_index, $slot_seq_total, $schedule_id, $slot_peer_sids, 'table', $is_slot_numbered) ?><?php if (!empty($row['is_vip'])): ?><span class="vip-badge-icon" style="display:inline-block; background:#fde047; color:#6b21a8; border:1.5px solid #000000; font-weight:900; font-size:10px; padding:0 3px; border-radius:2px; line-height:1.15; vertical-align:middle; margin-right:2px;" title="注目検査">V</span><?php endif; ?><strong style="font-size:13px; cursor:help;"><?= htmlspecialchars((string)$row['patient_name'], ENT_QUOTES, 'UTF-8') ?></strong>
                                     <?php if ($age_int !== null): ?>
                                         <span class="age-box <?= $age_cls ?>"><?= $age_int ?>歳</span>
                                     <?php endif; ?>
@@ -2311,107 +2237,12 @@ document.addEventListener('keydown', function(e) {
 });
 </script>
 
-<!-- 🖨️ 特大Flatpickr ＆ 西暦/和暦ワンクリック切替ロジック -->
+<!-- 🖨️ 特大Flatpickr ＆ 西暦/和暦ワンクリック切替ロジック（小野会共通日付ピッカー統合） -->
 <script>
 (function() {
     const selectedDateStr = '<?= $selected_date ?>';
-    const selDowStr = '<?= $day_str ?>';
-    const onokaiHolidays = <?= $onokai_holidays_json ?>;
-
-    const dateValText = document.getElementById('dateValText');
-    const dateModeBadge = document.getElementById('dateModeBadge');
-    const dateTextToggle = document.getElementById('dateTextToggle');
-    const calendarTriggerBtn = document.getElementById('calendarTriggerBtn');
-    const flatpickrInput = document.getElementById('mainFlatpickr');
-
-    // 和暦フォーマット関数
-    function getWarekiString(dateStr, dowStr) {
-        const parts = dateStr.split('-');
-        const y = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10);
-        const d = parseInt(parts[2], 10);
-
-        let g = '令和';
-        let gy = y - 2018;
-        if (y < 2019) {
-            g = '平成';
-            gy = y - 1988;
-        }
-        const gStr = (gy === 1) ? '元' : gy;
-        return `${g}${gStr}年${m}/${d} (${dowStr})`;
-    }
-
-    // 西暦フォーマット関数
-    function getSeirekiString(dateStr, dowStr) {
-        const parts = dateStr.split('-');
-        const y = parts[0];
-        const m = parts[1];
-        const d = parts[2];
-        return `${y}/${m}/${d} (${dowStr})`;
-    }
-
-    // 表示更新
-    let currentMode = 'seireki';
-    try {
-        currentMode = localStorage.getItem('schedule_note_date_mode') || 'seireki';
-    } catch (e) {}
-
-    function updateDateDisplay() {
-        if (!dateValText || !dateModeBadge) return;
-        if (currentMode === 'wareki') {
-            dateValText.textContent = getWarekiString(selectedDateStr, selDowStr);
-            dateModeBadge.textContent = '和暦';
-            dateModeBadge.style.background = '#fef3c7';
-            dateModeBadge.style.color = '#92400e';
-        } else {
-            dateValText.textContent = getSeirekiString(selectedDateStr, selDowStr);
-            dateModeBadge.textContent = '西暦';
-            dateModeBadge.style.background = '#bfdbfe';
-            dateModeBadge.style.color = '#1e40af';
-        }
-    }
-    updateDateDisplay();
-
-    // テキスト部分クリックで「西暦 ⇔ 和暦」ワンクリック切替
-    if (dateTextToggle) {
-        dateTextToggle.addEventListener('click', function(e) {
-            e.stopPropagation();
-            currentMode = (currentMode === 'seireki') ? 'wareki' : 'seireki';
-            try {
-                localStorage.setItem('schedule_note_date_mode', currentMode);
-            } catch (e) {}
-            updateDateDisplay();
-        });
-    }
-
-    // Flatpickr初期化（特大カレンダー・小野会カラー）
-    if (typeof flatpickr !== 'undefined' && flatpickrInput) {
-        const fp = flatpickr(flatpickrInput, {
-            locale: 'ja',
-            defaultDate: selectedDateStr,
-            positionElement: document.getElementById('customDateControl'),
-            position: 'auto center',
-            monthSelectorType: 'static',
-            disableMobile: true, // モバイルUIではなく常に特大カレンダーを表示
-            onDayCreate: function(dObj, dStr, fpInstance, dayElem) {
-                const dt = dayElem.dateObj;
-                const y = dt.getFullYear();
-                const m = String(dt.getMonth() + 1).padStart(2, '0');
-                const d = String(dt.getDate()).padStart(2, '0');
-                const dateKey = `${y}-${m}-${d}`;
-                const dow = dt.getDay();
-
-                // 1. 小野会公休（日曜・祝日・年末年始公休）: 赤色（最優先）
-                if (dow === 0 || onokaiHolidays[dateKey]) {
-                    dayElem.classList.add('onokai-holiday');
-                    if (onokaiHolidays[dateKey]) {
-                        dayElem.title = onokaiHolidays[dateKey];
-                    }
-                } else if (dow === 4) {
-                    // 2. 木曜: 青色
-                    dayElem.classList.add('onokai-thursday');
-                }
-            },
+    if (window.OnokaiDatePicker) {
+        OnokaiDatePicker.bindControl('#mainFlatpickr', {
             onChange: function(selectedDates, dateStr) {
                 if (!dateStr || dateStr === selectedDateStr) return;
                 const targetUrl = '?dept=<?= urlencode($dept) ?>' +
@@ -2422,18 +2253,6 @@ document.addEventListener('keydown', function(e) {
                 window.location.href = targetUrl;
             }
         });
-
-        // 📅 アイコンクリック時のみ特大カレンダーを展開
-        if (calendarTriggerBtn) {
-            calendarTriggerBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (fp.isOpen) {
-                    fp.close();
-                } else {
-                    fp.open();
-                }
-            });
-        }
     }
 })();
 

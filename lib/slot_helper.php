@@ -3,7 +3,7 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\lib\slot_helper.php
  * ファイル名: slot_helper.php
  * 概要: 枠数・時間枠関連共通ヘルパー（時間枠世代管理 valid_from〜valid_to ＆ オーバーライド合成対応）
- * 更新日時: 2026-11-06
+ * 更新日時: 2026-11-08
  * 
  * 修正履歴:
  *   - 2026-08-12: 出勤例外を最優先に変更
@@ -22,6 +22,7 @@
  *                 getWakuList(), getEffectiveWakuList(), getEffectiveWakuMapForPeriod() にて対象日付・期間の世代を自動選択するよう拡張。
  *                 マスタメンテナンス向けに getWakuGenerations(), getWakuListForGeneration(), formatWakuGenerationPeriodLabel() を新設。
  *   - 2026-11-07: findEffectiveWaku() に $allow_prefix 引数を追加し、単一スロット照合時の誤プレフィックス一致（例: 14:30 と 14:30~15:30）を防止。
+ *   - 2026-11-08: 【基本時間枠カラー（waku_color）対応】m2_waku.waku_color を getEffectiveWakuList(), getEffectiveWakuMapForPeriod(), getDailyReservationsWithEffectiveSlots() で伝搬・継承。プリセット定義・バリデーション・行カラー解決ヘルパー（getWakuColorPresets, sanitizeWakuColor, getWakuColorLabel, resolveEffectiveWakuColorForRow）を新設。
  * 
  * 優先順位 (医師枠数):
  *   1. 出勤例外 (m2_doctor_attendance) ← 最優先！
@@ -379,6 +380,7 @@ function getEffectiveWakuList($pdo, $dept, $target_date = null) {
             group_code,
             waku_code,
             waku_name,
+            COALESCE(waku_color, '') AS waku_color,
             display_order,
             is_active,
             valid_from,
@@ -402,6 +404,7 @@ function getEffectiveWakuList($pdo, $dept, $target_date = null) {
                 'override_id'     => null,
                 'waku_name'       => (string)$row['waku_name'],
                 'original_name'   => (string)$row['waku_name'],
+                'waku_color'      => sanitizeWakuColor((string)($row['waku_color'] ?? '')),
                 'group_code'      => (string)$row['group_code'],
                 'department_code' => (string)$row['department_code'],
                 'display_order'   => (int)$row['display_order'],
@@ -463,6 +466,7 @@ function getEffectiveWakuList($pdo, $dept, $target_date = null) {
             'override_id'     => null,
             'waku_name'       => (string)$b['waku_name'],
             'original_name'   => (string)$b['waku_name'],
+            'waku_color'      => sanitizeWakuColor((string)($b['waku_color'] ?? '')),
             'group_code'      => (string)$b['group_code'],
             'department_code' => (string)$b['department_code'],
             'display_order'   => (int)$b['display_order'],
@@ -515,6 +519,7 @@ function getEffectiveWakuList($pdo, $dept, $target_date = null) {
                 'override_id'     => (int)$ov['override_id'],
                 'waku_name'       => (string)$ov['display_waku_name'],
                 'original_name'   => (string)$ov['display_waku_name'],
+                'waku_color'      => '',
                 'group_code'      => (string)$ov['group_code'],
                 'department_code' => (string)$ov['department_code'],
                 'display_order'   => $ov['display_order'] !== null ? (int)$ov['display_order'] : 999,
@@ -563,6 +568,7 @@ function getEffectiveWakuMapForPeriod($pdo, $dept, $start_date, $end_date) {
             group_code,
             waku_code,
             waku_name,
+            COALESCE(waku_color, '') AS waku_color,
             display_order,
             is_active,
             valid_from,
@@ -627,6 +633,7 @@ function getEffectiveWakuMapForPeriod($pdo, $dept, $start_date, $end_date) {
             'override_id'     => null,
             'waku_name'       => (string)$b['waku_name'],
             'original_name'   => (string)$b['waku_name'],
+            'waku_color'      => sanitizeWakuColor((string)($b['waku_color'] ?? '')),
             'group_code'      => (string)$b['group_code'],
             'department_code' => (string)$b['department_code'],
             'display_order'   => (int)$b['display_order'],
@@ -707,6 +714,7 @@ function getEffectiveWakuMapForPeriod($pdo, $dept, $start_date, $end_date) {
                         'override_id'     => (int)$ov['override_id'],
                         'waku_name'       => (string)$ov['display_waku_name'],
                         'original_name'   => (string)$ov['display_waku_name'],
+                        'waku_color'      => '',
                         'group_code'      => (string)$ov['group_code'],
                         'department_code' => (string)$ov['department_code'],
                         'display_order'   => $ov['display_order'] !== null ? (int)$ov['display_order'] : 999,
@@ -808,6 +816,19 @@ function findEffectiveWaku(array $effective_waku_list, string $waku_name, bool $
  * @param bool $show_empty 空枠行を含めるか (true / false)
  * @return array 予約・空枠行の配列
  */
+if (!function_exists('ensureSlotSeqColumn')) {
+    function ensureSlotSeqColumn(PDO $pdo): void {
+        static $checked = false;
+        if ($checked) return;
+        $checked = true;
+        try {
+            $pdo->exec("ALTER TABLE t_endoscopy_schedule ADD COLUMN IF NOT EXISTS slot_seq INTEGER NOT NULL DEFAULT 1");
+        } catch (Exception $e) {
+            // 権限不足等の場合でも処理を止めない
+        }
+    }
+}
+
 function getDailyReservationsWithEffectiveSlots(
     PDO $pdo,
     string $dept,
@@ -816,6 +837,8 @@ function getDailyReservationsWithEffectiveSlots(
     string $filter_exam = 'all',
     bool $show_empty = true
 ): array {
+    ensureSlotSeqColumn($pdo);
+
     // 1. 対象科の有効時間枠を取得
     $effective_slots = [];
     if ($dept === 'ALL') {
@@ -834,6 +857,7 @@ function getDailyReservationsWithEffectiveSlots(
             s.scheduled_time,
             s.waku_no,
             s.waku_id,
+            COALESCE(s.slot_seq, 1) AS slot_seq,
             s.patient_id,
             s.patient_name,
             s.patient_kana,
@@ -870,7 +894,7 @@ function getDailyReservationsWithEffectiveSlots(
         $params[':exam'] = $filter_exam;
     }
 
-    $sql .= " ORDER BY s.department_code ASC, s.schedule_id ASC";
+    $sql .= " ORDER BY s.department_code ASC, COALESCE(s.slot_seq, 1) ASC, s.schedule_id ASC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -962,6 +986,7 @@ function getDailyReservationsWithEffectiveSlots(
             $row_data['is_override'] = (bool)$matched_slot['is_override'];
             $row_data['override_reason'] = $matched_slot['reason'];
             $row_data['slot_waku_name'] = $matched_slot['waku_name'];
+            $row_data['waku_color'] = sanitizeWakuColor((string)($matched_slot['waku_color'] ?? ''));
             $row_data['base_waku_id'] = $matched_slot['base_waku_id'] ?? null;
             $row_data['waku_id'] = $matched_slot['waku_id'] ?? ($matched_slot['base_waku_id'] ?? null);
             $row_data['original_name'] = $matched_slot['original_name'] ?? $matched_slot['waku_name'];
@@ -979,6 +1004,7 @@ function getDailyReservationsWithEffectiveSlots(
             $row_data['is_override'] = false;
             $row_data['override_reason'] = null;
             $row_data['slot_waku_name'] = $r_time;
+            $row_data['waku_color'] = '';
             $row_data['base_waku_id'] = null;
             $row_data['waku_id'] = null;
             $row_data['original_name'] = $r_time;
@@ -1038,6 +1064,7 @@ function getDailyReservationsWithEffectiveSlots(
                 'is_override'        => (bool)$slot['is_override'],
                 'override_reason'    => $slot['reason'],
                 'slot_waku_name'     => (string)$slot['waku_name'],
+                'waku_color'         => sanitizeWakuColor((string)($slot['waku_color'] ?? '')),
                 'base_waku_id'       => $slot['base_waku_id'] ?? null,
                 'waku_id'            => $slot['waku_id'] ?? ($slot['base_waku_id'] ?? null),
                 'original_name'      => $slot['original_name'] ?? $slot['waku_name'],
@@ -1045,8 +1072,38 @@ function getDailyReservationsWithEffectiveSlots(
         }
     }
 
-    // 5. 結合（迷子先頭、科順・枠順・schedule_id順）
-    return array_merge($mismatch_rows, $slot_rows);
+    // 5. 結合（迷子先頭、科順・枠順・slot_seq順）＆ 同一枠内の実患者件数・順番メタデータ付与
+    $all_rows = array_merge($mismatch_rows, $slot_rows);
+    $slot_group_indices = [];
+    foreach ($all_rows as $idx => $r) {
+        $sid = (int)($r['schedule_id'] ?? 0);
+        if ($sid <= 0 || !empty($r['is_empty']) || !empty($r['is_no_waku'])) continue;
+        $pname = trim((string)($r['patient_name'] ?? ''));
+        $rem = trim((string)($r['remarks'] ?? ''));
+        if ($pname === '' || $pname === '※枠なし' || mb_strpos($pname, '［') === 0 || mb_strpos($pname, '枠なし') !== false || mb_strpos($rem, '枠なし') !== false) continue;
+        $slot_name_for_group = (string)($r['slot_waku_name'] ?? ($r['scheduled_time'] ?? ''));
+        $g_key = ($r['department_code'] ?? '') . '|' . $slot_name_for_group;
+        $slot_group_indices[$g_key][] = $idx;
+    }
+    foreach ($slot_group_indices as $g_key => $indices) {
+        $total = count($indices);
+        $peer_sids = [];
+        $raw_seqs = [];
+        foreach ($indices as $i) {
+            $peer_sids[] = (int)$all_rows[$i]['schedule_id'];
+            $raw_seqs[] = (int)($all_rows[$i]['slot_seq'] ?? 0);
+        }
+        // 2件以上あり、全員に1以上の重複しない番号（1, 2, 3...）が付与されている場合のみ「採番済」と判定
+        $is_numbered = ($total >= 2) && (min($raw_seqs) >= 1) && (count(array_unique($raw_seqs)) === $total);
+        foreach ($indices as $pos => $i) {
+            $all_rows[$i]['slot_seq_index']   = $pos + 1;
+            $all_rows[$i]['slot_seq_total']   = $total;
+            $all_rows[$i]['slot_peer_sids']   = $peer_sids;
+            $all_rows[$i]['slot_group_key']   = $g_key;
+            $all_rows[$i]['is_slot_numbered'] = $is_numbered;
+        }
+    }
+    return $all_rows;
 }
 
 /**
@@ -1304,6 +1361,109 @@ function getExamTypesByGroup(string $group_code, ?PDO $pdo = null): array {
     }
     return array_values(array_unique($types));
 }
+
+/**
+ * 基本時間枠（m2_waku）用の厳選プリセット背景色パレットを取得
+ * （画面・A4印刷の双方で黒文字 #0f172a がくっきり読める淡いパステルカラー）
+ *
+ * @return array<string, string> HEXコード（小文字） => 日本語ラベル
+ */
+function getWakuColorPresets(): array {
+    return [
+        ''        => '⬜ 色なし（標準）',
+        '#dbeafe' => '🔵 アイスブルー',
+        '#e0f2fe' => '🩵 スカイブルー',
+        '#ccfbf1' => '🧊 ミントティール',
+        '#dcfce7' => '🟢 ペールグリーン',
+        '#fef9c3' => '🟡 レモンイエロー',
+        '#ffedd5' => '🟠 ピーチオレンジ',
+        '#ffe4e6' => '🩷 ローズピンク',
+        '#f3e8ff' => '🟣 ラベンダー',
+        '#fae8ff' => '🌸 フューシャピンク',
+        '#e2e8f0' => '⚪ クールグレー',
+    ];
+}
+
+/**
+ * 時間枠カラー文字列を正規化・サニタイズ（#RRGGBB または 空文字）
+ *
+ * @param string|null $color
+ * @return string 正規化された #rrggbb（小文字）または ''
+ */
+function sanitizeWakuColor(?string $color): string {
+    $c = strtolower(trim((string)($color ?? '')));
+    if ($c === '' || $c === 'none' || $c === 'transparent') {
+        return '';
+    }
+    if (preg_match('/^#[0-9a-f]{6}$/', $c)) {
+        return $c;
+    }
+    if (preg_match('/^#[0-9a-f]{3}$/', $c)) {
+        return '#' . $c[1] . $c[1] . $c[2] . $c[2] . $c[3] . $c[3];
+    }
+    return '';
+}
+
+/**
+ * 時間枠カラーの監査ログ・表示用ラベルを取得
+ *
+ * @param string|null $color
+ * @return string
+ */
+function getWakuColorLabel(?string $color): string {
+    $clean = sanitizeWakuColor($color);
+    $presets = getWakuColorPresets();
+    if (isset($presets[$clean])) {
+        return $presets[$clean] . ($clean !== '' ? " ({$clean})" : '');
+    }
+    return "🎨 カスタム ({$clean})";
+}
+
+/**
+ * 予約・一覧行の有効時間枠カラー（waku_color）を解決する共通ヘルパー
+ * （基本枠の waku_color に加え、⚙️日別オーバーライドで名称変更された枠も元枠のカラーを自動継承）
+ *
+ * @param array $row 予約または空枠の1行データ
+ * @param array<string, array> $effective_waku_by_dept 診療科コード => getEffectiveWakuList() の配列
+ * @return string #rrggbb または ''
+ */
+function resolveEffectiveWakuColorForRow(array $row, array $effective_waku_by_dept): string {
+    if (!empty($row['waku_color'])) {
+        $direct = sanitizeWakuColor((string)$row['waku_color']);
+        if ($direct !== '') {
+            return $direct;
+        }
+    }
+
+    $dept = (string)($row['department_code'] ?? '');
+    $slots = $effective_waku_by_dept[$dept] ?? [];
+    if (empty($slots)) {
+        return '';
+    }
+
+    $target_id = isset($row['base_waku_id']) && $row['base_waku_id'] !== null && $row['base_waku_id'] !== ''
+        ? (int)$row['base_waku_id']
+        : (isset($row['waku_id']) && $row['waku_id'] !== null && $row['waku_id'] !== '' ? (int)$row['waku_id'] : 0);
+
+    if ($target_id > 0) {
+        foreach ($slots as $s) {
+            if (($s['base_waku_id'] ?? 0) === $target_id || ($s['waku_id'] ?? 0) === $target_id) {
+                return sanitizeWakuColor((string)($s['waku_color'] ?? ''));
+            }
+        }
+    }
+
+    $time_str = trim((string)($row['scheduled_time'] ?? ''));
+    if ($time_str !== '' && $time_str !== 'MISMATCH') {
+        $matched = findEffectiveWaku($slots, $time_str, false);
+        if ($matched !== null) {
+            return sanitizeWakuColor((string)($matched['waku_color'] ?? ''));
+        }
+    }
+
+    return '';
+}
+
 
 
 

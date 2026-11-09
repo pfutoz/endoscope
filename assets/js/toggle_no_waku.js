@@ -4,6 +4,9 @@
  * 概要: 枠なし（休止）設定／通常枠復帰 非同期トグル制御モジュール
  * 生成日時: 2026-10-23 21:25
  * 修正履歴:
+ *   - 2026-11-08: 【基本時間枠カラー（waku_color）連動】
+ *                 🚫枠なし設定時に「時間枠」セルの背景色をクリアして行全体の警告色（ピンク）を優先し、
+ *                 ⭕通常枠復帰時に tr[data-waku-color] から元の枠背景色を復元するよう対応。
  *   - 2026-10-23: 新規作成。month_schedule.php および schedule_note.php の 🚫⭕ 操作を
  *                 画面リロードなし（非同期Ajax）で行い、該当行の即時切り替え、➕ボタン活性制御、
  *                 上部枠数カウンターおよびカレンダーマス目のバッジを完全連動更新する。
@@ -109,6 +112,7 @@
             const tr = btn.closest('tr');
             if (tr) {
                 const addCell = tr.querySelector('.cell-add-btn') || tr.cells[0];
+                const wakuCell = tr.querySelector('.cell-waku-time') || tr.querySelector('.col-waku') || tr.cells[3];
                 const wakuLabel = tr.querySelector('.waku-name-label');
                 const patientCell = tr.querySelector('.cell-patient-name') || tr.cells[5];
                 const remarksCell = tr.querySelector('.cell-remarks') || tr.cells[9];
@@ -128,9 +132,12 @@
                         addCell.innerHTML = '<span class="icon-btn disabled">-</span>';
                     }
 
-                    // 4列目: 枠名を赤字打消し線スタイルに
+                    // 4列目: 枠名を赤字打消し線スタイルに＆背景色をクリア（行全体のピンク警告色を優先）
                     if (wakuLabel) {
                         wakuLabel.outerHTML = `<span class="waku-name-label" style="color:#dc2626; text-decoration:line-through; font-weight:bold;">${escapeHtml(waku)}</span>`;
+                    }
+                    if (wakuCell) {
+                        wakuCell.style.backgroundColor = '';
                     }
 
                     // 6列目: 患者名セルに［枠なし設定済］
@@ -163,9 +170,12 @@
                         addCell.innerHTML = `<a href="#" onclick="openModal('${escapeHtml(modalDate)}', '${escapeHtml(modalWaku)}', 0, '${escapeHtml(modalDept)}')" class="icon-btn add" title="この枠に新規予約を追加">➕</a>`;
                     }
 
-                    // 4列目: 枠名を通常太字スタイルに
+                    // 4列目: 枠名を通常太字スタイルに＆基本時間枠の背景色を復元
                     if (wakuLabel) {
                         wakuLabel.outerHTML = `<strong class="waku-name-label" style="color:#1e293b;">${escapeHtml(waku)}</strong>`;
+                    }
+                    if (wakuCell) {
+                        wakuCell.style.backgroundColor = tr.dataset.wakuColor || '';
                     }
 
                     // 6列目: 患者名セルに［空き枠］

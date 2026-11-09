@@ -3,7 +3,7 @@
  * 設置パス: c:\Apache24\htdocs\endoscope\inc_system_info.php
  * ファイル名: inc_system_info.php
  * 概要: 院内内視鏡システム 修正インフォメーション・リリース情報管理モジュール
- * 更新日時: 2026-11-01 (v1101 本番稼働開始 / マスターメンテ連動版)
+ * 更新日時: 2026-11-08 (v1108 リリース / 内視鏡シートDB永続化・ホワイトボード双方向データ統合・時間枠カラー・世代管理対応)
  */
 
 if (!function_exists('getSystemInfoPdo')) {
@@ -118,11 +118,28 @@ if (!function_exists('getSystemInformations')) {
         // 3. 静的フォールバック配列
         return [
             [
+                'id'        => 4,
+                'date'      => '2026-11-08',
+                'ver'       => 'v1108',
+                'badge'     => '大型機能統合',
+                'badge_cls' => 'badge-success',
+                'title'     => '🚀 v1108 リリース：内視鏡シートDB永続化＆ホワイトボード双方向統合・枠カラー設定・世代管理対応',
+                'summary'   => 'マルチ端末での内視鏡シート同時リレー入力と電子ホワイトボードの双方向同期、医事課チェック連携、および時間枠カラー・期間世代管理を実装しました。',
+                'items'     => [
+                    '【内視鏡シート ⇔ ホワイトボード双方向統合】内視鏡シート（endoscopy_sheet.php）をDB永続化（t_endoscopy_sheet）し、受付・前処置室iPad・検査室PC・診察室・医事課PCでのマルチ端末リレー入力（キー単位差分自動保存・6秒同期）に対応。',
+                    '【進捗ステータス自動連動＆医事課連携】シートでの開始/終了/起床/説明時刻打刻や［回復・待合室・OK］スタンプでホワイトボード進捗（4.検査中／5.リカバリ中／6.説明）が自動進捗。ホワイトボード各行に「📋シート」「🧾処置・薬剤サマリ」「🏥医事入力済✔」ボタンと会計待フィルタを統合。',
+                    '【基本時間枠カラー設定】検査枠マスターメンテで時間枠ごとの背景色を設定可能にし、月間カレンダー・デイリーノート・A4当日予約印刷・前処置室一括設定へ統一反映。',
+                    '【時間枠マスタ期間（世代）管理＆画面UX改善】2027年新枠切替を見据えた期間世代管理、マトリクスV2・月間カレンダーの医師定員差し引き・CF集中モード、月間カレンダー患者名列の3医師横並び対応、MALL3患者一致時の仮想テンキー自動クローズに対応。'
+                ],
+                'display_order' => 1,
+                'is_active' => true
+            ],
+            [
                 'id'        => 1,
                 'date'      => '2026-11-01',
                 'ver'       => 'v1101',
                 'badge'     => '重要・本番稼働開始',
-                'badge_cls' => 'badge-success',
+                'badge_cls' => 'badge-primary',
                 'title'     => '🎉 内視鏡予約・運用管理システム v1101 本番稼働を開始しました',
                 'summary'   => '現場運用開始に向けたUI大幅スリム化、コントロール統合、空き枠検索の強化を実施しました。',
                 'items'     => [
@@ -131,7 +148,7 @@ if (!function_exists('getSystemInformations')) {
                     '【空き枠検索】複数医師の自由な同時選択を完全サポート、高密度コンパクトカード表示モード新設、初期表示時（条件指定）の即時SSR自動検索対応（待ち時間ゼロ）、デバウンスAjax自動検索＆Pulse点滅。',
                     '【カレンダー連携】空き枠速報各カードからの「📅 カレンダー状況ホバープレビュー」機能を全面実装。'
                 ],
-                'display_order' => 1,
+                'display_order' => 2,
                 'is_active' => true
             ]
         ];
@@ -343,9 +360,11 @@ if (!function_exists('syncSystemInfoToJsonAndHtml')) {
                         );
                     }
 
-                    // バージョンバッジも同期
+                    // バージョンバッジおよびタイトルタグも同期
                     $badgeReplacement = "<span class=\"ver-badge\">{$infoVer} 本番稼働</span>";
                     $htmlContent = preg_replace('/<span class="ver-badge">.*?<\/span>/', $badgeReplacement, $htmlContent);
+                    $titleReplacement = "<title>🔬 医療法人小野会 内視鏡予約システム ({$infoVer} 本番稼働版)</title>";
+                    $htmlContent = preg_replace('/<title>.*?<\/title>/', $titleReplacement, $htmlContent);
 
                     @file_put_contents($htmlPath, $htmlContent);
                 }

@@ -1,10 +1,10 @@
 <?php
 /**
  * 生成日時: 2026-09-29 14:35:00 JST
- * 更新日時: 2026-11-06
+ * 更新日時: 2026-11-08
  * 設置パス: c:\Apache24\htdocs\endoscope\slot_master_maintenance.php
  * ファイル名: slot_master_maintenance.php
- * 概要: 検査枠マスターメンテナンス（時間枠世代管理 valid_from〜valid_to・期間一括変更・監査ログ＆ワンクリック復元対応版）
+ * 概要: 検査枠マスターメンテナンス（時間枠世代管理 valid_from〜valid_to・期間一括変更・基本時間枠カラー設定・監査ログ＆ワンクリック復元対応版）
  * 
  * 修正履歴:
  *   - 2026-09-18: 枠数パターンの横持ち入力を縦持ちテーブルへ確実にするUPSERT処理、出勤例外タブ復元
@@ -15,6 +15,7 @@
  *   - 2026-10-26: 3大マスタ統合ヘッダーナビゲーション導入、検査種別マスタ(exam_master_maintenance.php)連携
  *   - 2026-11-01: 統合ヘッダーナビに「📢 修正インフォメーション」タブを追加
  *   - 2026-11-06: 【時間枠世代管理対応】基本時間枠タブ（?tab=waku）に世代（valid_from〜valid_to）切替タブ、世代期間一括変更（前後世代の境界日自動連動対応）、新世代作成（複製・期間分割）、世代別枠追加フォームを実装。
+ *   - 2026-11-08: 【基本時間枠カラー設定対応】基本時間枠タブ（?tab=waku）に背景色（waku_color）設定UI（厳選プリセット10色＋自由色カラーピッカー＋リアルタイム枠名プレビュー）を追加。
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -639,8 +640,118 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
         .badge-delete { background: #fee2e2; color: #991b1b; }
         .badge-restore { background: #fef3c7; color: #92400e; }
         .badge-undone { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; }
+
+        /* 時間枠カラー設定コントロール */
+        .waku-color-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: nowrap;
+        }
+        .waku-color-preset {
+            width: 145px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 6px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .waku-color-picker {
+            width: 28px;
+            height: 28px;
+            padding: 1px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            background: #fff;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .btn-clear-color {
+            width: 24px;
+            height: 26px;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .btn-clear-color:hover {
+            background: #fee2e2;
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
     </style>
     <script>
+        // 時間枠カラーのプリセット＆カラーピッカー連動・リアルタイムプレビュー
+        function applyWakuColorPreview(container, hexColor) {
+            if (!container) return;
+            const hiddenInput = container.querySelector('.waku-color-val');
+            const presetSelect = container.querySelector('.waku-color-preset');
+            const colorPicker = container.querySelector('.waku-color-picker');
+            const rowOrForm = container.closest('tr') || container.closest('form');
+            const nameInput = rowOrForm ? rowOrForm.querySelector('.waku-name-input') : null;
+
+            const cleanHex = (hexColor || '').trim().toLowerCase();
+            if (hiddenInput) hiddenInput.value = cleanHex;
+
+            if (presetSelect) {
+                let matchedPreset = false;
+                for (let i = 0; i < presetSelect.options.length; i++) {
+                    if (presetSelect.options[i].value.toLowerCase() === cleanHex) {
+                        presetSelect.selectedIndex = i;
+                        matchedPreset = true;
+                        break;
+                    }
+                }
+                if (!matchedPreset && cleanHex !== '') {
+                    presetSelect.value = '__custom__';
+                }
+                presetSelect.style.backgroundColor = cleanHex !== '' ? cleanHex : '#ffffff';
+            }
+
+            if (colorPicker && cleanHex !== '' && /^#[0-9a-f]{6}$/i.test(cleanHex)) {
+                colorPicker.value = cleanHex;
+            }
+
+            if (nameInput) {
+                nameInput.style.backgroundColor = cleanHex !== '' ? cleanHex : '#ffffff';
+                nameInput.style.fontWeight = cleanHex !== '' ? '700' : 'normal';
+            }
+        }
+
+        function onWakuPresetChange(selectEl) {
+            const container = selectEl.closest('.waku-color-control');
+            if (!container) return;
+            const val = selectEl.value;
+            if (val === '__custom__') {
+                const picker = container.querySelector('.waku-color-picker');
+                if (picker) {
+                    applyWakuColorPreview(container, picker.value);
+                    picker.click();
+                }
+            } else {
+                applyWakuColorPreview(container, val);
+            }
+        }
+
+        function onWakuPickerChange(pickerEl) {
+            const container = pickerEl.closest('.waku-color-control');
+            if (!container) return;
+            applyWakuColorPreview(container, pickerEl.value);
+        }
+
+        function clearWakuColor(btnEl) {
+            const container = btnEl.closest('.waku-color-control');
+            if (!container) return;
+            applyWakuColorPreview(container, '');
+        }
         // 医師選択時にパターンを非同期で絞り込む
         function loadPatterns(doctorName) {
             const dept = '<?= $dept ?>';
@@ -887,7 +998,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                     <input type="hidden" name="source_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="source_valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>">
                     <span style="font-weight:bold; color:#0f766e; font-size:12.5px;">🌱 新世代の開始日（切替日）:</span>
-                    <input type="date" name="split_date" value="2027-02-01" class="input-date" required style="font-weight:bold;">
+                    <input type="text" id="split_date" name="split_date" value="2027-02-01" class="onokai-date-picker" data-compact="true" data-dark="true" required autocomplete="off">
                     <span style="font-size:12px; color:#115e59;">
                         ※現在の「<?= htmlspecialchars($selected_gen['label'], ENT_QUOTES, 'UTF-8') ?>」の終了日を前日に自動短縮し、開始日以降の新世代として全枠をコピーします。
                     </span>
@@ -897,7 +1008,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
 
             <!-- 📅 選択中世代の期間対応一括変更バー -->
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                <form method="POST" action="action_slot_master.php" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0;">
+                <form method="POST" action="action_slot_master.php" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;">
                     <input type="hidden" name="action" value="waku_period_bulk_update">
                     <input type="hidden" name="dept" value="<?= $dept ?>">
                     <input type="hidden" name="old_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>">
@@ -906,19 +1017,15 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                     <span style="font-weight:bold; font-size:12.5px; color:#1e293b;">
                         📅 表示中（第<?= (int)$selected_gen['gen_index'] ?>世代）の有効期間一括変更:
                     </span>
-                    <label style="font-size:12px; color:#475569; display:inline-flex; align-items:center; gap:4px;">
-                        開始日:
-                        <input type="date" id="bulk_new_vf" name="new_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>" class="input-date" required>
-                    </label>
-                    <button type="button" class="btn btn-sm" style="background:#e2e8f0; color:#334155;" onclick="document.getElementById('bulk_new_vf').value='1900-01-01';" title="開始日を過去全域（1900-01-01）に設定">〜過去全域</button>
+                    <span style="font-size:12px; color:#475569; font-weight:bold;">開始日:</span>
+                    <input type="text" id="bulk_new_vf" name="new_valid_from" value="<?= htmlspecialchars($selected_gen['valid_from'], ENT_QUOTES, 'UTF-8') ?>" class="onokai-date-picker" data-compact="true" data-dark="true" required autocomplete="off">
+                    <button type="button" class="btn btn-sm" style="background:#e2e8f0; color:#334155;" onclick="setSlotGenDate('bulk_new_vf', '1900-01-01');" title="開始日を過去全域（1900-01-01）に設定">〜過去全域</button>
 
                     <span style="font-weight:bold; color:#64748b;">〜</span>
 
-                    <label style="font-size:12px; color:#475569; display:inline-flex; align-items:center; gap:4px;">
-                        終了日:
-                        <input type="date" id="bulk_new_vt" name="new_valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>" class="input-date" required>
-                    </label>
-                    <button type="button" class="btn btn-sm" style="background:#e2e8f0; color:#334155;" onclick="document.getElementById('bulk_new_vt').value='9999-12-31';" title="終了日を無期限（9999.9.9 / DB内部値 9999-12-31）に設定">無期限(9999.9.9)</button>
+                    <span style="font-size:12px; color:#475569; font-weight:bold;">終了日:</span>
+                    <input type="text" id="bulk_new_vt" name="new_valid_to" value="<?= htmlspecialchars($selected_gen['valid_to'], ENT_QUOTES, 'UTF-8') ?>" class="onokai-date-picker" data-compact="true" data-dark="true" required autocomplete="off">
+                    <button type="button" class="btn btn-sm" style="background:#e2e8f0; color:#334155;" onclick="setSlotGenDate('bulk_new_vt', '9999-12-31');" title="終了日を無期限（9999.9.9 / DB内部値 9999-12-31）に設定">無期限(9999.9.9)</button>
 
                     <label style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:bold; color:#0f172a; cursor:pointer; background:#eff6ff; padding:4px 8px; border-radius:6px; border:1px solid #bfdbfe;"
                            title="例: 第2世代の開始日を 2027-01-01 から 2027-02-01 に変更すると、第1世代の終了日も 2026-12-31 から 2027-01-31 へ自動で連動更新します">
@@ -941,6 +1048,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
             </div>
         </div>
 
+        <?php $waku_color_presets = getWakuColorPresets(); ?>
         <form method="POST" action="action_slot_master.php">
             <input type="hidden" name="action" value="waku_update">
             <input type="hidden" name="dept" value="<?= $dept ?>">
@@ -950,19 +1058,25 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 <thead>
                     <tr>
                         <th style="width:30px;">No</th>
-                        <th style="width:120px;">グループ</th>
-                        <th>枠名（表示名）</th>
-                        <th style="width:160px;">適用期間（世代）</th>
-                        <th style="width:80px;">表示順</th>
-                        <th style="width:80px;">状態</th>
-                        <th style="width:100px;">操作</th>
+                        <th style="width:110px;">グループ</th>
+                        <th>枠名（表示名・背景色プレビュー）</th>
+                        <th style="width:225px;">背景色（一覧・印刷反映）</th>
+                        <th style="width:150px;">適用期間（世代）</th>
+                        <th style="width:70px;">表示順</th>
+                        <th style="width:75px;">状態</th>
+                        <th style="width:80px;">操作</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($waku_list)): ?>
-                        <tr><td colspan="7" class="empty-msg">この世代には時間枠が登録されていません</td></tr>
+                        <tr><td colspan="8" class="empty-msg">この世代には時間枠が登録されていません</td></tr>
                     <?php else: ?>
-                        <?php foreach ($waku_list as $i => $w): ?>
+                        <?php foreach ($waku_list as $i => $w): 
+                            $w_color = sanitizeWakuColor((string)($w['waku_color'] ?? ''));
+                            $is_preset_color = array_key_exists($w_color, $waku_color_presets);
+                            $name_bg_style = $w_color !== '' ? "background-color: {$w_color}; font-weight: 700; color: #0f172a;" : '';
+                            $select_bg_style = $w_color !== '' ? "background-color: {$w_color};" : 'background-color: #ffffff;';
+                        ?>
                             <tr style="<?= !$w['is_active'] ? 'opacity:0.55; background:#f8fafc;' : '' ?>">
                                 <td><?= $i+1 ?></td>
                                 <td>
@@ -976,7 +1090,26 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                                 </td>
                                 <td>
                                     <input type="hidden" name="waku_id[]" value="<?= $w['id'] ?>">
-                                    <input type="text" name="waku_name[]" value="<?= htmlspecialchars($w['waku_name'], ENT_QUOTES, 'UTF-8') ?>" class="input-text" required>
+                                    <input type="text" name="waku_name[]" value="<?= htmlspecialchars($w['waku_name'], ENT_QUOTES, 'UTF-8') ?>" class="input-text waku-name-input" style="<?= $name_bg_style ?>" required>
+                                </td>
+                                <td>
+                                    <div class="waku-color-control">
+                                        <input type="hidden" name="waku_color[]" class="waku-color-val" value="<?= htmlspecialchars($w_color, ENT_QUOTES, 'UTF-8') ?>">
+                                        <select class="input-text waku-color-preset" style="<?= $select_bg_style ?>" onchange="onWakuPresetChange(this)" title="プリセット背景色を選択">
+                                            <?php foreach ($waku_color_presets as $hex => $lbl): ?>
+                                                <option value="<?= htmlspecialchars($hex, ENT_QUOTES, 'UTF-8') ?>"
+                                                        style="background-color: <?= $hex !== '' ? $hex : '#ffffff' ?>; color: #0f172a; font-weight: 700;"
+                                                        <?= ($is_preset_color && $w_color === $hex) ? 'selected' : '' ?>>
+                                                    <?= htmlspecialchars($lbl, ENT_QUOTES, 'UTF-8') ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                            <option value="__custom__" style="background-color: #ffffff; color: #0f172a; font-weight: 700;" <?= (!$is_preset_color && $w_color !== '') ? 'selected' : '' ?>>
+                                                🎨 自由色<?= (!$is_preset_color && $w_color !== '') ? " ({$w_color})" : '...' ?>
+                                            </option>
+                                        </select>
+                                        <input type="color" class="waku-color-picker" value="<?= $w_color !== '' ? htmlspecialchars($w_color, ENT_QUOTES, 'UTF-8') : '#dbeafe' ?>" oninput="onWakuPickerChange(this)" onchange="onWakuPickerChange(this)" title="カラーピッカーで自由な背景色を選択">
+                                        <button type="button" class="btn-clear-color" onclick="clearWakuColor(this)" title="色なし（標準）に戻す">✕</button>
+                                    </div>
                                 </td>
                                 <td>
                                     <span style="display:inline-block; font-size:11.5px; font-weight:700; color:#1e40af; background:#eff6ff; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px;">
@@ -985,7 +1118,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                                 </td>
                                 <td><input type="number" name="display_order[]" value="<?= $w['display_order'] ?>" class="input-number" style="width:60px;"></td>
                                 <td>
-                                    <select name="is_active[]" class="input-text" style="width:80px;">
+                                    <select name="is_active[]" class="input-text" style="width:70px;">
                                         <option value="1" <?= $w['is_active'] ? 'selected' : '' ?>>有効</option>
                                         <option value="0" <?= !$w['is_active'] ? 'selected' : '' ?>>無効</option>
                                     </select>
@@ -1020,7 +1153,23 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 </select>
             </label>
             <label>枠名（表示名）:
-                <input type="text" name="waku_name" class="input-text" style="width:180px;" placeholder="例: TCF13:30① / GIF 10:30" required>
+                <input type="text" name="waku_name" class="input-text waku-name-input" style="width:170px;" placeholder="例: TCF13:30① / GIF 10:30" required>
+            </label>
+            <label>背景色:
+                <span class="waku-color-control">
+                    <input type="hidden" name="waku_color" class="waku-color-val" value="">
+                    <select class="input-text waku-color-preset" style="background-color:#ffffff;" onchange="onWakuPresetChange(this)" title="新規枠の背景色を選択">
+                        <?php foreach ($waku_color_presets as $hex => $lbl): ?>
+                            <option value="<?= htmlspecialchars($hex, ENT_QUOTES, 'UTF-8') ?>"
+                                    style="background-color: <?= $hex !== '' ? $hex : '#ffffff' ?>; color: #0f172a; font-weight: 700;">
+                                <?= htmlspecialchars($lbl, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <option value="__custom__" style="background-color:#ffffff; color:#0f172a; font-weight:700;">🎨 自由色...</option>
+                    </select>
+                    <input type="color" class="waku-color-picker" value="#dbeafe" oninput="onWakuPickerChange(this)" onchange="onWakuPickerChange(this)" title="カラーピッカーで自由な背景色を選択">
+                    <button type="button" class="btn-clear-color" onclick="clearWakuColor(this)" title="色なし（標準）に戻す">✕</button>
+                </span>
             </label>
             <label>表示順:
                 <input type="number" name="display_order" class="input-number" style="width:70px;" value="100" required>
@@ -1233,7 +1382,7 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
                 <input type="hidden" name="year" value="<?= $year ?>">
                 
                 <label style="font-weight: 700; color: #475569;">日付:</label>
-                <input type="text" name="target_date" id="target_date" class="onokai-date-picker" required autocomplete="off" placeholder="クリックして選択">
+                <input type="text" name="target_date" id="target_date" class="onokai-date-picker" data-compact="true" data-dark="true" required autocomplete="off" placeholder="クリックして選択">
                 
                 <label>医師:</label>
                 <select name="doctor_name" class="input-text" style="width:120px;" required>
@@ -1362,10 +1511,24 @@ $recent_slot_logs = getMasterAuditLogs($pdo, 'slot_master', 20);
 
 
 <script>
+function setSlotGenDate(inputId, dateStr) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    if (el._onokaiControl && typeof el._onokaiControl.setDate === 'function') {
+        el._onokaiControl.setDate(dateStr, true);
+    } else {
+        el.value = dateStr;
+    }
+}
+
 function initSlotMasterDatePicker() {
     if (window.OnokaiDatePicker) {
-        // 🌟 小野会日付ピッカー（角丸・西暦/和暦切替・特大Flatpickr）を出勤例外フォームにバインド
-        OnokaiDatePicker.bindControl('#target_date');
+        // 🌟 マスタメンテ用 小野会日付ピッカー（コンパクト＆ダークモード）を各日付フォームにバインド
+        const masterPickerOpts = { compact: true, dark: true };
+        OnokaiDatePicker.bindControl('#target_date', masterPickerOpts);
+        OnokaiDatePicker.bindControl('#split_date', masterPickerOpts);
+        OnokaiDatePicker.bindControl('#bulk_new_vf', masterPickerOpts);
+        OnokaiDatePicker.bindControl('#bulk_new_vt', masterPickerOpts);
     }
 }
 if (document.readyState === 'loading') {

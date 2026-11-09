@@ -1,7 +1,7 @@
 /**
- * assets/css/onokai_flatpickr.css
+ * /api/v1/calendar/onokai_flatpickr.css
  * 医療法人小野会 特大Flatpickr共通スタイルシート
- * 生成日時: 2026-10-20 23:15
+ * 更新日時: 2026-11-08 19:30
  * 
  * 修正履歴:
  *   - 2026-10-20: 初版作成（特大Flatpickr共通スタイル）
@@ -10,9 +10,16 @@
  *       2. .onokai-date-text-toggle: 西暦/和暦ワンクリック切替バッジ
  *       3. .onokai-date-calendar-icon-btn: 縦仕切り線付き📅アイコン
  *       4. HTML5 <dialog> Top Layer および disabled 時のスタイル完全対応
+ *   - 2026-11-08: 【カレンダーUI・表示オプション拡張】
+ *       1. フッター内「本日」日付移動ボタン (.onokai-fp-today-btn)
+ *       2. フッター内「小野会 / 一般」カレンダーモード切替ボタン (.onokai-fp-mode-switch)
+ *       3. 一般カレンダーモード時の土曜青ハイライト (.onokai-saturday) と木曜ヘッダー色制御 (.onokai-mode-general)
+ *       4. オプション対応: カレンダーコンパクト表示 (.onokai-compact)
+ *       5. オプション対応: ダークモード (.onokai-dark)
+ *       6. オプション対応: 日付表示〇（正円）モード (.onokai-circle)
  */
 
-/* ── Flatpickr 特大カレンダー共通デザイン ── */
+/* ── Flatpickr 特大カレンダー共通デザイン（デフォルト） ── */
 .flatpickr-calendar {
     width: 440px !important;
     max-width: 95vw !important;
@@ -74,10 +81,15 @@ span.flatpickr-weekday {
     color: #475569 !important;
 }
 
-/* 曜日ヘッダーカラー（日: 赤、木: 青、土: 青） */
+/* 曜日ヘッダーカラー（デフォルト小野会モード: 日=赤、木=青、土=青） */
 span.flatpickr-weekday:first-child { color: #dc2626 !important; }
 span.flatpickr-weekday:nth-child(5) { color: #2563eb !important; }
 span.flatpickr-weekday:last-child { color: #2563eb !important; }
+
+/* 一般カレンダーモード時は木曜ヘッダーを通常平日色に */
+.flatpickr-calendar.onokai-mode-general span.flatpickr-weekday:nth-child(5) {
+    color: #475569 !important;
+}
 
 .flatpickr-days {
     width: 100% !important;
@@ -90,6 +102,7 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     justify-content: space-around !important;
 }
 
+/* デフォルト日付セル（角丸四角） */
 .flatpickr-day {
     height: 52px !important;
     line-height: 50px !important;
@@ -107,7 +120,7 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     border-color: #38bdf8 !important;
 }
 
-/* 💡 小野会公休（日曜・祝日）: 赤（最優先） */
+/* 💡 小野会公休・祝日（日曜・祝日）: 赤（最優先） */
 .flatpickr-day.onokai-holiday {
     background: #ffe6e6 !important;
     color: #d9383a !important;
@@ -117,13 +130,15 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     background: #fecaca !important;
 }
 
-/* 💡 木曜: 青 */
-.flatpickr-day.onokai-thursday {
+/* 💡 木曜（小野会モード） / 土曜（一般カレンダーモード）: 青 */
+.flatpickr-day.onokai-thursday,
+.flatpickr-day.onokai-saturday {
     background: #e6f2ff !important;
     color: #2471a3 !important;
     border-color: #bfdbfe !important;
 }
-.flatpickr-day.onokai-thursday:hover {
+.flatpickr-day.onokai-thursday:hover,
+.flatpickr-day.onokai-saturday:hover {
     background: #dbeafe !important;
 }
 
@@ -148,6 +163,384 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     font-weight: 700 !important;
     color: #2563eb !important;
     margin-left: 4px;
+}
+
+/* ── カレンダー下部 リアルタイム和暦・曜日情報＋本日＆モード切替バー ── */
+.onokai-fp-footer {
+    border-top: 1px solid #e2e8f0;
+    margin-top: 8px;
+    padding-top: 8px;
+    padding-bottom: 2px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.onokai-fp-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.onokai-fp-footer-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-width: 0;
+}
+
+.onokai-fp-date-label {
+    color: #0f172a;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.onokai-fp-wareki-badge {
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 1px 7px;
+    border-radius: 4px;
+    border: 1px solid #bfdbfe;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.onokai-fp-status-badge {
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.onokai-fp-status-badge.holiday {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.onokai-fp-status-badge.sub-blue {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.onokai-fp-footer-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* 本日ボタン */
+.onokai-fp-today-btn {
+    appearance: none;
+    border: 1px solid #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    height: 22px;
+    line-height: 1;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.onokai-fp-today-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #1d4ed8;
+}
+
+/* 小野会 / 一般 モード切替セグメントボタン（コンパクト） */
+.onokai-fp-mode-switch {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 1px;
+    height: 22px;
+    box-sizing: border-box;
+}
+
+.onokai-fp-mode-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 0 6px;
+    height: 18px;
+    line-height: 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.onokai-fp-mode-btn:hover {
+    color: #0f172a;
+}
+.onokai-fp-mode-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+
+/* ============================================================================
+ * オプション1: カレンダーコンパクト表示 (.onokai-compact)
+ * ============================================================================ */
+.flatpickr-calendar.onokai-compact {
+    width: 310px !important;
+    padding: 6px !important;
+    border-radius: 10px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-months {
+    height: 36px !important;
+    padding-bottom: 2px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-current-month {
+    font-size: 14px !important;
+    padding: 2px 0 !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-monthDropdown-months,
+.flatpickr-calendar.onokai-compact .flatpickr-current-month input.cur-year {
+    font-size: 14px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-current-month .onokai-header-wareki {
+    font-size: 12px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-prev-month,
+.flatpickr-calendar.onokai-compact .flatpickr-next-month {
+    padding: 4px 8px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-prev-month svg,
+.flatpickr-calendar.onokai-compact .flatpickr-next-month svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-weekdays {
+    height: 28px !important;
+    margin-top: 2px !important;
+}
+
+.flatpickr-calendar.onokai-compact span.flatpickr-weekday {
+    font-size: 12px !important;
+}
+
+.flatpickr-calendar.onokai-compact .flatpickr-day {
+    height: 36px !important;
+    line-height: 34px !important;
+    max-width: 40px !important;
+    font-size: 13px !important;
+    border-radius: 6px !important;
+    margin: 1px !important;
+}
+
+.flatpickr-calendar.onokai-compact .onokai-fp-footer {
+    margin-top: 5px;
+    padding-top: 6px;
+}
+
+.flatpickr-calendar.onokai-compact .onokai-fp-footer-row {
+    font-size: 11px;
+    gap: 4px;
+}
+
+.flatpickr-calendar.onokai-compact .onokai-fp-wareki-badge,
+.flatpickr-calendar.onokai-compact .onokai-fp-status-badge {
+    font-size: 10px;
+    padding: 1px 5px;
+}
+
+/* ============================================================================
+ * オプション2: 日付表示〇（正円）モード (.onokai-circle)
+ * ============================================================================ */
+.flatpickr-calendar.onokai-circle .flatpickr-day {
+    border-radius: 50% !important;
+    width: 50px !important;
+    height: 50px !important;
+    line-height: 48px !important;
+    max-width: 50px !important;
+    margin: 2px auto !important;
+    padding: 0 !important;
+}
+
+.flatpickr-calendar.onokai-compact.onokai-circle .flatpickr-day {
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 34px !important;
+    max-width: 36px !important;
+    margin: 1px auto !important;
+    padding: 0 !important;
+}
+
+/* ============================================================================
+ * オプション3: ダークモード (.onokai-dark)
+ * ============================================================================ */
+.flatpickr-calendar.onokai-dark {
+    background: #0f172a !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+    color: #f8fafc !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-months {
+    border-bottom-color: #334155 !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-current-month,
+.flatpickr-calendar.onokai-dark .flatpickr-current-month .cur-month,
+.flatpickr-calendar.onokai-dark .flatpickr-monthDropdown-months,
+.flatpickr-calendar.onokai-dark .flatpickr-current-month input.cur-year {
+    color: #f8fafc !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-monthDropdown-months {
+    background: #1e293b !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-current-month .onokai-header-wareki {
+    color: #60a5fa !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-prev-month svg,
+.flatpickr-calendar.onokai-dark .flatpickr-next-month svg {
+    fill: #60a5fa !important;
+}
+
+.flatpickr-calendar.onokai-dark span.flatpickr-weekday {
+    color: #94a3b8 !important;
+}
+.flatpickr-calendar.onokai-dark span.flatpickr-weekday:first-child {
+    color: #f87171 !important;
+}
+.flatpickr-calendar.onokai-dark span.flatpickr-weekday:nth-child(5),
+.flatpickr-calendar.onokai-dark span.flatpickr-weekday:last-child {
+    color: #60a5fa !important;
+}
+.flatpickr-calendar.onokai-dark.onokai-mode-general span.flatpickr-weekday:nth-child(5) {
+    color: #94a3b8 !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day {
+    color: #e2e8f0 !important;
+    background: transparent !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day.prevMonthDay,
+.flatpickr-calendar.onokai-dark .flatpickr-day.nextMonthDay,
+.flatpickr-calendar.onokai-dark .flatpickr-day.flatpickr-disabled {
+    color: #475569 !important;
+    opacity: 0.45 !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day:hover {
+    background: #1e293b !important;
+    border-color: #38bdf8 !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day.onokai-holiday {
+    background: rgba(239, 68, 68, 0.22) !important;
+    color: #fca5a5 !important;
+    border-color: rgba(248, 113, 113, 0.45) !important;
+}
+.flatpickr-calendar.onokai-dark .flatpickr-day.onokai-holiday:hover {
+    background: rgba(239, 68, 68, 0.35) !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day.onokai-thursday,
+.flatpickr-calendar.onokai-dark .flatpickr-day.onokai-saturday {
+    background: rgba(59, 130, 246, 0.22) !important;
+    color: #93c5fd !important;
+    border-color: rgba(96, 165, 250, 0.45) !important;
+}
+.flatpickr-calendar.onokai-dark .flatpickr-day.onokai-thursday:hover,
+.flatpickr-calendar.onokai-dark .flatpickr-day.onokai-saturday:hover {
+    background: rgba(59, 130, 246, 0.35) !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day.today:not(.selected) {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.16) !important;
+    color: #38bdf8 !important;
+}
+
+.flatpickr-calendar.onokai-dark .flatpickr-day.selected,
+.flatpickr-calendar.onokai-dark .flatpickr-day.selected:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #60a5fa !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.55) !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-footer {
+    border-top-color: #334155 !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-date-label {
+    color: #f1f5f9 !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-wareki-badge {
+    background: #1e293b !important;
+    color: #93c5fd !important;
+    border-color: #3b82f6 !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-status-badge.holiday {
+    background: rgba(239, 68, 68, 0.25) !important;
+    color: #fca5a5 !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-status-badge.sub-blue {
+    background: rgba(59, 130, 246, 0.25) !important;
+    color: #93c5fd !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-today-btn {
+    background: #1e293b !important;
+    color: #93c5fd !important;
+    border-color: #3b82f6 !important;
+}
+.flatpickr-calendar.onokai-dark .onokai-fp-today-btn:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-mode-switch {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+.flatpickr-calendar.onokai-dark .onokai-fp-mode-btn {
+    color: #94a3b8 !important;
+}
+.flatpickr-calendar.onokai-dark .onokai-fp-mode-btn:hover {
+    color: #f8fafc !important;
+}
+.flatpickr-calendar.onokai-dark .onokai-fp-mode-btn.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
 }
 
 /* ── フォーム内デザイン崩れ防止ラッパー ── */
@@ -189,16 +582,6 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     color: #1e40af;
 }
 
-/* ── カレンダー下部 リアルタイム和暦・曜日情報バー ── */
-.onokai-fp-footer {
-    border-top: 1px solid #e2e8f0;
-    margin-top: 8px;
-    padding-top: 8px;
-    padding-bottom: 2px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
 /* ── 🌟 小野会日付ピッカー（Onokai Date Picker）共通コンポーネント ── */
 .onokai-date-control {
     display: inline-flex;
@@ -223,6 +606,25 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     background: #dbeafe;
     border-color: #2563eb;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.onokai-date-control.onokai-dark {
+    background: #1e293b;
+    border-color: #3b82f6;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.onokai-date-control.onokai-dark:hover {
+    background: #334155;
+    border-color: #60a5fa;
+}
+.onokai-date-control.onokai-dark .onokai-date-val-text {
+    color: #f8fafc;
+}
+.onokai-date-control.onokai-dark .onokai-date-calendar-icon-btn {
+    border-left-color: #334155;
+}
+.onokai-date-control.onokai-dark .onokai-date-calendar-icon-btn:hover {
+    background: #475569;
 }
 
 .onokai-date-control.disabled,
@@ -302,6 +704,3 @@ span.flatpickr-weekday:last-child { color: #2563eb !important; }
     border: none !important;
     background: none !important;
 }
-
-
-

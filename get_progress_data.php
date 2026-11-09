@@ -4,8 +4,11 @@
  * ファイル名: get_progress_data.php
  * 概要: 当日進捗ステータスモニタ用 リアルタイムデータ取得API (JSON)
  * 生成日時: 2026-09-28 19:05:00 JST
- * 更新日時: 2026-11-06
+ * 更新日時: 2026-11-08
  * 修正履歴:
+ *   - 2026-11-08: 【計画⑥ 内視鏡シート（t_endoscopy_sheet）双方向データ統合】
+ *       1. t_endoscopy_sheet を一括取得し、各患者データに sheet_summary（血圧・排便回数・使用薬剤・手技/生検・医師サイン・会計可・医事入力完了）を結合
+ *       2. サマリー集計に ready_accounting_count / billing_completed_count / sheet_entered_count を追加
  *   - 2026-11-06: 時間枠世代管理（valid_from 〜 valid_to）に対応。LEFT JOIN m2_waku にて検査日の世代を結合するよう改修。
  *   - 2026-10-26: 検査種別グループ判定・フィルタ条件を共通関数 resolveExamGroup() / getExamTypesByGroup() に一元化し、m_exam_type_group マスターと完全連動
  *   - 2026-10-23: 時間枠オーバーライド対応。waku_display_order で s.waku_no を優先し、枠名変更後や臨時枠のソート順崩れを防止
@@ -291,13 +294,22 @@ try {
     $stmt_patients->execute([':date' => $date_str]);
     $raw_patients = $stmt_patients->fetchAll(PDO::FETCH_ASSOC);
 
-    // 医療安全アラート一括取得
+    // 医療安全アラート ＆ 内視鏡シート（t_endoscopy_sheet）一括取得
     $all_sched_ids = [];
     foreach ($raw_patients as $rp) {
         $sid = (int)($rp['schedule_id'] ?? 0);
         if ($sid > 0) $all_sched_ids[] = $sid;
     }
     $medical_alerts_map = !empty($all_sched_ids) ? getMedicalAlertsMap($pdo, $all_sched_ids) : [];
+
+    $sheets_map = [];
+    if (!empty($all_sched_ids)) {
+        $in_placeholders = implode(',', array_map('intval', $all_sched_ids));
+        $stmt_sheets = $pdo->query("SELECT * FROM t_endoscopy_sheet WHERE schedule_id IN ({$in_placeholders})");
+        while ($s_row = $stmt_sheets->fetch(PDO::FETCH_ASSOC)) {
+            $sheets_map[(int)$s_row['schedule_id']] = $s_row;
+        }
+    }
 
     $patients = [];
     $summary = [
@@ -318,7 +330,10 @@ try {
         'sedation_count' => 0,
         'no_sedation_count' => 0,
         'waiting_count' => 0,
-        'exam_ready_count' => 0
+        'exam_ready_count' => 0,
+        'ready_accounting_count' => 0,  // 会計可（医事未入力）数
+        'billing_completed_count' => 0, // 医事・レセプト入力完了数
+        'sheet_entered_count' => 0      // シート記入あり数
     ];
 
     $now = new DateTime();
@@ -411,6 +426,17 @@ try {
             $summary['scope_cleaning_pending_count']++;
         }
 
+        // 内視鏡シートサマリ結合
+        $sheet_summary = buildSheetSummaryForMonitor($sheets_map[$sid] ?? null);
+        if ($sheet_summary['has_sheet']) {
+            $summary['sheet_entered_count']++;
+        }
+        if ($sheet_summary['is_billing_completed']) {
+            $summary['billing_completed_count']++;
+        } elseif ($sheet_summary['is_ready_accounting'] || $st_id >= 6) {
+            $summary['ready_accounting_count']++;
+        }
+
         $p['age'] = $age;
         $p['recovery_elapsed_minutes'] = $rec_elapsed;
         $p['wait_elapsed_minutes'] = $wait_elapsed;
@@ -419,6 +445,7 @@ try {
         $p['is_gif'] = $is_gif;
         $p['is_enema'] = $is_enema;
         $p['medical_alert'] = $alert_info;
+        $p['sheet_summary'] = $sheet_summary;
 
         $patients[] = $p;
     }

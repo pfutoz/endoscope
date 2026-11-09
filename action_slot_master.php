@@ -1,15 +1,16 @@
 <?php
 /**
  * 生成日時: 2026-09-29 14:34:00 JST
- * 更新日時: 2026-11-06
+ * 更新日時: 2026-11-08
  * 設置パス: c:\Apache24\htdocs\endoscope\action_slot_master.php
  * ファイル名: action_slot_master.php
- * 概要: 検査枠マスターメンテナンス アクション処理（時間枠世代管理・期間一括変更・監査ログ＆ワンクリック復元対応版）
+ * 概要: 検査枠マスターメンテナンス アクション処理（時間枠世代管理・期間一括変更・カラー設定・監査ログ＆ワンクリック復元対応版）
  * 
  * 修正履歴:
  *   - 2026-09-01: attendance_add / attendance_update で pattern_name が未選択（空）の場合でも空文字代入で NOT NULL 制約違反防止、過去日付登録防止バリデーション
  *   - 2026-09-29: 検査枠マスタ（医師、時間枠、枠数パターン、出勤例外）の変更差分を t_master_audit_log に自動記録する機能、ワンクリック復元（undo_slot_master）、履歴一括削除（clear_slot_audit_logs）を実装
  *   - 2026-11-06: 時間枠世代管理（valid_from 〜 valid_to）に対応。世代期間一括変更（waku_period_bulk_update・前後世代境界日の自動連動）、新世代作成・期間分割（waku_generation_split）、世代一括削除（waku_generation_delete）を実装。
+ *   - 2026-11-08: 基本時間枠（m2_waku）の背景色（waku_color）設定・更新・新規追加・新世代分割複製・監査ログ記録に対応。
  */
 ini_set('display_errors', "1");
 error_reporting(E_ALL);
@@ -32,6 +33,7 @@ try {
 }
 
 require_once __DIR__ . '/lib/master_audit_helper.php';
+require_once __DIR__ . '/lib/slot_helper.php';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $dept   = $_POST['dept'] ?? $_GET['dept'] ?? 'GASTRO';
@@ -198,6 +200,7 @@ try {
         $waku_ids        = $_POST['waku_id'] ?? [];
         $group_codes     = $_POST['group_code'] ?? [];
         $waku_names      = $_POST['waku_name'] ?? [];
+        $waku_colors     = $_POST['waku_color'] ?? [];
         $display_orders  = $_POST['display_order'] ?? [];
         $is_actives      = $_POST['is_active'] ?? [];
         $gen_from        = trim($_POST['gen_from'] ?? '');
@@ -214,6 +217,7 @@ try {
             UPDATE m2_waku
             SET group_code    = :grp,
                 waku_name     = :name,
+                waku_color    = :color,
                 display_order = :disp,
                 is_active     = :act,
                 updated_at    = CURRENT_TIMESTAMP
@@ -225,15 +229,17 @@ try {
         $diff_notes = [];
 
         for ($i = 0; $i < count($waku_ids); $i++) {
-            $id = (int)$waku_ids[$i];
-            $grp  = $group_codes[$i] ?? 'OTHER';
-            $name = trim($waku_names[$i] ?? '');
-            $disp = (int)($display_orders[$i] ?? 0);
-            $act  = !empty($is_actives[$i]);
+            $id    = (int)$waku_ids[$i];
+            $grp   = $group_codes[$i] ?? 'OTHER';
+            $name  = trim($waku_names[$i] ?? '');
+            $color = sanitizeWakuColor($waku_colors[$i] ?? '');
+            $disp  = (int)($display_orders[$i] ?? 0);
+            $act   = !empty($is_actives[$i]);
 
             if (isset($cur_waku[$id])) {
                 $cur = $cur_waku[$id];
-                $has_change = ($cur['group_code'] !== $grp || $cur['waku_name'] !== $name || (int)$cur['display_order'] !== $disp || (bool)$cur['is_active'] !== $act);
+                $cur_color = sanitizeWakuColor((string)($cur['waku_color'] ?? ''));
+                $has_change = ($cur['group_code'] !== $grp || $cur['waku_name'] !== $name || $cur_color !== $color || (int)$cur['display_order'] !== $disp || (bool)$cur['is_active'] !== $act);
 
                 if ($has_change) {
                     $old_data[] = $cur;
@@ -242,21 +248,24 @@ try {
                         'department_code' => $dept,
                         'group_code'      => $grp,
                         'waku_name'       => $name,
+                        'waku_color'      => $color,
                         'display_order'   => $disp,
                         'is_active'       => $act,
                         'valid_from'      => $cur['valid_from'] ?? '1900-01-01',
                         'valid_to'        => $cur['valid_to'] ?? '9999-12-31',
                     ];
-                    $diff_notes[] = "「{$cur['waku_name']}」➔「{$name}」(G:{$grp}, 順:{$disp}, 有効:{$act})";
+                    $color_note = ($cur_color !== $color) ? ", 色:" . ($cur_color ?: 'なし') . "➔" . ($color ?: 'なし') : '';
+                    $diff_notes[] = "「{$cur['waku_name']}」➔「{$name}」(G:{$grp}, 順:{$disp}, 有効:{$act}{$color_note})";
                 }
             }
 
             $stmt->execute([
-                ':grp'  => $grp,
-                ':name' => $name,
-                ':disp' => $disp,
-                ':act'  => $act ? 'TRUE' : 'FALSE',
-                ':id'   => $id
+                ':grp'   => $grp,
+                ':name'  => $name,
+                ':color' => $color,
+                ':disp'  => $disp,
+                ':act'   => $act ? 'TRUE' : 'FALSE',
+                ':id'    => $id
             ]);
         }
 
@@ -283,6 +292,7 @@ try {
         $group_code    = trim($_POST['group_code'] ?? '');
         $waku_name     = trim($_POST['waku_name'] ?? '');
         $waku_code     = trim($_POST['waku_code'] ?? '');
+        $waku_color    = sanitizeWakuColor($_POST['waku_color'] ?? '');
         $display_order = (int)($_POST['display_order'] ?? 0);
         $valid_from    = trim($_POST['valid_from'] ?? '1900-01-01');
         $valid_to      = trim($_POST['valid_to'] ?? '9999-12-31');
@@ -297,18 +307,19 @@ try {
         }
 
         $stmt = $pdo->prepare("
-            INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
-            VALUES (:dept, :grp, :code, :name, :disp, TRUE, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, waku_color, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+            VALUES (:dept, :grp, :code, :name, :color, :disp, TRUE, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         ");
         $stmt->execute([
-            ':dept' => $dept,
-            ':grp'  => $group_code,
-            ':code' => $waku_code,
-            ':name' => $waku_name,
-            ':disp' => $display_order,
-            ':vf'   => $valid_from,
-            ':vt'   => $valid_to,
+            ':dept'  => $dept,
+            ':grp'   => $group_code,
+            ':code'  => $waku_code,
+            ':name'  => $waku_name,
+            ':color' => $waku_color,
+            ':disp'  => $display_order,
+            ':vf'    => $valid_from,
+            ':vt'    => $valid_to,
         ]);
         $new_id = (int)$stmt->fetchColumn();
 
@@ -320,8 +331,8 @@ try {
             (string)$new_id,
             $waku_name,
             null,
-            ['id' => $new_id, 'department_code' => $dept, 'group_code' => $group_code, 'waku_code' => $waku_code, 'waku_name' => $waku_name, 'display_order' => $display_order, 'valid_from' => $valid_from, 'valid_to' => $valid_to],
-            "時間枠追加: 「{$waku_name}」(科: {$dept}, 期間: {$valid_from}〜{$valid_to}, グループ: {$group_code}, 表示順: {$display_order})"
+            ['id' => $new_id, 'department_code' => $dept, 'group_code' => $group_code, 'waku_code' => $waku_code, 'waku_name' => $waku_name, 'waku_color' => $waku_color, 'display_order' => $display_order, 'valid_from' => $valid_from, 'valid_to' => $valid_to],
+            "時間枠追加: 「{$waku_name}」(科: {$dept}, 期間: {$valid_from}〜{$valid_to}, グループ: {$group_code}, 色: " . ($waku_color ?: 'なし') . ", 表示順: {$display_order})"
         );
 
         $gen_qs = "&gen_from=" . urlencode($valid_from) . "&gen_to=" . urlencode($valid_to);
@@ -543,23 +554,24 @@ try {
                 ':vt'       => $src_vt,
             ]);
 
-            // 2. 新世代（split_date 〜 src_vt）として全枠を複製挿入
+            // 2. 新世代（split_date 〜 src_vt）として全枠を複製挿入（waku_color も継承）
             $stmt_ins = $pdo->prepare("
-                INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
-                VALUES (:dept, :grp, :code, :name, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, waku_color, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+                VALUES (:dept, :grp, :code, :name, :color, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 RETURNING id
             ");
             $inserted_ids = [];
             foreach ($src_rows as $r) {
                 $stmt_ins->execute([
-                    ':dept' => $r['department_code'],
-                    ':grp'  => $r['group_code'],
-                    ':code' => $r['waku_code'],
-                    ':name' => $r['waku_name'],
-                    ':disp' => (int)$r['display_order'],
-                    ':act'  => !empty($r['is_active']) ? 'TRUE' : 'FALSE',
-                    ':vf'   => $split_date,
-                    ':vt'   => $src_vt,
+                    ':dept'  => $r['department_code'],
+                    ':grp'   => $r['group_code'],
+                    ':code'  => $r['waku_code'],
+                    ':name'  => $r['waku_name'],
+                    ':color' => sanitizeWakuColor((string)($r['waku_color'] ?? '')),
+                    ':disp'  => (int)$r['display_order'],
+                    ':act'   => !empty($r['is_active']) ? 'TRUE' : 'FALSE',
+                    ':vf'    => $split_date,
+                    ':vt'    => $src_vt,
                 ]);
                 $inserted_ids[] = (int)$stmt_ins->fetchColumn();
             }

@@ -1,7 +1,7 @@
 <?php
 /**
  * 生成日時: 2026-09-29 14:31:00 JST
- * 更新日時: 2026-11-06
+ * 更新日時: 2026-11-08
  * 設置パス: c:\Apache24\htdocs\endoscope\lib\master_audit_helper.php
  * ファイル名: master_audit_helper.php
  * 概要: マスタ変更監査ログ（Audit Log）＆ ワンクリック復元（Undo）ライブラリ
@@ -9,6 +9,7 @@
  * 修正履歴:
  *   - 2026-09-29: 新規作成。汎用マスタ（m_input_master）および検査枠マスタ（m2_doctor, m2_waku, m2_doctor_slot_pattern, m2_doctor_attendance）の変更差分記録、ワンクリックUndo（復元）、履歴一括削除に対応。
  *   - 2026-11-06: 時間枠マスタ（m2_waku）の世代管理カラム（valid_from, valid_to）および世代分割・一括削除のUndo復元に対応。
+ *   - 2026-11-08: 時間枠マスタ（m2_waku）の背景色（waku_color）カラムのUndo復元に対応。
  */
 
 /**
@@ -277,38 +278,40 @@ function undoMasterAuditLog(PDO $pdo, int $log_id): string {
         } elseif ($action_type === 'delete') {
             if ($old_data && isset($old_data['waku_name'])) {
                 $ins = $pdo->prepare("
-                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
-                    VALUES (:dept, :grp, :code, :name, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, waku_color, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+                    VALUES (:dept, :grp, :code, :name, :color, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ");
                 $ins->execute([
-                    ':dept' => $old_data['department_code'] ?? 'GASTRO',
-                    ':grp'  => $old_data['group_code'] ?? 'OTHER',
-                    ':code' => $old_data['waku_code'] ?? '',
-                    ':name' => $old_data['waku_name'],
-                    ':disp' => (int)($old_data['display_order'] ?? 0),
-                    ':act'  => !empty($old_data['is_active']) ? 'TRUE' : 'FALSE',
-                    ':vf'   => $old_data['valid_from'] ?? '1900-01-01',
-                    ':vt'   => $old_data['valid_to'] ?? '9999-12-31',
+                    ':dept'  => $old_data['department_code'] ?? 'GASTRO',
+                    ':grp'   => $old_data['group_code'] ?? 'OTHER',
+                    ':code'  => $old_data['waku_code'] ?? '',
+                    ':name'  => $old_data['waku_name'],
+                    ':color' => (string)($old_data['waku_color'] ?? ''),
+                    ':disp'  => (int)($old_data['display_order'] ?? 0),
+                    ':act'   => !empty($old_data['is_active']) ? 'TRUE' : 'FALSE',
+                    ':vf'    => $old_data['valid_from'] ?? '1900-01-01',
+                    ':vt'    => $old_data['valid_to'] ?? '9999-12-31',
                 ]);
                 $restore_msg = "時間枠削除を取り消しました（「{$old_data['waku_name']}」を復元）";
             } elseif (is_array($old_data)) {
                 // 世代一括削除の取り消し
                 $ins = $pdo->prepare("
-                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, display_order, is_active, valid_from, valid_to, created_at, updated_at)
-                    VALUES (:dept, :grp, :code, :name, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO m2_waku (department_code, group_code, waku_code, waku_name, waku_color, display_order, is_active, valid_from, valid_to, created_at, updated_at)
+                    VALUES (:dept, :grp, :code, :name, :color, :disp, :act, :vf, :vt, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ");
                 $cnt = 0;
                 foreach ($old_data as $row) {
                     if (isset($row['waku_name'])) {
                         $ins->execute([
-                            ':dept' => $row['department_code'] ?? 'GASTRO',
-                            ':grp'  => $row['group_code'] ?? 'OTHER',
-                            ':code' => $row['waku_code'] ?? '',
-                            ':name' => $row['waku_name'],
-                            ':disp' => (int)($row['display_order'] ?? 0),
-                            ':act'  => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
-                            ':vf'   => $row['valid_from'] ?? '1900-01-01',
-                            ':vt'   => $row['valid_to'] ?? '9999-12-31',
+                            ':dept'  => $row['department_code'] ?? 'GASTRO',
+                            ':grp'   => $row['group_code'] ?? 'OTHER',
+                            ':code'  => $row['waku_code'] ?? '',
+                            ':name'  => $row['waku_name'],
+                            ':color' => (string)($row['waku_color'] ?? ''),
+                            ':disp'  => (int)($row['display_order'] ?? 0),
+                            ':act'   => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
+                            ':vf'    => $row['valid_from'] ?? '1900-01-01',
+                            ':vt'    => $row['valid_to'] ?? '9999-12-31',
                         ]);
                         $cnt++;
                     }
@@ -322,6 +325,7 @@ function undoMasterAuditLog(PDO $pdo, int $log_id): string {
                     UPDATE m2_waku 
                     SET group_code = :grp,
                         waku_name = :name,
+                        waku_color = :color,
                         display_order = :disp,
                         is_active = :act,
                         valid_from = :vf,
@@ -332,13 +336,14 @@ function undoMasterAuditLog(PDO $pdo, int $log_id): string {
                 foreach ($old_data as $row) {
                     if (isset($row['id'])) {
                         $upd->execute([
-                            ':grp'  => $row['group_code'],
-                            ':name' => $row['waku_name'],
-                            ':disp' => (int)($row['display_order'] ?? 0),
-                            ':act'  => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
-                            ':vf'   => $row['valid_from'] ?? '1900-01-01',
-                            ':vt'   => $row['valid_to'] ?? '9999-12-31',
-                            ':id'   => (int)$row['id']
+                            ':grp'   => $row['group_code'],
+                            ':name'  => $row['waku_name'],
+                            ':color' => (string)($row['waku_color'] ?? ''),
+                            ':disp'  => (int)($row['display_order'] ?? 0),
+                            ':act'   => !empty($row['is_active']) ? 'TRUE' : 'FALSE',
+                            ':vf'    => $row['valid_from'] ?? '1900-01-01',
+                            ':vt'    => $row['valid_to'] ?? '9999-12-31',
+                            ':id'    => (int)$row['id']
                         ]);
                     }
                 }
